@@ -24,7 +24,6 @@ F	log [F]unction SSA code.
 S	log [S]ource locations as SSA builder progresses.
 G	use binary object files from gc to provide imports (no code).
 L	build distinct packages seria[L]ly instead of in parallel.
-N	build [N]aive SSA form: don't replace local loads/stores with registers.
 `)
 
 var runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
@@ -54,6 +53,8 @@ func main() {
 	impctx := importer.Context{Loader: importer.MakeGoBuildLoader(nil)}
 
 	var mode ssa.BuilderMode
+	mode |= ssa.NaiveForm
+
 	for _, c := range *buildFlag {
 		switch c {
 		case 'P':
@@ -64,8 +65,6 @@ func main() {
 			mode |= ssa.LogSource | ssa.BuildSerially
 		case 'C':
 			mode |= ssa.SanityCheckFunctions
-		case 'N':
-			mode |= ssa.NaiveForm
 		case 'G':
 			impctx.Loader = nil
 		case 'L':
