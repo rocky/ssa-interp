@@ -180,7 +180,7 @@ func CanonicalPos(n ast.Node) token.Pos {
 		return n.NamePos // *Parameter, *Alloc, *Capture
 
 	case *ast.TypeAssertExpr:
-		return n.X // *ChangeInterface or *TypeAssertExpr
+		return n.X.Pos() // rocky: until Lparen is there
 		// return n.Lparen // *ChangeInterface or *TypeAssertExpr
 
 	case *ast.SelectorExpr:

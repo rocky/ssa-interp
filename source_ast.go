@@ -430,10 +430,12 @@ func childrenOf(n ast.Node) []ast.Node {
 		children = append(children, tok(n.Switch, len("switch")))
 
 	case *ast.TypeAssertExpr:
-		children = append(children,
-			tok(n.Lparen-1, len(".")),
-			tok(n.Lparen, len("(")),
-			tok(n.Rparen, len(")")))
+		// rocky: until parens are there
+		// children = append(children,
+		// 	tok(n.Lparen-1, len(".")),
+		// 	tok(n.Lparen, len("(")),
+		// 	tok(n.Rparen, len(")"))
+		// )
 
 	case *ast.TypeSpec:
 		// TODO(adonovan): TypeSpec.{Doc,Comment}?

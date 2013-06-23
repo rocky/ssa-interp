@@ -230,7 +230,9 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 		tuple = fn.emit(lookup)
 
 	case *ast.TypeAssertExpr:
-		return emitTypeTest(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
+		// rocky: Until Lparen exists...
+		return emitTypeTest(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.X.Pos())
+		//return emitTypeTest(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
 
 	case *ast.UnaryExpr: // must be receive <-
 		typ = fn.Pkg.typeOf(e.X).Underlying().(*types.Chan).Elem()
@@ -618,7 +620,9 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		return b.expr(fn, e.X)
 
 	case *ast.TypeAssertExpr: // single-result form only
-		return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
+		// rocky: Until Lparen exists...
+		return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.X.Pos())
+		//return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
 
 	case *ast.CallExpr:
 		typ := fn.Pkg.typeOf(e)
