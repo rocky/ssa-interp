@@ -8,6 +8,9 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
+const (
+	debugMe bool = false
+)
 // emitNew emits to f a new (heap Alloc) instruction allocating an
 // object of type typ.  pos is the optional source location.
 //
@@ -239,7 +242,11 @@ func emitIf(f *Function, cond Value, tblock, fblock *BasicBlock) {
 func emitTrace(f *Function, event TraceEvent, start token.Pos, end token.Pos) Value {
 	t := &Trace{Event: event, Start: start, End: end}
 	// fmt.Printf("event %s StartPos %d EndPos %d\n", Event2Name[event])
-	fmt.Printf("Emitting event %s\n", Event2Name[event])
+	fset := f.Prog.Files
+	if (debugMe) {
+		fmt.Printf("Emitting event %s\n\tFrom: %s\n\tTo: %s\n",
+			Event2Name[event], fset.Position(start), fset.Position(end)	)
+	}
 	return f.emit(t)
 }
 
