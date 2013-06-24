@@ -1589,5 +1589,4 @@ func (v *UnOp) Operands(rands []*Value) []*Value {
 
 func (v *Trace) Operands(rands []*Value) []*Value {
 	return rands
-	// return append(rands, &v.Start, &v.End)
 }

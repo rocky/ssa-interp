@@ -309,7 +309,12 @@ func visitInstr(fr *frame, instr ssa2.Instruction) continuation {
 
 	case *ssa2.Trace:
 		if fr.i.mode&EnableStmtTracing != 0 {
-			fmt.Printf("trace for %s\n", ssa2.Event2Name[instr.Event]);
+			fset := fr.fn.Prog.Files
+			fmt.Printf("trace for %s\n\tstart %s\n\tend: %s\n",
+				ssa2.Event2Name[instr.Event],
+				fset.Position(instr.Start).String(),
+				fset.Position(instr.End).String(),
+			);
 		}
 
 	case *ssa2.MakeClosure:
