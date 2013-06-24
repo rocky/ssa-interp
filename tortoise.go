@@ -11,8 +11,8 @@ import (
 	"os"
 	"runtime/pprof"
 	"code.google.com/p/go.tools/importer"
-	"ssa2"
-	"ssa2/interp"
+	"ssa-interp"
+	"ssa-interp/interp"
 )
 
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
@@ -51,23 +51,23 @@ func main() {
 
 	impctx := importer.Context{Loader: importer.MakeGoBuildLoader(nil)}
 
-	var mode ssa.BuilderMode
-	mode |= ssa.NaiveForm
+	var mode ssa2.BuilderMode
+	mode |= ssa2.NaiveForm
 
 	for _, c := range *buildFlag {
 		switch c {
 		case 'P':
-			mode |= ssa.LogPackages | ssa.BuildSerially
+			mode |= ssa2.LogPackages | ssa2.BuildSerially
 		case 'F':
-			mode |= ssa.LogFunctions | ssa.BuildSerially
+			mode |= ssa2.LogFunctions | ssa2.BuildSerially
 		case 'S':
-			mode |= ssa.LogSource | ssa.BuildSerially
+			mode |= ssa2.LogSource | ssa2.BuildSerially
 		case 'C':
-			mode |= ssa.SanityCheckFunctions
+			mode |= ssa2.SanityCheckFunctions
 		case 'G':
 			impctx.Loader = nil
 		case 'L':
-			mode |= ssa.BuildSerially
+			mode |= ssa2.BuildSerially
 		default:
 			log.Fatalf("Unknown -build option: '%c'.", c)
 		}
@@ -108,7 +108,7 @@ func main() {
 	}
 
 	// Create and build SSA-form program representation.
-	prog := ssa.NewProgram(imp.Fset, mode)
+	prog := ssa2.NewProgram(imp.Fset, mode)
 	prog.CreatePackages(imp)
 	prog.BuildAll()
 

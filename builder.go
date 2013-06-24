@@ -1684,7 +1684,6 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	//      ...post...
 	//      jump loop
 	// done:                                 (target of break)
-	fmt.Println("YEY")
 	emitTrace(fn, FOR_INIT, token.NoPos)
 	if s.Init != nil {
 		b.stmt(fn, s.Init)
@@ -2319,7 +2318,6 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 //
 func (prog *Program) BuildAll() {
 	var wg sync.WaitGroup
-	fmt.Println("+++BuildAll called\n")
 	for _, p := range prog.Packages {
 		if prog.mode&BuildSerially != 0 {
 			p.Build()

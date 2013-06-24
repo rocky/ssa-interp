@@ -237,7 +237,7 @@ func emitIf(f *Function, cond Value, tblock, fblock *BasicBlock) {
 // So instead we make it it's own instruction.
 
 func emitTrace(f *Function, event TraceEvent, pos token.Pos) Value {
-	fmt.Printf("++++ emitTrace called with %d\n", event);
+	if false { fmt.Printf("++++ emitTrace called with %d\n", event); }
 	t := &Trace{Event: event}
 	return f.emit(t)
 }

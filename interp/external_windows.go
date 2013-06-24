@@ -7,7 +7,7 @@
 package interp
 
 import (
-	"code.google.com/p/go.tools/ssa"
+	"ssa-interp"
 )
 
 func ext۰syscall۰Close(fn *ssa.Function, args []value) value {

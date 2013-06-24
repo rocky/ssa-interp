@@ -9,7 +9,8 @@ import (
 
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/ssa"
+
+	"ssa-interp"
 )
 
 // If the target program panics, the interpreter panics with this type.
@@ -22,7 +23,7 @@ type exitPanic int
 
 // literalValue returns the value of the literal with the
 // dynamic type tag appropriate for l.Type().
-func literalValue(l *ssa.Literal) value {
+func literalValue(l *ssa2.Literal) value {
 	if l.IsNil() {
 		return zero(l.Type()) // typed nil
 	}
@@ -158,7 +159,7 @@ func zero(t types.Type) value {
 			panic("untyped nil has no zero value")
 		}
 		if t.Info()&types.IsUntyped != 0 {
-			t = ssa.DefaultType(t).(*types.Basic)
+			t = ssa2.DefaultType(t).(*types.Basic)
 		}
 		switch t.Kind() {
 		case types.Bool:
@@ -228,7 +229,7 @@ func zero(t types.Type) value {
 		}
 		return (*hashmap)(nil)
 	case *types.Signature:
-		return (*ssa.Function)(nil)
+		return (*ssa2.Function)(nil)
 	}
 	panic(fmt.Sprint("zero: unexpected ", t))
 }
@@ -261,7 +262,7 @@ func slice(x, lo, hi value) value {
 }
 
 // lookup returns x[idx] where x is a map or string.
-func lookup(instr *ssa.Lookup, x, idx value) value {
+func lookup(instr *ssa2.Lookup, x, idx value) value {
 	switch x := x.(type) { // map or string
 	case map[value]value, *hashmap:
 		var v value
@@ -753,7 +754,7 @@ func binop(op token.Token, x, y value) value {
 	panic(fmt.Sprintf("invalid binary op: %T %s %T", x, op, y))
 }
 
-func unop(instr *ssa.UnOp, x value) value {
+func unop(instr *ssa2.UnOp, x value) value {
 	switch instr.Op {
 	case token.ARROW: // receive
 		v, ok := <-x.(chan value)
@@ -830,7 +831,7 @@ func unop(instr *ssa.UnOp, x value) value {
 // It returns the extracted value on success, and panics on failure,
 // unless instr.CommaOk, in which case it always returns a "value,ok" tuple.
 //
-func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
+func typeAssert(i *interpreter, instr *ssa2.TypeAssert, itf iface) value {
 	var v value
 	err := ""
 	if idst, ok := instr.AssertedType.Underlying().(*types.Interface); ok {
@@ -858,7 +859,7 @@ func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
 
 // callBuiltin interprets a call to builtin fn with arguments args,
 // returning its result.
-func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value) value {
+func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []value) value {
 	switch fn.Name() {
 	case "append":
 		if len(args) == 1 {
@@ -977,7 +978,7 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value
 		}
 
 	case "panic":
-		// ssa.Panic handles most cases; this is only for "go
+		// ssa2.Panic handles most cases; this is only for "go
 		// panic" or "defer panic".
 		panic(targetPanic{args[0]})
 
@@ -1089,7 +1090,7 @@ func widen(x value) value {
 
 // conv converts the value x of type t_src to type t_dst and returns
 // the result.
-// Possible cases are described with the ssa.Convert operator.
+// Possible cases are described with the ssa2.Convert operator.
 //
 func conv(t_dst, t_src types.Type, x value) value {
 	ut_src := t_src.Underlying()
@@ -1325,7 +1326,7 @@ func checkInterface(i *interpreter, itype *types.Interface, x iface) string {
 	it := itype.Underlying().(*types.Interface)
 	for i, n := 0, it.NumMethods(); i < n; i++ {
 		m := it.Method(i)
-		id := ssa.MakeId(m.Name(), m.Pkg())
+		id := ssa2.MakeId(m.Name(), m.Pkg())
 		if mset[id] == nil {
 			return fmt.Sprintf("interface conversion: %v is not %v: missing method %v", x.t, itype, id)
 		}

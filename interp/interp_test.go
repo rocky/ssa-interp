@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"code.google.com/p/go.tools/importer"
-	"code.google.com/p/go.tools/ssa"
-	"code.google.com/p/go.tools/ssa/interp"
+	"ssa-interp"
+	"ssa-interp/interp"
 )
 
 // Each line contains a space-separated list of $GOROOT/test/
@@ -149,7 +149,7 @@ func run(t *testing.T, dir, input string) bool {
 	imp := importer.New(impctx)
 	files, err := importer.ParseFiles(imp.Fset, ".", inputs...)
 	if err != nil {
-		t.Errorf("ssa.ParseFiles(%s) failed: %s", inputs, err.Error())
+		t.Errorf("ssa2.ParseFiles(%s) failed: %s", inputs, err.Error())
 		return false
 	}
 
@@ -167,11 +167,11 @@ func run(t *testing.T, dir, input string) bool {
 	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go run exp/ssa/ssadump.go -build=CFP %s\n", input)
 	info, err := imp.CreateSourcePackage("main", files)
 	if err != nil {
-		t.Errorf("ssa.Builder.CreatePackage(%s) failed: %s", inputs, err.Error())
+		t.Errorf("ssa2.Builder.CreatePackage(%s) failed: %s", inputs, err.Error())
 		return false
 	}
 
-	prog := ssa.NewProgram(imp.Fset, ssa.SanityCheckFunctions)
+	prog := ssa2.NewProgram(imp.Fset, ssa2.SanityCheckFunctions)
 	prog.CreatePackages(imp)
 	prog.BuildAll()
 

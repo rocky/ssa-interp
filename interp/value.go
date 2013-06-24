@@ -16,8 +16,8 @@ package interp
 // - structure --- structs.  Fields are ordered and accessed by numeric indices.
 // - array --- arrays.
 // - *value --- pointers.  Careful: *value is a distinct type from *array etc.
-// - *ssa.Function \
-//   *ssa.Builtin   } --- functions.
+// - *ssa2.Function \
+//   *ssa2.Builtin   } --- functions.
 //   *closure      /
 // - tuple --- as returned by Ret, Next, "value,ok" modes, etc.
 // - iter --- iterators from 'range' over map or string.
@@ -38,7 +38,7 @@ import (
 	"unsafe"
 
 	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/ssa"
+	"ssa-interp"
 )
 
 type value interface{}
@@ -62,7 +62,7 @@ type iter interface {
 }
 
 type closure struct {
-	Fn  *ssa.Function
+	Fn  *ssa2.Function
 	Env []value
 }
 
@@ -230,7 +230,7 @@ func equals(x, y value) bool {
 		return x == y.(*hashmap)
 	case map[value]value:
 		return (x != nil) == (y.(map[value]value) != nil)
-	case *ssa.Function, *closure:
+	case *ssa2.Function, *closure:
 		return x == y
 	case []value:
 		return (x != nil) == (y.([]value) != nil)
@@ -311,7 +311,7 @@ func copyVal(v value) value {
 		return v
 	case *value:
 		return v
-	case *ssa.Function, *ssa.Builtin, *closure:
+	case *ssa2.Function, *ssa2.Builtin, *closure:
 		return v
 	case iface:
 		return v
@@ -411,7 +411,7 @@ func toWriter(w io.Writer, v value) {
 		}
 		io.WriteString(w, "]")
 
-	case *ssa.Function, *ssa.Builtin, *closure:
+	case *ssa2.Function, *ssa2.Builtin, *closure:
 		fmt.Fprintf(w, "%p", v) // (an address)
 
 	case rtype:

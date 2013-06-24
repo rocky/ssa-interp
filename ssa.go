@@ -1127,7 +1127,7 @@ type MapUpdate struct {
 type TraceEvent int
 const (
 	OTHER TraceEvent = 0
-	STATEMENT TraceEvent = 0
+	STATEMENT TraceEvent = 1
 	EXPR = (iota -1 )  << 1
 	IF_EXPR
 	FOR_INIT

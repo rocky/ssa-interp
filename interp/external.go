@@ -14,10 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"code.google.com/p/go.tools/ssa"
+	"ssa-interp"
 )
 
-type externalFn func(fn *ssa.Function, args []value) value
+type externalFn func(fn *ssa2.Function, args []value) value
 
 // TODO(adonovan): fix: reflect.Value abstracts an lvalue or an
 // rvalue; Set() causes mutations that can be observed via aliases.
@@ -97,7 +97,7 @@ func wrapError(err error) value {
 	return iface{t: errorType, v: err.Error()}
 }
 
-func ext۰bytes۰Equal(fn *ssa.Function, args []value) value {
+func ext۰bytes۰Equal(fn *ssa2.Function, args []value) value {
 	// func Equal(a, b []byte) bool
 	a := args[0].([]value)
 	b := args[1].([]value)
@@ -112,7 +112,7 @@ func ext۰bytes۰Equal(fn *ssa.Function, args []value) value {
 	return true
 }
 
-func ext۰bytes۰IndexByte(fn *ssa.Function, args []value) value {
+func ext۰bytes۰IndexByte(fn *ssa2.Function, args []value) value {
 	// func IndexByte(s []byte, c byte) int
 	s := args[0].([]value)
 	c := args[1].(byte)
@@ -124,73 +124,73 @@ func ext۰bytes۰IndexByte(fn *ssa.Function, args []value) value {
 	return -1
 }
 
-func ext۰math۰Float64frombits(fn *ssa.Function, args []value) value {
+func ext۰math۰Float64frombits(fn *ssa2.Function, args []value) value {
 	return math.Float64frombits(args[0].(uint64))
 }
 
-func ext۰math۰Float64bits(fn *ssa.Function, args []value) value {
+func ext۰math۰Float64bits(fn *ssa2.Function, args []value) value {
 	return math.Float64bits(args[0].(float64))
 }
 
-func ext۰math۰Float32frombits(fn *ssa.Function, args []value) value {
+func ext۰math۰Float32frombits(fn *ssa2.Function, args []value) value {
 	return math.Float32frombits(args[0].(uint32))
 }
 
-func ext۰math۰Float32bits(fn *ssa.Function, args []value) value {
+func ext۰math۰Float32bits(fn *ssa2.Function, args []value) value {
 	return math.Float32bits(args[0].(float32))
 }
 
-func ext۰runtime۰Breakpoint(fn *ssa.Function, args []value) value {
+func ext۰runtime۰Breakpoint(fn *ssa2.Function, args []value) value {
 	runtime.Breakpoint()
 	return nil
 }
 
-func ext۰runtime۰getgoroot(fn *ssa.Function, args []value) value {
+func ext۰runtime۰getgoroot(fn *ssa2.Function, args []value) value {
 	return os.Getenv("GOROOT")
 }
 
-func ext۰runtime۰GOMAXPROCS(fn *ssa.Function, args []value) value {
+func ext۰runtime۰GOMAXPROCS(fn *ssa2.Function, args []value) value {
 	return runtime.GOMAXPROCS(args[0].(int))
 }
 
-func ext۰runtime۰GC(fn *ssa.Function, args []value) value {
+func ext۰runtime۰GC(fn *ssa2.Function, args []value) value {
 	runtime.GC()
 	return nil
 }
 
-func ext۰runtime۰Gosched(fn *ssa.Function, args []value) value {
+func ext۰runtime۰Gosched(fn *ssa2.Function, args []value) value {
 	runtime.Gosched()
 	return nil
 }
 
-func ext۰runtime۰ReadMemStats(fn *ssa.Function, args []value) value {
+func ext۰runtime۰ReadMemStats(fn *ssa2.Function, args []value) value {
 	// TODO(adonovan): populate args[0].(Struct)
 	return nil
 }
 
-func ext۰atomic۰LoadUint32(fn *ssa.Function, args []value) value {
+func ext۰atomic۰LoadUint32(fn *ssa2.Function, args []value) value {
 	// TODO(adonovan): fix: not atomic!
 	return (*args[0].(*value)).(uint32)
 }
 
-func ext۰atomic۰StoreUint32(fn *ssa.Function, args []value) value {
+func ext۰atomic۰StoreUint32(fn *ssa2.Function, args []value) value {
 	// TODO(adonovan): fix: not atomic!
 	*args[0].(*value) = args[1].(uint32)
 	return nil
 }
 
-func ext۰atomic۰LoadInt32(fn *ssa.Function, args []value) value {
+func ext۰atomic۰LoadInt32(fn *ssa2.Function, args []value) value {
 	// TODO(adonovan): fix: not atomic!
 	return (*args[0].(*value)).(int32)
 }
 
-func ext۰atomic۰StoreInt32(fn *ssa.Function, args []value) value {
+func ext۰atomic۰StoreInt32(fn *ssa2.Function, args []value) value {
 	// TODO(adonovan): fix: not atomic!
 	*args[0].(*value) = args[1].(int32)
 	return nil
 }
 
-func ext۰atomic۰CompareAndSwapInt32(fn *ssa.Function, args []value) value {
+func ext۰atomic۰CompareAndSwapInt32(fn *ssa2.Function, args []value) value {
 	// TODO(adonovan): fix: not atomic!
 	p := args[0].(*value)
 	if (*p).(int32) == args[1].(int32) {
@@ -200,7 +200,7 @@ func ext۰atomic۰CompareAndSwapInt32(fn *ssa.Function, args []value) value {
 	return false
 }
 
-func ext۰atomic۰AddInt32(fn *ssa.Function, args []value) value {
+func ext۰atomic۰AddInt32(fn *ssa2.Function, args []value) value {
 	// TODO(adonovan): fix: not atomic!
 	p := args[0].(*value)
 	newv := (*p).(int32) + args[1].(int32)
@@ -208,30 +208,30 @@ func ext۰atomic۰AddInt32(fn *ssa.Function, args []value) value {
 	return newv
 }
 
-func ext۰runtime۰SetFinalizer(fn *ssa.Function, args []value) value {
+func ext۰runtime۰SetFinalizer(fn *ssa2.Function, args []value) value {
 	return nil // ignore
 }
 
-func ext۰time۰now(fn *ssa.Function, args []value) value {
+func ext۰time۰now(fn *ssa2.Function, args []value) value {
 	nano := time.Now().UnixNano()
 	return tuple{int64(nano / 1e9), int32(nano % 1e9)}
 }
 
-func ext۰time۰Sleep(fn *ssa.Function, args []value) value {
+func ext۰time۰Sleep(fn *ssa2.Function, args []value) value {
 	time.Sleep(time.Duration(args[0].(int64)))
 	return nil
 }
 
-func ext۰syscall۰Exit(fn *ssa.Function, args []value) value {
+func ext۰syscall۰Exit(fn *ssa2.Function, args []value) value {
 	panic(exitPanic(args[0].(int)))
 }
 
-func ext۰syscall۰Getwd(fn *ssa.Function, args []value) value {
+func ext۰syscall۰Getwd(fn *ssa2.Function, args []value) value {
 	s, err := syscall.Getwd()
 	return tuple{s, wrapError(err)}
 }
 
-func ext۰syscall۰Getpid(fn *ssa.Function, args []value) value {
+func ext۰syscall۰Getpid(fn *ssa2.Function, args []value) value {
 	return syscall.Getpid()
 }
 
