@@ -1,4 +1,4 @@
-package ssa
+package ssa2
 
 // This file implements the CREATE phase of SSA construction.
 // See builder.go for explanation.

@@ -1,4 +1,4 @@
-package ssa
+package ssa2
 
 // Simple block optimizations to simplify the control flow graph.
 

@@ -1,4 +1,4 @@
-package ssa
+package ssa2
 
 // This file defines utilities for method-set computation, synthesis
 // of wrapper methods, and desugaring of implicit field selections.

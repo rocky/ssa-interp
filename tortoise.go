@@ -10,10 +10,9 @@ import (
 	"log"
 	"os"
 	"runtime/pprof"
-
 	"code.google.com/p/go.tools/importer"
-	"code.google.com/p/go.tools/ssa"
-	"code.google.com/p/go.tools/ssa/interp"
+	"ssa2"
+	"ssa2/interp"
 )
 
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
@@ -115,6 +114,7 @@ func main() {
 
 	// Run the interpreter.
 	if *runFlag {
+		fmt.Println("Running....")
 		interp.Interpret(prog.Package(info.Pkg), interpMode, info.Pkg.Path(), args)
 	}
 }

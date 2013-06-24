@@ -1,4 +1,4 @@
-package ssa
+package ssa2
 
 // This file defines algorithms related to dominance.
 

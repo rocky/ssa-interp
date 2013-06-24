@@ -1,10 +1,10 @@
-package ssa
+package ssa2
 
 // Helpers for emitting SSA instructions.
 
 import (
 	"go/token"
-
+	"fmt"
 	"code.google.com/p/go.tools/go/types"
 )
 
@@ -226,6 +226,20 @@ func emitIf(f *Function, cond Value, tblock, fblock *BasicBlock) {
 	addEdge(b, tblock)
 	addEdge(b, fblock)
 	f.currentBlock = nil
+}
+
+// emitTrace emits to f an instruction to which acts as a
+// placeholder for the kind of high-level event that is
+// coming up next: a new statement, the return from a function
+// and so on. I'd like this to be a flag an instruction, but that
+// was too difficult or ugly to be able for the high-level
+// builder call to be able to access the first generated instruction.
+// So instead we make it it's own instruction.
+
+func emitTrace(f *Function, event TraceEvent, pos token.Pos) Value {
+	fmt.Printf("++++ emitTrace called with %d\n", event);
+	t := &Trace{Event: event}
+	return f.emit(t)
 }
 
 // emitExtract emits to f an instruction to extract the index'th

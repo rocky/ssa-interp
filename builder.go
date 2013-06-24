@@ -1,4 +1,4 @@
-package ssa
+package ssa2
 
 // This file implements the BUILD phase of SSA construction.
 //
@@ -1196,25 +1196,19 @@ func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 		}
 		lvals = append(lvals, lval)
 	}
+	emitTrace(fn, STATEMENT, token.NoPos)
 	if len(lhss) == len(rhss) {
 		// e.g. x, y = f(), g()
-		if len(lhss) == 1 {
-			// x = type{...}
-			// Optimization: in-place construction
-			// of composite literals.
-			b.exprInPlace(fn, lvals[0], rhss[0])
-		} else {
-			// Parallel assignment.  All reads must occur
-			// before all updates, precluding exprInPlace.
-			// TODO(adonovan): opt: is it sound to
-			// perform exprInPlace if !isDef?
-			var rvals []Value
-			for _, rval := range rhss {
-				rvals = append(rvals, b.expr(fn, rval))
-			}
-			for i, lval := range lvals {
-				lval.store(fn, rvals[i])
-			}
+		// Parallel assignment.  All reads must occur
+		// before all updates, precluding exprInPlace.
+		// TODO(adonovan): opt: is it sound to
+		// perform exprInPlace if !isDef?
+		var rvals []Value
+		for _, rval := range rhss {
+			rvals = append(rvals, b.expr(fn, rval))
+		}
+		for i, lval := range lvals {
+			lval.store(fn, rvals[i])
 		}
 	} else {
 		// e.g. x, y = pos()
@@ -1690,6 +1684,8 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	//      ...post...
 	//      jump loop
 	// done:                                 (target of break)
+	fmt.Println("YEY")
+	emitTrace(fn, FOR_INIT, token.NoPos)
 	if s.Init != nil {
 		b.stmt(fn, s.Init)
 	}
@@ -2323,6 +2319,7 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 //
 func (prog *Program) BuildAll() {
 	var wg sync.WaitGroup
+	fmt.Println("+++BuildAll called\n")
 	for _, p := range prog.Packages {
 		if prog.mode&BuildSerially != 0 {
 			p.Build()

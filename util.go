@@ -1,4 +1,4 @@
-package ssa
+package ssa2
 
 // This file defines a number of miscellaneous utility functions.
 

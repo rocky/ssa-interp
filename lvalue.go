@@ -1,4 +1,4 @@
-package ssa
+package ssa2
 
 // lvalues are the union of addressable expressions and map-index
 // expressions.

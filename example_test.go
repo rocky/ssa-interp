@@ -1,9 +1,9 @@
-package ssa_test
+package ssa2_test
 
 import (
 	"code.google.com/p/go.tools/importer"
-	"code.google.com/p/go.tools/ssa"
 	"fmt"
+	"ssa-interp"
 	"go/ast"
 	"go/parser"
 	"os"
@@ -54,8 +54,8 @@ func main() {
 	}
 
 	// Create SSA-form program representation.
-	var mode ssa.BuilderMode
-	prog := ssa.NewProgram(imp.Fset, mode)
+	var mode ssa2.BuilderMode
+	prog := ssa2.NewProgram(imp.Fset, mode)
 	prog.CreatePackages(imp)
 	mainPkg := prog.Package(info.Pkg)
 
@@ -69,7 +69,7 @@ func main() {
 	// Print out the package-level functions.
 	mainPkg.Init.DumpTo(os.Stdout)
 	for _, mem := range mainPkg.Members {
-		if fn, ok := mem.(*ssa.Function); ok {
+		if fn, ok := mem.(*ssa2.Function); ok {
 			fn.DumpTo(os.Stdout)
 		}
 	}
@@ -92,6 +92,7 @@ func main() {
 	// 	t1 = fmt.init()                                                      ()
 	// 	jump 2.init.done
 	// .2.init.done:                                                           P:2 S:0
+	// 	rundefers
 	// 	ret
 	//
 	// # Name: main.main
@@ -104,5 +105,6 @@ func main() {
 	// 	*t0 = t1
 	// 	t2 = slice a0[:]                                          []interface{}
 	// 	t3 = fmt.Println(t2)                                 (n int, err error)
+	// 	rundefers
 	// 	ret
 }

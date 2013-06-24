@@ -117,4 +117,4 @@
 // defs/uses of named variables together, esp. because SSA splits them
 // into separate webs.
 //
-package ssa
+package ssa2

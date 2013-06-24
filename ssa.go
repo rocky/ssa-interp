@@ -1,4 +1,4 @@
-package ssa
+package ssa2
 
 // This package defines a high-level intermediate representation for
 // Go programs using static single-assignment (SSA) form.
@@ -455,7 +455,6 @@ type Alloc struct {
 	Heap      bool
 	pos       token.Pos
 	referrers []Instruction
-	index     int // dense numbering; for lifting
 }
 
 // The Phi instruction represents an SSA φ-node, which combines values
@@ -1124,6 +1123,37 @@ type MapUpdate struct {
 	pos   token.Pos
 }
 
+//-------------------------------
+type TraceEvent int
+const (
+	OTHER TraceEvent = 0
+	STATEMENT TraceEvent = 0
+	EXPR = (iota -1 )  << 1
+	IF_EXPR
+	FOR_INIT
+	SELECT_TYPE
+)
+
+// The Trace instruction is a placeholder some event that is
+// about to take place. The event could be
+// - a new statement
+// - an interesting expression in a "case" or "if" or "loop" statement
+// - a return that is about to occur
+// - a message synchronization
+//
+// These are intented to be used by a debugger, profiler, code coverage
+// tool or tracing tool.
+//
+// I'd like this to be a flag an instruction, but that
+// was too difficult or ugly to be able for the high-level
+// builder call to be able to access the first generated instruction.
+// So instead we make it it's own instruction.
+type Trace struct {
+	anInstruction
+	pos   token.Pos  // position of source
+	Event TraceEvent
+}
+
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
 
 // Register is a mix-in embedded by all SSA values that are also
@@ -1312,6 +1342,9 @@ func (c *Constant) String() string     { return c.Name() }
 func (c *Constant) Type() types.Type   { return c.Value.Type() }
 func (c *Constant) Token() token.Token { return token.CONST }
 
+func (t *Trace) String() string     { return "trace" }
+
+
 // Func returns the package-level function of the specified name,
 // or nil if not found.
 //
@@ -1378,6 +1411,7 @@ func (s *Store) Pos() token.Pos     { return s.pos }
 func (s *If) Pos() token.Pos        { return token.NoPos }
 func (s *Jump) Pos() token.Pos      { return token.NoPos }
 func (s *RunDefers) Pos() token.Pos { return token.NoPos }
+func (v *Trace) Pos() token.Pos     { return v.pos }
 
 // Operands.
 
@@ -1536,4 +1570,9 @@ func (v *TypeAssert) Operands(rands []*Value) []*Value {
 
 func (v *UnOp) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
+}
+
+
+func (v *Trace) Operands(rands []*Value) []*Value {
+	return rands
 }

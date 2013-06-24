@@ -1,4 +1,4 @@
-package ssa
+package ssa2
 
 // This file implements the String() methods for all Value and
 // Instruction types.

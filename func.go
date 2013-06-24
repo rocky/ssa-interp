@@ -1,4 +1,4 @@
-package ssa
+package ssa2
 
 // This file implements the Function and BasicBlock types.
 
