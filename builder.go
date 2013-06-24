@@ -589,7 +589,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		panic("non-constant BasicLit") // unreachable
 
 	case *ast.FuncLit:
-		posn := fn.Prog.Files.Position(e.Type.Func)
+		posn := fn.Prog.Fset.Position(e.Type.Func)
 		fn2 := &Function{
 			name:      fmt.Sprintf("func@%d.%d", posn.Line, posn.Column),
 			Signature: fn.Pkg.typeOf(e.Type).Underlying().(*types.Signature),
@@ -2233,7 +2233,7 @@ func (b *builder) buildFunction(fn *Function) {
 	}
 	if fn.Prog.mode&LogSource != 0 {
 		defer logStack("build function %s @ %s",
-			fn.FullName(), fn.Prog.Files.Position(fn.pos))()
+			fn.FullName(), fn.Prog.Fset.Position(fn.pos))()
 	}
 	fn.startBody()
 	fn.createSyntacticParams()
@@ -2283,7 +2283,7 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 		} else if id.Name == "init" {
 			// init() block
 			if pkg.Prog.mode&LogSource != 0 {
-				fmt.Fprintln(os.Stderr, "build init block @", pkg.Prog.Files.Position(decl.Pos()))
+				fmt.Fprintln(os.Stderr, "build init block @", pkg.Prog.Fset.Position(decl.Pos()))
 			}
 			init := pkg.Init
 
@@ -2402,7 +2402,7 @@ func (p *Package) objectOf(id *ast.Ident) types.Object {
 		return o
 	}
 	panic(fmt.Sprintf("no types.Object for ast.Ident %s @ %s",
-		id.Name, p.Prog.Files.Position(id.Pos())))
+		id.Name, p.Prog.Fset.Position(id.Pos())))
 }
 
 // Only valid during p's create and build phases.

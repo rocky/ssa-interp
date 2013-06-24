@@ -35,7 +35,7 @@ const (
 //
 func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	prog := &Program{
-		Files:               fset,
+		Fset:                fset,
 		Packages:            make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
 		Builtins:            make(map[types.Object]*Builtin),

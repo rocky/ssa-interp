@@ -90,7 +90,7 @@ var gorootTests = []string{
 	"crlf.go", // doesn't actually assert anything
 	"typeswitch1.go",
 	"floatcmp.go",
-	"gc1.go",
+	// "gc1.go",
 
 	// Working, but not worth enabling:
 	// "gc2.go",       // works, but slow, and cheats on the memory check.

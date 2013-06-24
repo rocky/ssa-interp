@@ -309,7 +309,7 @@ func visitInstr(fr *frame, instr ssa2.Instruction) continuation {
 
 	case *ssa2.Trace:
 		if fr.i.mode&EnableStmtTracing != 0 {
-			fset := fr.fn.Prog.Files
+			fset := fr.fn.Prog.Fset
 			fmt.Printf("trace for %s\n\tstart %s\n\tend: %s\n",
 				ssa2.Event2Name[instr.Event],
 				fset.Position(instr.Start).String(),
@@ -443,7 +443,7 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 //
 func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function, args []value, env []value) value {
 	if i.mode&EnableTracing != 0 {
-		fset := fn.Prog.Files
+		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
 		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
 		suffix := ""

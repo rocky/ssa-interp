@@ -17,7 +17,7 @@ import (
 // A Program is a partial or complete Go program converted to SSA form.
 //
 type Program struct {
-	Files           *token.FileSet              // position information for the files of this Program [TODO: rename Fset]
+	Fset            *token.FileSet              // position information for the files of this Program
 	Packages        map[string]*Package         // all loaded Packages, keyed by import path [TODO rename packagesByPath]
 	packages        map[*types.Package]*Package // all loaded Packages, keyed by object [TODO rename Packages]
 	Builtins        map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.

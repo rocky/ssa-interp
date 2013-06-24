@@ -529,7 +529,7 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
 	if pos := f.Pos(); pos.IsValid() {
-		fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(pos))
+		fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Fset.Position(pos))
 	} else {
 		fmt.Fprintln(w, "# Synthetic")
 	}

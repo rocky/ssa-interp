@@ -242,7 +242,7 @@ func emitIf(f *Function, cond Value, tblock, fblock *BasicBlock) {
 func emitTrace(f *Function, event TraceEvent, start token.Pos, end token.Pos) Value {
 	t := &Trace{Event: event, Start: start, End: end}
 	// fmt.Printf("event %s StartPos %d EndPos %d\n", Event2Name[event])
-	fset := f.Prog.Files
+	fset := f.Prog.Fset
 	if (debugMe) {
 		fmt.Printf("Emitting event %s\n\tFrom: %s\n\tTo: %s\n",
 			Event2Name[event], fset.Position(start), fset.Position(end)	)
