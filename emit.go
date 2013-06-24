@@ -236,9 +236,10 @@ func emitIf(f *Function, cond Value, tblock, fblock *BasicBlock) {
 // builder call to be able to access the first generated instruction.
 // So instead we make it it's own instruction.
 
-func emitTrace(f *Function, event TraceEvent, pos token.Pos) Value {
-	if false { fmt.Printf("++++ emitTrace called with %d\n", event); }
-	t := &Trace{Event: event}
+func emitTrace(f *Function, event TraceEvent, start token.Pos, end token.Pos) Value {
+	t := &Trace{Event: event, Start: start, End: end}
+	// fmt.Printf("event %s StartPos %d EndPos %d\n", Event2Name[event])
+	fmt.Printf("Emitting event %s\n", Event2Name[event])
 	return f.emit(t)
 }
 

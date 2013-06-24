@@ -1126,13 +1126,27 @@ type MapUpdate struct {
 //-------------------------------
 type TraceEvent int
 const (
-	OTHER TraceEvent = 0
-	STATEMENT TraceEvent = 1
-	EXPR = (iota -1 )  << 1
+	OTHER TraceEvent = iota
+	STATEMENT
+	EXPR
 	IF_EXPR
 	FOR_INIT
+	FOR_COND
 	SELECT_TYPE
 )
+
+
+var Event2Name map[TraceEvent]string
+
+func init() {
+	Event2Name = map[TraceEvent]string{
+		OTHER:    "?",
+		STATEMENT: "Statement",
+		IF_EXPR: "If expression",
+		FOR_INIT: "For initialize",
+		FOR_COND: "For condition",
+	}
+}
 
 // The Trace instruction is a placeholder some event that is
 // about to take place. The event could be
@@ -1150,7 +1164,8 @@ const (
 // So instead we make it it's own instruction.
 type Trace struct {
 	anInstruction
-	pos   token.Pos  // position of source
+	Start   token.Pos  // start position of source
+	End   token.Pos    // end position of source
 	Event TraceEvent
 }
 
@@ -1411,7 +1426,7 @@ func (s *Store) Pos() token.Pos     { return s.pos }
 func (s *If) Pos() token.Pos        { return token.NoPos }
 func (s *Jump) Pos() token.Pos      { return token.NoPos }
 func (s *RunDefers) Pos() token.Pos { return token.NoPos }
-func (v *Trace) Pos() token.Pos     { return v.pos }
+func (v *Trace) Pos() token.Pos     { return v.Start }
 
 // Operands.
 
@@ -1572,7 +1587,7 @@ func (v *UnOp) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
 
-
 func (v *Trace) Operands(rands []*Value) []*Value {
 	return rands
+	// return append(rands, &v.Start, &v.End)
 }

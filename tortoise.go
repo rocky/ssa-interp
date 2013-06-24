@@ -31,6 +31,7 @@ var interpFlag = flag.String("interp", "", `Options controlling the SSA test int
 The value is a sequence of zero or more more of these letters:
 R	disable [R]ecover() from panic; show interpreter crash instead.
 T	[T]race execution of the program.  Best for single-threaded programs!
+S	[S]atement tracing
 `)
 
 const usage = `SSA builder and interpreter.
@@ -78,6 +79,8 @@ func main() {
 		switch c {
 		case 'T':
 			interpMode |= interp.EnableTracing
+		case 'S':
+			interpMode |= interp.EnableStmtTracing
 		case 'R':
 			interpMode |= interp.DisableRecover
 		default:

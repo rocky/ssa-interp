@@ -1196,7 +1196,6 @@ func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 		}
 		lvals = append(lvals, lval)
 	}
-	emitTrace(fn, STATEMENT, token.NoPos)
 	if len(lhss) == len(rhss) {
 		// e.g. x, y = f(), g()
 		// Parallel assignment.  All reads must occur
@@ -1473,6 +1472,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 	case *ast.ExprStmt: // x.(type)
 		x = b.expr(fn, unparen(ass.X).(*ast.TypeAssertExpr).X)
 	case *ast.AssignStmt: // y := x.(type)
+		emitTrace(fn, STATEMENT, ass.Pos(), ass.End())
 		x = b.expr(fn, unparen(ass.Rhs[0]).(*ast.TypeAssertExpr).X)
 		id = ass.Lhs[0].(*ast.Ident)
 		y = fn.addNamedLocal(fn.Pkg.objectOf(id))
@@ -1684,14 +1684,15 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	//      ...post...
 	//      jump loop
 	// done:                                 (target of break)
-	emitTrace(fn, FOR_INIT, token.NoPos)
 	if s.Init != nil {
+		emitTrace(fn, FOR_INIT, s.Pos(), s.End())
 		b.stmt(fn, s.Init)
 	}
 	body := fn.newBasicBlock("for.body")
 	done := fn.newBasicBlock("for.done") // target of 'break'
 	loop := body                         // target of back-edge
 	if s.Cond != nil {
+		emitTrace(fn, FOR_COND, s.Pos(), s.End())
 		loop = fn.newBasicBlock("for.loop")
 	}
 	cont := loop // target of 'continue'

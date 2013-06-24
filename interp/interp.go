@@ -77,6 +77,7 @@ type Mode uint
 const (
 	DisableRecover Mode = 1 << iota // Disable recover() in target programs; show interpreter crash instead.
 	EnableTracing                   // Print a trace of all instructions as they are interpreted.
+	EnableStmtTracing               // Print higher-level statement boundary tracing
 )
 
 // State shared between all interpreted goroutines.
@@ -307,7 +308,9 @@ func visitInstr(fr *frame, instr ssa2.Instruction) continuation {
 		fr.env[instr] = typeAssert(fr.i, instr, fr.get(instr.X).(iface))
 
 	case *ssa2.Trace:
-		if false { fmt.Printf("Ran trace with %d\n", instr.Event); }
+		if fr.i.mode&EnableStmtTracing != 0 {
+			fmt.Printf("trace for %s\n", ssa2.Event2Name[instr.Event]);
+		}
 
 	case *ssa2.MakeClosure:
 		var bindings []value
