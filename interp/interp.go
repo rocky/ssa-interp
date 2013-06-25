@@ -94,8 +94,11 @@ func TraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token.Po
 	fset := fr.Fn.Prog.Fset
 	startP := fset.Position(start)
 	endP   := fset.Position(end)
-	fmt.Printf("Event: %s at\n%s\n",
-		ssa2.Event2Name[event], PositionRange(startP, endP))
+	s := fmt.Sprintf("Event: %s ", ssa2.Event2Name[event])
+	if len(fr.Fn.Name()) > 0 {
+		s += fr.Fn.Name() + "() "
+	}
+	fmt.Printf("%sat\n%s\n", s, PositionRange(startP, endP))
 }
 
 type status int
@@ -539,12 +542,12 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 		}
 	}()
 
+	if i.Mode&EnableStmtTracing != 0 && len(fr.Block.Instrs) > 0 {
+		TraceHook(fr, &fr.Block.Instrs[0], fn.Pos(), fn.Pos(), ssa2.CALL_ENTER)
+	}
 	for {
 		if i.Mode&EnableTracing != 0 {
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.Block)
-		}
-		if i.Mode&EnableStmtTracing != 0 && len(fr.Block.Instrs) > 0 {
-			TraceHook(fr, &fr.Block.Instrs[0], fn.Pos(), fn.Pos(), ssa2.CALL_ENTER)
 		}
 	block:
 		for _, instr = range fr.Block.Instrs {

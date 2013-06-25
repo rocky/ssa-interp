@@ -1139,6 +1139,7 @@ const (
 	FOR_COND
 	FOR_POST
 	SELECT_TYPE
+	STMT_IN_LIST
 )
 
 
@@ -1159,6 +1160,7 @@ func init() {
 		FOR_COND: "FOR condition",
 		FOR_POST: "FOR post iteration",
 		SELECT_TYPE: "SELECT type",
+		STMT_IN_LIST: "STATEMENT in list",
 	}
 }
 

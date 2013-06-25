@@ -805,6 +805,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 // stmtList emits to fn code for all statements in list.
 func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 	for _, s := range list {
+		emitTrace(fn, STMT_IN_LIST, s.Pos(), s.End())
 		b.stmt(fn, s)
 	}
 }
