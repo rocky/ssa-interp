@@ -1472,7 +1472,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 	case *ast.ExprStmt: // x.(type)
 		x = b.expr(fn, unparen(ass.X).(*ast.TypeAssertExpr).X)
 	case *ast.AssignStmt: // y := x.(type)
-		emitTrace(fn, STATEMENT, ass.Pos(), ass.End())
+		emitTrace(fn, ASSIGN_STMT, ass.Pos(), ass.End())
 		x = b.expr(fn, unparen(ass.Rhs[0]).(*ast.TypeAssertExpr).X)
 		id = ass.Lhs[0].(*ast.Ident)
 		y = fn.addNamedLocal(fn.Pkg.objectOf(id))
@@ -2125,6 +2125,7 @@ start:
 		var block *BasicBlock
 		switch s.Tok {
 		case token.BREAK:
+			emitTrace(fn, BREAK_STMT, s.Pos(), s.End())
 			if s.Label != nil {
 				block = fn.labelledBlock(s.Label)._break
 			} else {
@@ -2160,6 +2161,7 @@ start:
 
 	case *ast.BlockStmt:
 		b.stmtList(fn, s.List)
+		emitTrace(fn, BLOCK_END, s.End(), s.End())
 
 	case *ast.IfStmt:
 		if s.Init != nil {

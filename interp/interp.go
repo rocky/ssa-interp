@@ -67,7 +67,9 @@ func PositionRange(start token.Position, end token.Position) string {
 		if start.Filename == end.Filename && end.IsValid() {
 			// this is what we expect
 			if start.Line == end.Line {
-				s += fmt.Sprintf("-%d", end.Column)
+				if start.Column != end.Column {
+					s += fmt.Sprintf("-%d", end.Column)
+				}
 			} else {
 				s += fmt.Sprintf("-%d:%d", end.Line, end.Column)
 			}
@@ -87,12 +89,13 @@ func PositionRange(start token.Position, end token.Position) string {
 }
 
 // This gets called for special trace events if tracing is on
-func TraceHook(fr *frame, instr *ssa2.Trace) {
+func TraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token.Pos,
+	event ssa2.TraceEvent) {
 	fset := fr.Fn.Prog.Fset
-	start := fset.Position(instr.Start)
-	end   := fset.Position(instr.End)
+	startP := fset.Position(start)
+	endP   := fset.Position(end)
 	fmt.Printf("Event: %s at\n%s\n",
-		ssa2.Event2Name[instr.Event], PositionRange(start, end))
+		ssa2.Event2Name[event], PositionRange(startP, endP))
 }
 
 type status int
@@ -189,8 +192,8 @@ func findMethodSet(i *interpreter, typ types.Type) ssa2.MethodSet {
 // visitInstr interprets a single ssa2.Instruction within the activation
 // record frame.  It returns a continuation value indicating where to
 // read the next instruction from.
-func visitInstr(fr *frame, instr ssa2.Instruction) continuation {
-	switch instr := instr.(type) {
+func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
+	switch instr := genericInstr.(type) {
 	case *ssa2.UnOp:
 		fr.Env[instr] = unop(instr, fr.get(instr.X))
 
@@ -349,7 +352,7 @@ func visitInstr(fr *frame, instr ssa2.Instruction) continuation {
 
 	case *ssa2.Trace:
 		if fr.I.Mode&EnableStmtTracing != 0 {
-			TraceHook(fr, instr)
+			TraceHook(fr, &genericInstr, instr.Start, instr.End, instr.Event)
 		}
 
 	case *ssa2.MakeClosure:
@@ -540,6 +543,9 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 		if i.Mode&EnableTracing != 0 {
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.Block)
 		}
+		if i.Mode&EnableStmtTracing != 0 && len(fr.Block.Instrs) > 0 {
+			TraceHook(fr, &fr.Block.Instrs[0], fn.Pos(), fn.Pos(), ssa2.CALL_ENTER)
+		}
 	block:
 		for _, instr = range fr.Block.Instrs {
 			if i.Mode&EnableTracing != 0 {
@@ -552,6 +558,9 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 			switch visitInstr(fr, instr) {
 			case kReturn:
 				fr.status = stComplete
+				if i.Mode&EnableStmtTracing != 0 {
+					TraceHook(fr, &instr, instr.Pos(), instr.Pos(), ssa2.CALL_RETURN)
+				}
 				return fr.result
 			case kNext:
 				// no-op
@@ -559,6 +568,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 				break block
 			}
 		}
+
 	}
 	panic("unreachable")
 }

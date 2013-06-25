@@ -1127,7 +1127,11 @@ type MapUpdate struct {
 type TraceEvent int
 const (
 	OTHER TraceEvent = iota
-	STATEMENT
+	ASSIGN_STMT
+	BLOCK_END
+	BREAK_STMT
+	CALL_ENTER
+	CALL_RETURN
 	EXPR
 	IF_INIT
 	IF_COND
@@ -1143,7 +1147,11 @@ var Event2Name map[TraceEvent]string
 func init() {
 	Event2Name = map[TraceEvent]string{
 		OTHER:    "?",
-		STATEMENT: "Statement",
+		ASSIGN_STMT: "Assignment Statement",
+		BLOCK_END: "Block End",
+		BREAK_STMT: "BREAK",
+		CALL_ENTER: "function entry",
+		CALL_RETURN: "function return",
 		EXPR:     "Expression",
 		IF_INIT: "IF initialize",
 		IF_COND: "IF expression",

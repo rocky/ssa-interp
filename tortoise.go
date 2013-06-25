@@ -40,7 +40,7 @@ Usage: tortoise [<flag> ...] [<file.go> ...] [<arg> ...]
 Use -help flag to display options.
 
 Examples:
-% tortoise -run -interp=T hello.go     # interpret a program, with tracing
+% tortoise -run -interp=S hello.go     # interpret a program, with statement tracing
 % tortoise -build=FPG hello.go         # quickly dump SSA form of a single package
 `
 
