@@ -1,11 +1,9 @@
 # Comments starting with #: below are remake GNU Makefile comments. See
 # https://github.com/rocky/remake/wiki/Rake-tasks-for-gnu-make
 
-.PHONY: run interp check test check-quick test-interp
+.PHONY: all interp check test check-quick test-interp
 
-#: run the code
-run: tortoise
-	./tortoise --run $@
+all: tortoise
 
 tortoise: interp tortoise.go
 	go build tortoise.go

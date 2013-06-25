@@ -988,7 +988,7 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []valu
 		// function) to have any effect.  Thus we ignore both
 		// "defer recover()" and "defer f() -> g() ->
 		// recover()".
-		if caller.I.mode&DisableRecover == 0 &&
+		if caller.I.Mode&DisableRecover == 0 &&
 			caller != nil && caller.status == stRunning &&
 			caller.Caller != nil && caller.Caller.status == stPanic {
 			caller.Caller.status = stComplete

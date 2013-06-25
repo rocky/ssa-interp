@@ -55,6 +55,37 @@ import (
 	"ssa-interp"
 )
 
+// FIXME: arrange to put in ast
+func PositionRange(start token.Position, end token.Position) string {
+	s := ""
+	if start.IsValid() {
+		s = start.Filename
+		if s != "" {
+			s += ":"
+		}
+		s += fmt.Sprintf("%d:%d", start.Line, start.Column)
+		if start.Filename == end.Filename && end.IsValid() {
+			// this is what we expect
+			if start.Line == end.Line {
+				s += fmt.Sprintf("-%d", end.Column)
+			} else {
+				s += fmt.Sprintf("-%d:%d", end.Line, end.Column)
+			}
+		}
+
+	} else if end.IsValid() {
+		s = "-"
+		if end.Filename != "" {
+			s += end.Filename + ":"
+		}
+		s += fmt.Sprintf("%d:%d", end.Line, end.Column)
+	}
+	if s == "" {
+		s = "-"
+	}
+	return s
+}
+
 type status int
 
 const (
@@ -82,9 +113,9 @@ const (
 
 // State shared between all interpreted goroutines.
 type interpreter struct {
-	prog           *ssa2.Program         // the SSA program
-	globals        map[ssa2.Value]*value // addresses of global variables (immutable)
-	mode           Mode                 // interpreter options
+	Prog           *ssa2.Program         // the SSA program
+	Globals        map[ssa2.Value]*value // addresses of global variables (immutable)
+	Mode           Mode                 // interpreter options
 	reflectPackage *ssa2.Package         // the fake reflect package
 	errorMethods   ssa2.MethodSet        // the method set of reflect.error, which implements the error interface.
 	rtypeMethods   ssa2.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
@@ -114,7 +145,7 @@ func (fr *frame) get(key ssa2.Value) value {
 	case *ssa2.Literal:
 		return literalValue(key)
 	case *ssa2.Global:
-		if r, ok := fr.I.globals[key]; ok {
+		if r, ok := fr.I.Globals[key]; ok {
 			return r
 		}
 	}
@@ -126,7 +157,7 @@ func (fr *frame) get(key ssa2.Value) value {
 
 func (fr *frame) rundefers() {
 	for i := range fr.defers {
-		if fr.I.mode&EnableTracing != 0 {
+		if fr.I.Mode&EnableTracing != 0 {
 			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
 		}
 		fr.defers[len(fr.defers)-1-i]()
@@ -143,7 +174,7 @@ func findMethodSet(i *interpreter, typ types.Type) ssa2.MethodSet {
 	case errorType:
 		return i.errorMethods
 	}
-	return i.prog.MethodSet(typ)
+	return i.Prog.MethodSet(typ)
 }
 
 // visitInstr interprets a single ssa2.Instruction within the activation
@@ -308,13 +339,12 @@ func visitInstr(fr *frame, instr ssa2.Instruction) continuation {
 		fr.Env[instr] = typeAssert(fr.I, instr, fr.get(instr.X).(iface))
 
 	case *ssa2.Trace:
-		if fr.I.mode&EnableStmtTracing != 0 {
+		if fr.I.Mode&EnableStmtTracing != 0 {
 			fset := fr.Fn.Prog.Fset
-			fmt.Printf("trace for %s\n\tstart %s\n\tend: %s\n",
-				ssa2.Event2Name[instr.Event],
-				fset.Position(instr.Start).String(),
-				fset.Position(instr.End).String(),
-			);
+			start := fset.Position(instr.Start)
+			end   := fset.Position(instr.End)
+			fmt.Printf("trace for %s\n%s\n",
+				ssa2.Event2Name[instr.Event], PositionRange(start, end))
 		}
 
 	case *ssa2.MakeClosure:
@@ -442,7 +472,7 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 // callpos is the position of the callsite.
 //
 func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function, args []value, env []value) value {
-	if i.mode&EnableTracing != 0 {
+	if i.Mode&EnableTracing != 0 {
 		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
 		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
@@ -455,7 +485,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 	if fn.Enclosing == nil {
 		name := fn.FullName()
 		if ext := externals[name]; ext != nil {
-			if i.mode&EnableTracing != 0 {
+			if i.Mode&EnableTracing != 0 {
 				fmt.Fprintln(os.Stderr, "\t(external)")
 			}
 			return ext(fn, args)
@@ -486,7 +516,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 
 	defer func() {
 		if fr.status != stComplete {
-			if fr.I.mode&DisableRecover != 0 {
+			if fr.I.Mode&DisableRecover != 0 {
 				return // let interpreter crash
 			}
 			fr.status, fr.panic = stPanic, recover()
@@ -502,12 +532,12 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 	}()
 
 	for {
-		if i.mode&EnableTracing != 0 {
+		if i.Mode&EnableTracing != 0 {
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.Block)
 		}
 	block:
 		for _, instr = range fr.Block.Instrs {
-			if i.mode&EnableTracing != 0 {
+			if i.Mode&EnableTracing != 0 {
 				if v, ok := instr.(ssa2.Value); ok {
 					fmt.Fprintln(os.Stderr, "\t", v.Name(), "=", instr)
 				} else {
@@ -530,7 +560,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 
 // setGlobal sets the value of a system-initialized global variable.
 func setGlobal(i *interpreter, pkg *ssa2.Package, name string, v value) {
-	if g, ok := i.globals[pkg.Var(name)]; ok {
+	if g, ok := i.Globals[pkg.Var(name)]; ok {
 		*g = v
 		return
 	}
@@ -546,19 +576,19 @@ func setGlobal(i *interpreter, pkg *ssa2.Package, name string, v value) {
 //
 func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string) (exitCode int) {
 	i := &interpreter{
-		prog:    mainpkg.Prog,
-		globals: make(map[ssa2.Value]*value),
-		mode:    mode,
+		Prog:    mainpkg.Prog,
+		Globals: make(map[ssa2.Value]*value),
+		Mode:    mode,
 	}
 	initReflect(i)
 
-	for importPath, pkg := range i.prog.Packages {
+	for importPath, pkg := range i.Prog.Packages {
 		// Initialize global storage.
 		for _, m := range pkg.Members {
 			switch v := m.(type) {
 			case *ssa2.Global:
 				cell := zero(v.Type().Deref())
-				i.globals[v] = &cell
+				i.Globals[v] = &cell
 			}
 		}
 
@@ -592,7 +622,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string)
 	// Top-level error handler.
 	exitCode = 2
 	defer func() {
-		if exitCode != 2 || i.mode&DisableRecover != 0 {
+		if exitCode != 2 || i.Mode&DisableRecover != 0 {
 			return
 		}
 		switch p := recover().(type) {
