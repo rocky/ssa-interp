@@ -1685,18 +1685,19 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	//      jump loop
 	// done:                                 (target of break)
 	if s.Init != nil {
-		emitTrace(fn, FOR_INIT, s.Pos(), s.End())
+		emitTrace(fn, FOR_INIT, s.Init.Pos(), s.Init.End())
 		b.stmt(fn, s.Init)
 	}
 	body := fn.newBasicBlock("for.body")
 	done := fn.newBasicBlock("for.done") // target of 'break'
 	loop := body                         // target of back-edge
 	if s.Cond != nil {
-		emitTrace(fn, FOR_COND, s.Pos(), s.End())
+		emitTrace(fn, FOR_COND, s.Cond.Pos(), s.Cond.End())
 		loop = fn.newBasicBlock("for.loop")
 	}
 	cont := loop // target of 'continue'
 	if s.Post != nil {
+		emitTrace(fn, FOR_POST, s.Post.Pos(), s.Post.End())
 		cont = fn.newBasicBlock("for.post")
 	}
 	if label != nil {
@@ -2162,6 +2163,7 @@ start:
 
 	case *ast.IfStmt:
 		if s.Init != nil {
+			emitTrace(fn, IF_INIT, s.Init.Pos(), s.Init.End())
 			b.stmt(fn, s.Init)
 		}
 		then := fn.newBasicBlock("if.then")
@@ -2170,6 +2172,7 @@ start:
 		if s.Else != nil {
 			els = fn.newBasicBlock("if.else")
 		}
+		emitTrace(fn, IF_COND, s.Cond.Pos(), s.Cond.End())
 		b.cond(fn, s.Cond, then, els)
 		fn.currentBlock = then
 		b.stmt(fn, s.Body)

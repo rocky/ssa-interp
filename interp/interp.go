@@ -86,6 +86,15 @@ func PositionRange(start token.Position, end token.Position) string {
 	return s
 }
 
+// This gets called for special trace events if tracing is on
+func TraceHook(fr *frame, instr *ssa2.Trace) {
+	fset := fr.Fn.Prog.Fset
+	start := fset.Position(instr.Start)
+	end   := fset.Position(instr.End)
+	fmt.Printf("Event: %s at\n%s\n",
+		ssa2.Event2Name[instr.Event], PositionRange(start, end))
+}
+
 type status int
 
 const (
@@ -340,11 +349,7 @@ func visitInstr(fr *frame, instr ssa2.Instruction) continuation {
 
 	case *ssa2.Trace:
 		if fr.I.Mode&EnableStmtTracing != 0 {
-			fset := fr.Fn.Prog.Fset
-			start := fset.Position(instr.Start)
-			end   := fset.Position(instr.End)
-			fmt.Printf("trace for %s\n%s\n",
-				ssa2.Event2Name[instr.Event], PositionRange(start, end))
+			TraceHook(fr, instr)
 		}
 
 	case *ssa2.MakeClosure:

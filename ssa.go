@@ -1129,9 +1129,11 @@ const (
 	OTHER TraceEvent = iota
 	STATEMENT
 	EXPR
-	IF_EXPR
+	IF_INIT
+	IF_COND
 	FOR_INIT
 	FOR_COND
+	FOR_POST
 	SELECT_TYPE
 )
 
@@ -1142,9 +1144,13 @@ func init() {
 	Event2Name = map[TraceEvent]string{
 		OTHER:    "?",
 		STATEMENT: "Statement",
-		IF_EXPR: "If expression",
-		FOR_INIT: "For initialize",
-		FOR_COND: "For condition",
+		EXPR:     "Expression",
+		IF_INIT: "IF initialize",
+		IF_COND: "IF expression",
+		FOR_INIT: "FOR initialize",
+		FOR_COND: "FOR condition",
+		FOR_POST: "FOR post iteration",
+		SELECT_TYPE: "SELECT type",
 	}
 }
 
