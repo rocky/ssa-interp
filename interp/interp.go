@@ -106,6 +106,13 @@ func DefaultTraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end t
 	fmt.Printf("%sat\n%s\n", s, PositionRange(startP, endP))
 }
 
+// This gets called for special trace events if tracing is on
+// FIXME: Move elsewhere
+func NullTraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token.Pos,
+	event ssa2.TraceEvent) {
+	return
+}
+
 // FIXME: should be able to chain trace hooksa
 func SetTraceHook(hook TraceHookFunc) {
 	// FIXME turn this into an append
@@ -114,6 +121,7 @@ func SetTraceHook(hook TraceHookFunc) {
 
 // FIXME nuke this.
 func init() {
+	// TraceHook = NullTraceHook
 	TraceHook = DefaultTraceHook
 }
 
@@ -143,7 +151,7 @@ const (
 )
 
 // State shared between all interpreted goroutines.
-type interpreter struct {
+type Interpreter struct {
 	Prog           *ssa2.Program         // the SSA program
 	Globals        map[ssa2.Value]*value // addresses of global variables (immutable)
 	Mode           Mode                 // interpreter options
@@ -153,7 +161,7 @@ type interpreter struct {
 }
 
 type frame struct {
-	I                *interpreter
+	I                *Interpreter
 	Caller           *frame
 	Fn               *ssa2.Function
 	Block, PrevBlock *ssa2.BasicBlock
@@ -163,6 +171,18 @@ type frame struct {
 	result           value
 	status           status
 	panic            interface{}
+}
+
+var I *Interpreter
+
+func SetStmtTracing() {
+	fmt.Println(I)
+	// I.Mode |= EnableStmtTracing
+}
+
+func ClearStmtTracing() {
+	fmt.Println(I)
+	// I.Mode &= ^EnableStmtTracing
 }
 
 func (fr *frame) get(key ssa2.Value) value {
@@ -198,7 +218,7 @@ func (fr *frame) rundefers() {
 
 // findMethodSet returns the method set for type typ, which may be one
 // of the interpreter's fake types.
-func findMethodSet(i *interpreter, typ types.Type) ssa2.MethodSet {
+func findMethodSet(i *Interpreter, typ types.Type) ssa2.MethodSet {
 	switch typ {
 	case rtypeType:
 		return i.rtypeMethods
@@ -472,7 +492,7 @@ func prepareCall(fr *frame, call *ssa2.CallCommon) (fn value, args []value) {
 // fn with arguments args, returning its result.
 // callpos is the position of the callsite.
 //
-func call(i *interpreter, caller *frame, callpos token.Pos, fn value, args []value) value {
+func call(i *Interpreter, caller *frame, callpos token.Pos, fn value, args []value) value {
 	switch fn := fn.(type) {
 	case *ssa2.Function:
 		if fn == nil {
@@ -498,7 +518,7 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 // and lexical environment env, returning its result.
 // callpos is the position of the callsite.
 //
-func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function, args []value, env []value) value {
+func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function, args []value, env []value) value {
 	if i.Mode&EnableTracing != 0 {
 		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
@@ -593,7 +613,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 }
 
 // setGlobal sets the value of a system-initialized global variable.
-func setGlobal(i *interpreter, pkg *ssa2.Package, name string, v value) {
+func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v value) {
 	if g, ok := i.Globals[pkg.Var(name)]; ok {
 		*g = v
 		return
@@ -609,20 +629,20 @@ func setGlobal(i *interpreter, pkg *ssa2.Package, name string, v value) {
 // gc does), or the argument to os.Exit for normal termination.
 //
 func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string) (exitCode int) {
-	i := &interpreter{
+	I = &Interpreter{
 		Prog:    mainpkg.Prog,
 		Globals: make(map[ssa2.Value]*value),
 		Mode:    mode,
 	}
-	initReflect(i)
+	initReflect(I)
 
-	for importPath, pkg := range i.Prog.Packages {
+	for importPath, pkg := range I.Prog.Packages {
 		// Initialize global storage.
 		for _, m := range pkg.Members {
 			switch v := m.(type) {
 			case *ssa2.Global:
 				cell := zero(v.Type().Deref())
-				i.Globals[v] = &cell
+				I.Globals[v] = &cell
 			}
 		}
 
@@ -634,7 +654,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string)
 				envs = append(envs, s)
 			}
 			envs = append(envs, "GOSSAINTERP=1")
-			setGlobal(i, pkg, "envs", envs)
+			setGlobal(I, pkg, "envs", envs)
 
 		case "runtime":
 			// TODO(gri): expose go/types.sizeof so we can
@@ -642,21 +662,21 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string)
 			// unsafe.Sizeof(memStats) won't work since gc
 			// and go/types have different sizeof
 			// functions.
-			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(3696))
+			setGlobal(I, pkg, "sizeof_C_MStats", uintptr(3696))
 
 		case "os":
 			Args := []value{filename}
 			for _, s := range args {
 				Args = append(Args, s)
 			}
-			setGlobal(i, pkg, "Args", Args)
+			setGlobal(I, pkg, "Args", Args)
 		}
 	}
 
 	// Top-level error handler.
 	exitCode = 2
 	defer func() {
-		if exitCode != 2 || i.Mode&DisableRecover != 0 {
+		if exitCode != 2 || I.Mode&DisableRecover != 0 {
 			return
 		}
 		switch p := recover().(type) {
@@ -681,9 +701,10 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string)
 	}()
 
 	// Run!
-	call(i, nil, token.NoPos, mainpkg.Init, nil)
+	call(I, nil, token.NoPos, mainpkg.Init, nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
-		call(i, nil, token.NoPos, mainFn, nil)
+		fmt.Println("Calling Main")
+		call(I, nil, token.NoPos, mainFn, nil)
 		exitCode = 0
 	} else {
 		fmt.Fprintln(os.Stderr, "No main function.")
