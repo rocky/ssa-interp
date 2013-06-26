@@ -1138,6 +1138,7 @@ const (
 	FOR_INIT
 	FOR_COND
 	FOR_ITER
+	RANGE_STMT
 	MAIN
 	SELECT_TYPE
 	STMT_IN_LIST
@@ -1161,6 +1162,7 @@ func init() {
 		FOR_COND: "FOR condition",
 		FOR_ITER: "FOR iteration",
 		MAIN:     "before main()",
+		RANGE_STMT: "range statement",
 		SELECT_TYPE: "SELECT type",
 		STMT_IN_LIST: "STATEMENT in list",
 	}
