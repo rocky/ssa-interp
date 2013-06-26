@@ -1137,7 +1137,8 @@ const (
 	IF_COND
 	FOR_INIT
 	FOR_COND
-	FOR_POST
+	FOR_ITER
+	MAIN
 	SELECT_TYPE
 	STMT_IN_LIST
 )
@@ -1158,7 +1159,8 @@ func init() {
 		IF_COND: "IF expression",
 		FOR_INIT: "FOR initialize",
 		FOR_COND: "FOR condition",
-		FOR_POST: "FOR post iteration",
+		FOR_ITER: "FOR iteration",
+		MAIN:     "before main()",
 		SELECT_TYPE: "SELECT type",
 		STMT_IN_LIST: "STATEMENT in list",
 	}

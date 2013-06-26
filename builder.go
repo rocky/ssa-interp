@@ -1693,12 +1693,10 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	done := fn.newBasicBlock("for.done") // target of 'break'
 	loop := body                         // target of back-edge
 	if s.Cond != nil {
-		emitTrace(fn, FOR_COND, s.Cond.Pos(), s.Cond.End())
 		loop = fn.newBasicBlock("for.loop")
 	}
 	cont := loop // target of 'continue'
 	if s.Post != nil {
-		emitTrace(fn, FOR_POST, s.Post.Pos(), s.Post.End())
 		cont = fn.newBasicBlock("for.post")
 	}
 	if label != nil {
@@ -1708,6 +1706,7 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	emitJump(fn, loop)
 	fn.currentBlock = loop
 	if loop != body {
+		emitTrace(fn, FOR_COND, s.Cond.Pos(), s.Cond.End())
 		b.cond(fn, s.Cond, body, done)
 		fn.currentBlock = body
 	}
@@ -1722,6 +1721,7 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 
 	if s.Post != nil {
 		fn.currentBlock = cont
+		emitTrace(fn, FOR_ITER, s.Post.Pos(), s.Post.End())
 		b.stmt(fn, s.Post)
 		emitJump(fn, loop) // back-edge
 	}

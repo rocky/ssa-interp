@@ -173,7 +173,7 @@ type frame struct {
 	panic            interface{}
 }
 
-var I *Interpreter
+var I Interpreter
 
 func SetStmtTracing() {
 	fmt.Println(I)
@@ -629,12 +629,13 @@ func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v value) {
 // gc does), or the argument to os.Exit for normal termination.
 //
 func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string) (exitCode int) {
-	I = &Interpreter{
+	I = Interpreter{
 		Prog:    mainpkg.Prog,
 		Globals: make(map[ssa2.Value]*value),
 		Mode:    mode,
 	}
-	initReflect(I)
+	I.Mode &= ^(EnableStmtTracing|EnableTracing)
+	initReflect(&I)
 
 	for importPath, pkg := range I.Prog.Packages {
 		// Initialize global storage.
@@ -654,7 +655,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string)
 				envs = append(envs, s)
 			}
 			envs = append(envs, "GOSSAINTERP=1")
-			setGlobal(I, pkg, "envs", envs)
+			setGlobal(&I, pkg, "envs", envs)
 
 		case "runtime":
 			// TODO(gri): expose go/types.sizeof so we can
@@ -662,14 +663,14 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string)
 			// unsafe.Sizeof(memStats) won't work since gc
 			// and go/types have different sizeof
 			// functions.
-			setGlobal(I, pkg, "sizeof_C_MStats", uintptr(3696))
+			setGlobal(&I, pkg, "sizeof_C_MStats", uintptr(3696))
 
 		case "os":
 			Args := []value{filename}
 			for _, s := range args {
 				Args = append(Args, s)
 			}
-			setGlobal(I, pkg, "Args", Args)
+			setGlobal(&I, pkg, "Args", Args)
 		}
 	}
 
@@ -701,10 +702,19 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string)
 	}()
 
 	// Run!
-	call(I, nil, token.NoPos, mainpkg.Init, nil)
+	call(&I, nil, token.NoPos, mainpkg.Init, nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
-		fmt.Println("Calling Main")
-		call(I, nil, token.NoPos, mainFn, nil)
+		// fr := &frame{
+		// 	I: &I,
+		// 	Caller: nil,
+		// 	Env:    make(map[ssa2.Value]value),
+		// 	Block:  mainFn.Blocks[0],
+		// 	Locals: make([]value, len(mainFn.Locals)),
+		// }
+		// TraceHook(fr, nil&mainFn.Blocks[0].Instrs[0],
+		// 	mainFn.Pos(), mainFn.Pos(), ssa2.MAIN)
+		I.Mode = mode
+		call(&I, nil, token.NoPos, mainFn, nil)
 		exitCode = 0
 	} else {
 		fmt.Fprintln(os.Stderr, "No main function.")
