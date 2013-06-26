@@ -99,12 +99,14 @@ func main() {
 	// # Declared at hello.go:8:6
 	// func main():
 	// .0.entry:                                                               P:0 S:0
+	//	trace
 	// 	a0 = new [1]interface{}                                 *[1]interface{}
 	// 	t0 = &a0[0:untyped integer]                                *interface{}
 	// 	t1 = make interface{} <- string ("Hello, World!":string)    interface{}
 	// 	*t0 = t1
 	// 	t2 = slice a0[:]                                          []interface{}
 	// 	t3 = fmt.Println(t2)                                 (n int, err error)
+	//	trace
 	// 	rundefers
 	// 	ret
 }

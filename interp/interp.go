@@ -88,8 +88,13 @@ func PositionRange(start token.Position, end token.Position) string {
 	return s
 }
 
+type TraceHookFunc func(*frame, *ssa2.Instruction, token.Pos, token.Pos, ssa2.TraceEvent)
+// FIXME: turn into a map of TraceHookFuncs
+var TraceHook TraceHookFunc
+
 // This gets called for special trace events if tracing is on
-func TraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token.Pos,
+// FIXME: Move elsewhere
+func DefaultTraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token.Pos,
 	event ssa2.TraceEvent) {
 	fset := fr.Fn.Prog.Fset
 	startP := fset.Position(start)
@@ -99,6 +104,17 @@ func TraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token.Po
 		s += fr.Fn.Name() + "() "
 	}
 	fmt.Printf("%sat\n%s\n", s, PositionRange(startP, endP))
+}
+
+// FIXME: should be able to chain trace hooksa
+func SetTraceHook(hook TraceHookFunc) {
+	// FIXME turn this into an append
+	TraceHook = hook
+}
+
+// FIXME nuke this.
+func init() {
+	TraceHook = DefaultTraceHook
 }
 
 type status int
