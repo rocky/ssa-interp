@@ -1420,7 +1420,9 @@ func (c *Constant) String() string     { return c.Name() }
 func (c *Constant) Type() types.Type   { return c.Value.Type() }
 func (c *Constant) Token() token.Token { return token.CONST }
 
-func (t *Trace) String() string     { return "trace" }
+func (t *Trace) String() string {
+	return fmt.Sprintf("trace <%s>", Event2Name[t.Event])
+}
 
 
 // Func returns the package-level function of the specified name,

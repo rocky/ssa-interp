@@ -175,6 +175,10 @@ type frame struct {
 
 var I Interpreter
 
+func GetInterpeter() Interpreter {
+	return I
+}
+
 func SetStmtTracing() {
 	fmt.Println(I)
 	// I.Mode |= EnableStmtTracing
