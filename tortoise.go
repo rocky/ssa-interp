@@ -75,12 +75,13 @@ func main() {
 	}
 
 	var interpMode interp.Mode
+	var interpTraceMode interp.TraceMode
 	for _, c := range *interpFlag {
 		switch c {
 		case 'T':
-			interpMode |= interp.EnableTracing
+			interpTraceMode |= interp.EnableTracing
 		case 'S':
-			interpMode |= interp.EnableStmtTracing
+			interpTraceMode |= interp.EnableStmtTracing
 		case 'R':
 			interpMode |= interp.DisableRecover
 		default:
@@ -118,6 +119,7 @@ func main() {
 	// Run the interpreter.
 	if *runFlag {
 		fmt.Println("Running....")
-		interp.Interpret(prog.Package(info.Pkg), interpMode, info.Pkg.Path(), args)
+		interp.Interpret(prog.Package(info.Pkg), interpMode, interpTraceMode,
+			info.Pkg.Path(), args)
 	}
 }

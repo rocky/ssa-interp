@@ -55,74 +55,10 @@ import (
 	"ssa-interp"
 )
 
-// FIXME: arrange to put in ast
-func PositionRange(start token.Position, end token.Position) string {
-	s := ""
-	if start.IsValid() {
-		s = start.Filename
-		if s != "" {
-			s += ":"
-		}
-		s += fmt.Sprintf("%d:%d", start.Line, start.Column)
-		if start.Filename == end.Filename && end.IsValid() {
-			// this is what we expect
-			if start.Line == end.Line {
-				if start.Column != end.Column {
-					s += fmt.Sprintf("-%d", end.Column)
-				}
-			} else {
-				s += fmt.Sprintf("-%d:%d", end.Line, end.Column)
-			}
-		}
-
-	} else if end.IsValid() {
-		s = "-"
-		if end.Filename != "" {
-			s += end.Filename + ":"
-		}
-		s += fmt.Sprintf("%d:%d", end.Line, end.Column)
-	}
-	if s == "" {
-		s = "-"
-	}
-	return s
-}
-
-type TraceHookFunc func(*frame, *ssa2.Instruction, token.Pos, token.Pos, ssa2.TraceEvent)
-// FIXME: turn into a map of TraceHookFuncs
-var TraceHook TraceHookFunc
-
-// This gets called for special trace events if tracing is on
-// FIXME: Move elsewhere
-func DefaultTraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token.Pos,
-	event ssa2.TraceEvent) {
-	fset := fr.Fn.Prog.Fset
-	startP := fset.Position(start)
-	endP   := fset.Position(end)
-	s := fmt.Sprintf("Event: %s ", ssa2.Event2Name[event])
-	if len(fr.Fn.Name()) > 0 {
-		s += fr.Fn.Name() + "() "
-	}
-	fmt.Printf("%sat\n%s\n", s, PositionRange(startP, endP))
-}
-
-// This gets called for special trace events if tracing is on
-// FIXME: Move elsewhere
-func NullTraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token.Pos,
-	event ssa2.TraceEvent) {
-	return
-}
-
-// FIXME: should be able to chain trace hooksa
-func SetTraceHook(hook TraceHookFunc) {
-	// FIXME turn this into an append
-	TraceHook = hook
-}
-
 // FIXME nuke this.
 func init() {
 	// TraceHook = NullTraceHook
-	TraceHook = DefaultTraceHook
+	TraceHook = GubTraceHook
 }
 
 type status int
@@ -141,20 +77,31 @@ const (
 	kJump
 )
 
-// Mode is a bitmask of options affecting the interpreter.
+// Mode is a bitmask of options influencing the interpreter.
 type Mode uint
 
+// Mode is a bitmask of options influencing the tracing.
+type TraceMode uint
+
 const (
-	DisableRecover Mode = 1 << iota // Disable recover() in target programs; show interpreter crash instead.
-	EnableTracing                   // Print a trace of all instructions as they are interpreted.
-	EnableStmtTracing               // Print higher-level statement boundary tracing
+	// Disable recover() in target programs; show interpreter crash instead.
+	DisableRecover Mode = 1 << iota
+)
+
+const (
+	// Print a trace of all instructions as they are interpreted.
+	EnableTracing  TraceMode = 1 << iota
+
+	// Print higher-level statement boundary tracing
+	EnableStmtTracing
 )
 
 // State shared between all interpreted goroutines.
 type Interpreter struct {
 	Prog           *ssa2.Program         // the SSA program
 	Globals        map[ssa2.Value]*value // addresses of global variables (immutable)
-	Mode           Mode                 // interpreter options
+	Mode           Mode                  // interpreter options
+	TraceMode      TraceMode             // interpreter trace options
 	reflectPackage *ssa2.Package         // the fake reflect package
 	errorMethods   ssa2.MethodSet        // the method set of reflect.error, which implements the error interface.
 	rtypeMethods   ssa2.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
@@ -212,7 +159,7 @@ func (fr *frame) get(key ssa2.Value) value {
 
 func (fr *frame) rundefers() {
 	for i := range fr.defers {
-		if fr.I.Mode&EnableTracing != 0 {
+		if fr.I.TraceMode&EnableTracing != 0 {
 			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
 		}
 		fr.defers[len(fr.defers)-1-i]()
@@ -392,7 +339,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		fr.Env[instr] = typeAssert(fr.I, instr, fr.get(instr.X).(iface))
 
 	case *ssa2.Trace:
-		if fr.I.Mode&EnableStmtTracing != 0 {
+		if fr.I.TraceMode&EnableStmtTracing != 0 {
 			TraceHook(fr, &genericInstr, instr.Start, instr.End, instr.Event)
 		}
 
@@ -524,7 +471,7 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 // callpos is the position of the callsite.
 //
 func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function, args []value, env []value) value {
-	if i.Mode&EnableTracing != 0 {
+	if i.TraceMode&EnableTracing != 0 {
 		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
 		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
@@ -537,7 +484,7 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 	if fn.Enclosing == nil {
 		name := fn.FullName()
 		if ext := externals[name]; ext != nil {
-			if i.Mode&EnableTracing != 0 {
+			if i.TraceMode&EnableTracing != 0 {
 				fmt.Fprintln(os.Stderr, "\t(external)")
 			}
 			return ext(fn, args)
@@ -583,16 +530,16 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 		}
 	}()
 
-	if i.Mode&EnableStmtTracing != 0 && len(fr.Block.Instrs) > 0 {
+	if i.TraceMode&EnableStmtTracing != 0 && len(fr.Block.Instrs) > 0 {
 		TraceHook(fr, &fr.Block.Instrs[0], fn.Pos(), fn.Pos(), ssa2.CALL_ENTER)
 	}
 	for {
-		if i.Mode&EnableTracing != 0 {
+		if i.TraceMode&EnableTracing != 0 {
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.Block)
 		}
 	block:
 		for _, instr = range fr.Block.Instrs {
-			if i.Mode&EnableTracing != 0 {
+			if i.TraceMode&EnableTracing != 0 {
 				if v, ok := instr.(ssa2.Value); ok {
 					fmt.Fprintln(os.Stderr, "\t", v.Name(), "=", instr)
 				} else {
@@ -602,7 +549,7 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 			switch visitInstr(fr, instr) {
 			case kReturn:
 				fr.status = stComplete
-				if i.Mode&EnableStmtTracing != 0 {
+				if i.TraceMode&EnableStmtTracing != 0 {
 					TraceHook(fr, &instr, instr.Pos(), instr.Pos(), ssa2.CALL_RETURN)
 				}
 				return fr.result
@@ -633,13 +580,15 @@ func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v value) {
 // Interpret returns the exit code of the program: 2 for panic (like
 // gc does), or the argument to os.Exit for normal termination.
 //
-func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string) (exitCode int) {
+func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
+	filename string, args []string) (exitCode int) {
 	I = Interpreter{
 		Prog:    mainpkg.Prog,
 		Globals: make(map[ssa2.Value]*value),
 		Mode:    mode,
+		TraceMode: traceMode,
 	}
-	I.Mode &= ^(EnableStmtTracing|EnableTracing)
+	I.TraceMode &= ^(EnableStmtTracing|EnableTracing)
 	initReflect(&I)
 
 	for importPath, pkg := range I.Prog.Packages {
@@ -718,7 +667,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, filename string, args []string)
 		// }
 		// TraceHook(fr, nil&mainFn.Blocks[0].Instrs[0],
 		// 	mainFn.Pos(), mainFn.Pos(), ssa2.MAIN)
-		I.Mode = mode
+		I.TraceMode = traceMode
 		call(&I, nil, token.NoPos, mainFn, nil)
 		exitCode = 0
 	} else {
