@@ -304,10 +304,8 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		return kJump
 
 	case *ssa2.Defer:
-		pos := instr.Pos() // TODO(gri): workaround for go/types bug in typeswitch+funclit.
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.defers = append(fr.defers, func() { call(fr.I, fr, pos, fn, args) })
-
+		fr.defers = append(fr.defers, func() { call(fr.I, fr, instr.Pos(), fn, args) })
 	case *ssa2.Go:
 		fn, args := prepareCall(fr, &instr.Call)
 		go call(fr.I, nil, instr.Pos(), fn, args)
@@ -437,17 +435,20 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		if !instr.Blocking {
 			chosen-- // default case should have index -1.
 		}
-		var recvV iface
-		if chosen != -1 {
-			recvV.t = instr.States[chosen].Chan.Type().Underlying().(*types.Chan).Elem()
-			if recvOk {
-				// No need to copy since send makes an unaliased copy.
-				recvV.v = recv.Interface().(value)
-			} else {
-				recvV.v = zero(recvV.t)
+		r := tuple{chosen, recvOk}
+		for i, st := range instr.States {
+			if st.Dir == ast.RECV {
+				var v value
+				if i == chosen && recvOk {
+					// No need to copy since send makes an unaliased copy.
+					v = recv.Interface().(value)
+				} else {
+					v = zero(st.Chan.Type().Underlying().(*types.Chan).Elem())
+				}
+				r = append(r, v)
 			}
 		}
-		fr.Env[instr] = tuple{chosen, recvV, recvOk}
+		fr.Env[instr] = r
 
 	default:
 		panic(fmt.Sprintf("unexpected instruction: %T", instr))
