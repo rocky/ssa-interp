@@ -127,13 +127,19 @@ func GetInterpeter() Interpreter {
 }
 
 func SetStmtTracing() {
-	fmt.Println(I)
-	// I.Mode |= EnableStmtTracing
+	I.TraceMode |= EnableStmtTracing
 }
 
 func ClearStmtTracing() {
-	fmt.Println(I)
-	// I.Mode &= ^EnableStmtTracing
+	I.TraceMode &= ^EnableStmtTracing
+}
+
+func SetInstTracing() {
+	I.TraceMode |= EnableTracing
+}
+
+func ClearInstTracing() {
+	I.TraceMode &= ^EnableTracing
 }
 
 func (fr *frame) get(key ssa2.Value) value {

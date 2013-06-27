@@ -2,11 +2,19 @@ package interp
 
 import (
 	"fmt"
+	"strings"
+	"os"
+
+	"gnureadline"
+
 	"go/token"
 	"ssa-interp"
 )
 
 var Event2Icon map[ssa2.TraceEvent]string
+
+var term string
+var cmdCount int
 
 func init() {
 	Event2Icon = map[ssa2.TraceEvent]string{
@@ -27,6 +35,10 @@ func init() {
 		ssa2.SELECT_TYPE: "sel",
 		ssa2.STMT_IN_LIST: "---",
 	}
+	term = os.ExpandEnv("TERM")
+	gnureadline.StifleHistory(30)
+	cmdCount = 0;
+
 }
 
 func printLocation(start token.Position, end token.Position) {
@@ -49,4 +61,42 @@ func GubTraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token
 	startP := fset.Position(start)
 	endP   := fset.Position(end)
 	printLocInfo(fr, startP, endP, event)
+	line := ""
+	inCmdLoop := true
+	var err error
+	for ; err == nil && inCmdLoop; cmdCount++ {
+		line, err = gnureadline.Readline(fmt.Sprintf("gub[%d]: ", cmdCount),
+			true)
+		args  := strings.Split(line, " ")
+		if len(args) == 0 {
+			fmt.Println("Empty line skipped")
+			continue
+		}
+
+		cmd := args[0]
+
+		switch cmd {
+		case "s":
+			fmt.Println("Stepping...")
+			inCmdLoop = false
+			break
+		case "c":
+			ClearStmtTracing()
+			fmt.Println("Continuing...")
+			inCmdLoop = false
+			break
+		case "+":
+			fmt.Println("Setting Instruction Trace")
+			SetInstTracing()
+		case "-":
+			fmt.Println("Clearing Instruction Trace")
+			ClearInstTracing()
+		case "q":
+			fmt.Println("That's all folks...")
+			gnureadline.Rl_reset_terminal(term)
+			os.Exit(0)
+		default:
+			fmt.Printf("Unknown command %s\n", cmd)
+		}
+	}
 }
