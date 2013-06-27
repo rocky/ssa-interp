@@ -144,6 +144,10 @@ func ext۰runtime۰Breakpoint(fr *frame, args []value) value {
 	return nil
 }
 
+func encode_pc(fr *frame) int {
+	return fr.Block.Index * 1000 + fr.Pc
+}
+
 func ext۰runtime۰Caller(fr *frame, args []value) value {
 	skip := args[0].(int)
 
@@ -156,7 +160,7 @@ func ext۰runtime۰Caller(fr *frame, args []value) value {
 	}
 
 	fset := fr.Fn.Prog.Fset
-	startP := fset.Position(fr.StartP)
+	startP := fset.Position(final_fr.StartP)
 
 	var filename string
 	if startP.IsValid() {
@@ -164,7 +168,7 @@ func ext۰runtime۰Caller(fr *frame, args []value) value {
 	} else {
 		filename = "??"
 	}
-	pc := final_fr.Block.Index * 1000 + final_fr.Pc
+	pc := encode_pc(final_fr)
 	line := startP.Line
 	return tuple{pc, filename, line, true}
 }
@@ -326,7 +330,6 @@ func ext۰syscall۰Getpid(fr *frame, args []value) value {
 // runtime/debug.go:172:func Stack(buf []byte, all bool) int
 // runtime/error.go:81:func typestring(interface{}) string
 // runtime/extern.go:19:func Goexit()
-// runtime/extern.go:27:func Caller(skip int) (pc uintptr, file string, line int, ok bool)
 // runtime/extern.go:34:func Callers(skip int, pc []uintptr) int
 // runtime/extern.go:51:func FuncForPC(pc uintptr) *Func
 // runtime/extern.go:68:func funcline_go(*Func, uintptr) (string, int)
