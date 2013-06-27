@@ -41,8 +41,22 @@ func init() {
 
 }
 
-func printLocation(start token.Position, end token.Position) {
-	fmt.Printf("%s\n", PositionRange(start, end))
+func StackLocation(fr *frame) string {
+	fn := fr.Fn
+	s := fmt.Sprintf("%s(", fn.Name())
+	params :=""
+	if len(fn.Params) > 0 {
+		params = fn.Params[0].Name()
+		for i:=1; i<len(fn.Params); i++ {
+			params += ", " + fn.Params[i].Name()
+		}
+	}
+	s += params + ")"
+	return s
+}
+
+func fmtLocation(start token.Position, end token.Position) string {
+	return fmt.Sprintf("%s", PositionRange(start, end))
 }
 
 func printLocInfo(fr *frame, start token.Position, end token.Position,
@@ -52,14 +66,13 @@ func printLocInfo(fr *frame, start token.Position, end token.Position,
 		s += fr.Fn.Name() + "() "
 	}
 	fmt.Println(s)
-	printLocation(start, end)
+	fmt.Println(fmtLocation(start, end))
 }
 
-func GubTraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token.Pos,
-	event ssa2.TraceEvent) {
+func GubTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
 	fset := fr.Fn.Prog.Fset
-	startP := fset.Position(start)
-	endP   := fset.Position(end)
+	startP := fset.Position(fr.StartP)
+	endP   := fset.Position(fr.EndP)
 	printLocInfo(fr, startP, endP, event)
 	line := ""
 	inCmdLoop := true
@@ -92,9 +105,11 @@ func GubTraceHook(fr *frame, instr *ssa2.Instruction, start token.Pos, end token
 			fmt.Println("Clearing Instruction Trace")
 			ClearInstTracing()
 		case "q":
-			fmt.Println("That's all folks...")
-			gnureadline.Rl_reset_terminal(term)
-			os.Exit(0)
+			QuitCommand(fr, args)
+		case "T":
+			BacktraceCommand(fr, args)
+		case "v":
+			VariableCommand(fr, args)
 		default:
 			fmt.Printf("Unknown command %s\n", cmd)
 		}

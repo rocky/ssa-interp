@@ -93,6 +93,11 @@ type frame struct {
 	result           value
 	Status           SSAruntime.Status
 	panic            interface{}
+
+	// For tracking where we are
+	Pc               int         // Instruction index of basic block
+	StartP           token.Pos   // Start Position from last trace instr run
+	EndP             token.Pos   // End Postion from last trace instr run
 }
 
 var I Interpreter
@@ -320,8 +325,10 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		fr.Env[instr] = typeAssert(fr.I, instr, fr.get(instr.X).(iface))
 
 	case *ssa2.Trace:
+		fr.StartP = instr.Start
+		fr.EndP   = instr.End
 		if (fr.I.TraceMode & SSAruntime.EnableStmtTracing) != 0 {
-			TraceHook(fr, &genericInstr, instr.Start, instr.End, instr.Event)
+			TraceHook(fr, &genericInstr, instr.Event)
 		}
 
 	case *ssa2.MakeClosure:
@@ -511,27 +518,32 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 		}
 	}()
 
+	fr.StartP = fn.Pos()
+	fr.EndP   = fn.Pos()
 	if (i.TraceMode & SSAruntime.EnableStmtTracing) != 0 && len(fr.Block.Instrs) > 0 {
-		TraceHook(fr, &fr.Block.Instrs[0], fn.Pos(), fn.Pos(), ssa2.CALL_ENTER)
+		TraceHook(fr, &fr.Block.Instrs[0], ssa2.CALL_ENTER)
 	}
 	for {
 		if (i.TraceMode & SSAruntime.EnableTracing) != 0 {
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.Block)
 		}
 	block:
-		for _, instr = range fr.Block.Instrs {
+		for fr.Pc, instr = range fr.Block.Instrs {
 			if (i.TraceMode & SSAruntime.EnableTracing) != 0 {
+				fmt.Fprint(os.Stderr, fr.Block.Index, fr.Pc, "\t")
 				if v, ok := instr.(ssa2.Value); ok {
-					fmt.Fprintln(os.Stderr, "\t", v.Name(), "=", instr)
+					fmt.Fprintln(os.Stderr, v.Name(), "=", instr)
 				} else {
-					fmt.Fprintln(os.Stderr, "\t", instr)
+					fmt.Fprintln(os.Stderr, instr)
 				}
 			}
 			switch visitInstr(fr, instr) {
 			case kReturn:
 				fr.Status = SSAruntime.StComplete
+				fr.StartP = instr.Pos()
+				fr.EndP   = instr.Pos()
 				if (i.TraceMode & SSAruntime.EnableStmtTracing) != 0 {
-					TraceHook(fr, &instr, instr.Pos(), instr.Pos(), ssa2.CALL_RETURN)
+					TraceHook(fr, &instr, ssa2.CALL_RETURN)
 				}
 				return fr.result
 			case kNext:
@@ -645,9 +657,10 @@ func Interpret(mainpkg *ssa2.Package, mode SSAruntime.Mode, traceMode SSAruntime
 		// 	Env:    make(map[ssa2.Value]value),
 		// 	Block:  mainFn.Blocks[0],
 		// 	Locals: make([]value, len(mainFn.Locals)),
+		//  Start : mainFn.Pos()
+		//  End   : mainFn.Pos()
 		// }
-		// TraceHook(fr, nil&mainFn.Blocks[0].Instrs[0],
-		// 	mainFn.Pos(), mainFn.Pos(), ssa2.MAIN)
+		// TraceHook(fr, nil&mainFn.Blocks[0].Instrs[0], ssa2.MAIN)
 		I.TraceMode = traceMode
 		call(&I, nil, token.NoPos, mainFn, nil)
 		exitCode = 0

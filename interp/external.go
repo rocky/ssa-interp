@@ -60,6 +60,7 @@ var externals = map[string]externalFn{
 	"reflect.init":                    ext۰reflect۰Init,
 	"reflect.valueInterface":          ext۰reflect۰valueInterface,
 	"runtime.Breakpoint":              ext۰runtime۰Breakpoint,
+	//"runtime.Caller":                  ext۰runtime۰Caller,
 	"runtime.GC":                      ext۰runtime۰GC,
 	"runtime.GOMAXPROCS":              ext۰runtime۰GOMAXPROCS,
 	"runtime.Gosched":                 ext۰runtime۰Gosched,
