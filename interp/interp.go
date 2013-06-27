@@ -475,7 +475,7 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 			if (i.TraceMode & SSAruntime.EnableTracing) != 0 {
 				fmt.Fprintln(os.Stderr, "\t(external)")
 			}
-			return ext(fn, args)
+			return ext(caller, args)
 		}
 		if fn.Blocks == nil {
 			panic("no code for function: " + name)

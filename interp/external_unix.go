@@ -8,8 +8,6 @@ package interp
 
 import (
 	"syscall"
-
-	"ssa-interp"
 )
 
 func valueToBytes(v value) []byte {
@@ -39,12 +37,12 @@ func fillStat(st *syscall.Stat_t, stat structure) {
 	// stat[13] = st.Ctim
 }
 
-func ext۰syscall۰Close(fn *ssa2.Function, args []value) value {
+func ext۰syscall۰Close(fr *frame, args []value) value {
 	// func Close(fd int) (err error)
 	return wrapError(syscall.Close(args[0].(int)))
 }
 
-func ext۰syscall۰Fstat(fn *ssa2.Function, args []value) value {
+func ext۰syscall۰Fstat(fr *frame, args []value) value {
 	// func Fstat(fd int, stat *Stat_t) (err error)
 	fd := args[0].(int)
 	stat := (*args[1].(*value)).(structure)
@@ -55,7 +53,7 @@ func ext۰syscall۰Fstat(fn *ssa2.Function, args []value) value {
 	return wrapError(err)
 }
 
-func ext۰syscall۰ReadDirent(fn *ssa2.Function, args []value) value {
+func ext۰syscall۰ReadDirent(fr *frame, args []value) value {
 	// func ReadDirent(fd int, buf []byte) (n int, err error)
 	fd := args[0].(int)
 	p := args[1].([]value)
@@ -67,12 +65,12 @@ func ext۰syscall۰ReadDirent(fn *ssa2.Function, args []value) value {
 	return tuple{n, wrapError(err)}
 }
 
-func ext۰syscall۰Kill(fn *ssa2.Function, args []value) value {
+func ext۰syscall۰Kill(fr *frame, args []value) value {
 	// func Kill(pid int, sig Signal) (err error)
 	return wrapError(syscall.Kill(args[0].(int), syscall.Signal(args[1].(int))))
 }
 
-func ext۰syscall۰Lstat(fn *ssa2.Function, args []value) value {
+func ext۰syscall۰Lstat(fr *frame, args []value) value {
 	// func Lstat(name string, stat *Stat_t) (err error)
 	name := args[0].(string)
 	stat := (*args[1].(*value)).(structure)
@@ -83,7 +81,7 @@ func ext۰syscall۰Lstat(fn *ssa2.Function, args []value) value {
 	return wrapError(err)
 }
 
-func ext۰syscall۰Open(fn *ssa2.Function, args []value) value {
+func ext۰syscall۰Open(fr *frame, args []value) value {
 	// func Open(path string, mode int, perm uint32) (fd int, err error) {
 	path := args[0].(string)
 	mode := args[1].(int)
@@ -92,7 +90,7 @@ func ext۰syscall۰Open(fn *ssa2.Function, args []value) value {
 	return tuple{fd, wrapError(err)}
 }
 
-func ext۰syscall۰ParseDirent(fn *ssa2.Function, args []value) value {
+func ext۰syscall۰ParseDirent(fr *frame, args []value) value {
 	// func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string)
 	max := args[1].(int)
 	var names []string
@@ -107,7 +105,7 @@ func ext۰syscall۰ParseDirent(fn *ssa2.Function, args []value) value {
 	return tuple{consumed, count, inewnames}
 }
 
-func ext۰syscall۰Read(fn *ssa2.Function, args []value) value {
+func ext۰syscall۰Read(fr *frame, args []value) value {
 	// func Read(fd int, p []byte) (n int, err error)
 	fd := args[0].(int)
 	p := args[1].([]value)
@@ -119,7 +117,7 @@ func ext۰syscall۰Read(fn *ssa2.Function, args []value) value {
 	return tuple{n, wrapError(err)}
 }
 
-func ext۰syscall۰Stat(fn *ssa2.Function, args []value) value {
+func ext۰syscall۰Stat(fr *frame, args []value) value {
 	// func Stat(name string, stat *Stat_t) (err error)
 	name := args[0].(string)
 	stat := (*args[1].(*value)).(structure)
@@ -130,7 +128,7 @@ func ext۰syscall۰Stat(fn *ssa2.Function, args []value) value {
 	return wrapError(err)
 }
 
-func ext۰syscall۰Write(fn *ssa2.Function, args []value) value {
+func ext۰syscall۰Write(fr *frame, args []value) value {
 	// func Write(fd int, p []byte) (n int, err error)
 	n, err := syscall.Write(args[0].(int), valueToBytes(args[1]))
 	return tuple{n, wrapError(err)}
