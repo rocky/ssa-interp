@@ -462,12 +462,12 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 	if (i.TraceMode & SSAruntime.EnableTracing) != 0 {
 		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
-		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
+		fmt.Fprintf(os.Stderr, "\tEntering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
 		suffix := ""
 		if caller != nil {
 			suffix = ", resuming " + caller.Fn.FullName() + loc(fset, callpos)
 		}
-		defer fmt.Fprintf(os.Stderr, "Leaving %s%s.\n", fn.FullName(), suffix)
+		defer fmt.Fprintf(os.Stderr, "\tLeaving %s%s.\n", fn.FullName(), suffix)
 	}
 	if fn.Enclosing == nil {
 		name := fn.FullName()
