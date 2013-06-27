@@ -47,7 +47,7 @@ func printLocation(start token.Position, end token.Position) {
 
 func printLocInfo(fr *frame, start token.Position, end token.Position,
                   event ssa2.TraceEvent) {
-	s := Event2Icon[event]
+	s := Event2Icon[event] + " "
 	if len(fr.Fn.Name()) > 0 {
 		s += fr.Fn.Name() + "() "
 	}
