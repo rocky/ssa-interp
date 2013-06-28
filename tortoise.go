@@ -13,7 +13,6 @@ import (
 	"code.google.com/p/go.tools/importer"
 	"ssa-interp"
 	"ssa-interp/interp"
-	"ssa-interp/runtime"
 )
 
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
@@ -75,16 +74,16 @@ func main() {
 		}
 	}
 
-	var interpMode SSAruntime.Mode
-	var interpTraceMode SSAruntime.TraceMode
+	var interpMode interp.Mode
+	var interpTraceMode interp.TraceMode
 	for _, c := range *interpFlag {
 		switch c {
 		case 'T':
-			interpTraceMode |= SSAruntime.EnableTracing
+			interpTraceMode |= interp.EnableTracing
 		case 'S':
-			interpTraceMode |= SSAruntime.EnableStmtTracing
+			interpTraceMode |= interp.EnableStmtTracing
 		case 'R':
-			interpMode |= SSAruntime.DisableRecover
+			interpMode |= interp.DisableRecover
 		default:
 			log.Fatalf("Unknown -interp option: '%c'.", c)
 		}

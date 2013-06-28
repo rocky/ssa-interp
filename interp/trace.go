@@ -6,6 +6,33 @@ import (
 	"ssa-interp"
 )
 
+// Mode is a bitmask of options influencing the interpreter.
+type Mode uint
+
+// Mode is a bitmask of options influencing the tracing.
+type TraceMode uint
+
+const (
+	// Disable recover() in target programs; show interpreter crash instead.
+	DisableRecover Mode = 1 << iota
+)
+
+const (
+	// Print a trace of all instructions as they are interpreted.
+	EnableTracing  TraceMode = 1 << iota
+
+	// Print higher-level statement boundary tracing
+	EnableStmtTracing
+)
+
+type Status int
+
+const (
+	StRunning Status = iota
+	StComplete
+	StPanic
+)
+
 // FIXME: arrange to put in ast
 func PositionRange(start token.Position, end token.Position) string {
 	s := ""
@@ -66,4 +93,40 @@ func NullTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
 func SetTraceHook(hook TraceHookFunc) {
 	// FIXME turn this into an append
 	TraceHook = hook
+}
+
+func SetStepIn(fr *frame) {
+	i.TraceMode |= EnableStmtTracing
+	fr.tracing = TRACE_STEP_IN
+}
+
+func SetStepOver(fr *frame) {
+	i.TraceMode |= EnableStmtTracing
+	fr.tracing = TRACE_STEP_OVER
+}
+
+func SetStepOut(fr *frame) {
+	i.TraceMode |= EnableStmtTracing
+	fr.tracing = TRACE_STEP_OUT
+}
+
+func SetStepOff(fr *frame) {
+	i.TraceMode &= ^EnableStmtTracing
+	fr.tracing = TRACE_STEP_NONE
+}
+
+func SetInstTracing() {
+	i.TraceMode |= EnableTracing
+}
+
+func ClearInstTracing() {
+	i.TraceMode &= ^EnableTracing
+}
+
+func InstTracing() bool {
+	return 0 != i.TraceMode & EnableTracing
+}
+
+func GlobalStmtTracing() bool {
+	return 0 != i.TraceMode & EnableStmtTracing
 }

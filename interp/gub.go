@@ -91,13 +91,22 @@ func GubTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
 		switch cmd {
 		case "s":
 			fmt.Println("Stepping...")
+			SetStepIn(fr)
 			inCmdLoop = false
 			break
 		case "h", "?", "help":
 			HelpCommand(fr, args)
 		case "c":
-			ClearStmtTracing()
+			SetStepOff(fr)
 			fmt.Println("Continuing...")
+			inCmdLoop = false
+			break
+		case "finish", "fin":
+ 			FinishCommand(fr, args)
+			inCmdLoop = false
+			break
+		case "next", "n":
+ 			NextCommand(fr, args)
 			inCmdLoop = false
 			break
 		case "+":

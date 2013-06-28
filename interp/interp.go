@@ -52,7 +52,6 @@ import (
 	"runtime"
 
 	"ssa-interp"
-	"ssa-interp/runtime"
 
 	"code.google.com/p/go.tools/go/types"
 )
@@ -71,12 +70,21 @@ const (
 	kJump
 )
 
+type traceType int
+
+const (
+	TRACE_STEP_NONE = iota
+	TRACE_STEP_IN
+	TRACE_STEP_OVER
+	TRACE_STEP_OUT
+)
+
 // State shared between all interpreted goroutines.
 type Interpreter struct {
 	Prog           *ssa2.Program         // the SSA program
 	Globals        map[ssa2.Value]*value // addresses of global variables (immutable)
-	Mode           SSAruntime.Mode       // interpreter options
-	TraceMode      SSAruntime.TraceMode  // interpreter trace options
+	Mode           Mode                  // interpreter options
+	TraceMode      TraceMode             // interpreter trace options
 	reflectPackage *ssa2.Package         // the fake reflect package
 	errorMethods   ssa2.MethodSet        // the method set of reflect.error, which implements the error interface.
 	rtypeMethods   ssa2.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
@@ -91,7 +99,8 @@ type frame struct {
 	Locals           []value
 	defers           []func()
 	result           value
-	Status           SSAruntime.Status
+	Status           Status
+	tracing			 traceType
 	panic            interface{}
 
 	// For tracking where we are
@@ -104,22 +113,6 @@ var i Interpreter
 
 func GetInterpeter() Interpreter {
 	return i
-}
-
-func SetStmtTracing() {
-	i.TraceMode |= SSAruntime.EnableStmtTracing
-}
-
-func ClearStmtTracing() {
-	i.TraceMode &= ^SSAruntime.EnableStmtTracing
-}
-
-func SetInstTracing() {
-	i.TraceMode |= SSAruntime.EnableTracing
-}
-
-func ClearInstTracing() {
-	i.TraceMode &= ^SSAruntime.EnableTracing
 }
 
 func (fr *frame) get(key ssa2.Value) value {
@@ -145,7 +138,7 @@ func (fr *frame) get(key ssa2.Value) value {
 
 func (fr *frame) rundefers() {
 	for i := range fr.defers {
-		if (fr.i.TraceMode & SSAruntime.EnableTracing) != 0 {
+		if (fr.i.TraceMode & EnableTracing) != 0 {
 			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
 		}
 		fr.defers[len(fr.defers)-1-i]()
@@ -327,7 +320,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 	case *ssa2.Trace:
 		fr.StartP = instr.Start
 		fr.EndP   = instr.End
-		if (fr.i.TraceMode & SSAruntime.EnableStmtTracing) != 0 {
+		if (fr.tracing == TRACE_STEP_IN) || (fr.tracing == TRACE_STEP_OVER) && GlobalStmtTracing() {
 			TraceHook(fr, &genericInstr, instr.Event)
 		}
 
@@ -459,7 +452,7 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 // callpos is the position of the callsite.
 //
 func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function, args []value, env []value) value {
-	if (i.TraceMode & SSAruntime.EnableTracing) != 0 {
+	if InstTracing() {
 		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
 		fmt.Fprintf(os.Stderr, "\tEntering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
@@ -472,7 +465,7 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 	if fn.Enclosing == nil {
 		name := fn.FullName()
 		if ext := externals[name]; ext != nil {
-			if (i.TraceMode & SSAruntime.EnableTracing) != 0 {
+			if InstTracing() {
 				fmt.Fprintln(os.Stderr, "\t(external)")
 			}
 			return ext(caller, args)
@@ -483,12 +476,22 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 	}
 	fr := &frame{
 		i:      i,
-		Caller: caller, // currently unused; for unwinding.
+		Caller: caller,
 		Fn:     fn,
 		Env:    make(map[ssa2.Value]value),
 		Block:  fn.Blocks[0],
 		Locals: make([]value, len(fn.Locals)),
+		tracing: TRACE_STEP_NONE,
 	}
+
+	if caller == nil {
+		if GlobalStmtTracing() {
+			fr.tracing = TRACE_STEP_IN
+		}
+	} else if caller.tracing == TRACE_STEP_IN {
+		fr.tracing = TRACE_STEP_IN
+	}
+
 	for i, l := range fn.Locals {
 		fr.Locals[i] = zero(l.Type().Deref())
 		fr.Env[l] = &fr.Locals[i]
@@ -502,34 +505,34 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 	var instr ssa2.Instruction
 
 	defer func() {
-		if fr.Status != SSAruntime.StComplete {
-			if (fr.i.Mode & SSAruntime.DisableRecover) != 0 {
+		if fr.Status != StComplete {
+			if (fr.i.Mode & DisableRecover) != 0 {
 				return // let interpreter crash
 			}
-			fr.Status, fr.panic = SSAruntime.StPanic, recover()
+			fr.Status, fr.panic = StPanic, recover()
 		}
 		fr.rundefers()
 		// Destroy the locals to avoid accidental use after return.
 		for i := range fn.Locals {
 			fr.Locals[i] = bad{}
 		}
-		if fr.Status == SSAruntime.StPanic {
+		if fr.Status == StPanic {
 			panic(fr.panic) // panic stack is not entirely clean
 		}
 	}()
 
 	fr.StartP = fn.Pos()
 	fr.EndP   = fn.Pos()
-	if (i.TraceMode & SSAruntime.EnableStmtTracing) != 0 && len(fr.Block.Instrs) > 0 {
+	if fr.tracing == TRACE_STEP_IN && len(fr.Block.Instrs) > 0 && GlobalStmtTracing() {
 		TraceHook(fr, &fr.Block.Instrs[0], ssa2.CALL_ENTER)
 	}
 	for {
-		if (i.TraceMode & SSAruntime.EnableTracing) != 0 {
+		if InstTracing() {
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.Block)
 		}
 	block:
 		for fr.Pc, instr = range fr.Block.Instrs {
-			if (i.TraceMode & SSAruntime.EnableTracing) != 0 {
+			if InstTracing() {
 				fmt.Fprint(os.Stderr, fr.Block.Index, fr.Pc, "\t")
 				if v, ok := instr.(ssa2.Value); ok {
 					fmt.Fprintln(os.Stderr, v.Name(), "=", instr)
@@ -539,10 +542,10 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 			}
 			switch visitInstr(fr, instr) {
 			case kReturn:
-				fr.Status = SSAruntime.StComplete
+				fr.Status = StComplete
 				fr.StartP = instr.Pos()
 				fr.EndP   = instr.Pos()
-				if (i.TraceMode & SSAruntime.EnableStmtTracing) != 0 {
+				if (fr.tracing != TRACE_STEP_NONE) && GlobalStmtTracing() {
 					TraceHook(fr, &instr, ssa2.CALL_RETURN)
 				}
 				return fr.result
@@ -573,7 +576,7 @@ func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v value) {
 // Interpret returns the exit code of the program: 2 for panic (like
 // gc does), or the argument to os.Exit for normal termination.
 //
-func Interpret(mainpkg *ssa2.Package, mode SSAruntime.Mode, traceMode SSAruntime.TraceMode,
+func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	filename string, args []string) (exitCode int) {
 	i = Interpreter{
 		Prog:    mainpkg.Prog,
@@ -581,7 +584,7 @@ func Interpret(mainpkg *ssa2.Package, mode SSAruntime.Mode, traceMode SSAruntime
 		Mode:    mode,
 		TraceMode: traceMode,
 	}
-	i.TraceMode &= ^(SSAruntime.EnableStmtTracing|SSAruntime.EnableTracing)
+	i.TraceMode &= ^(EnableStmtTracing|EnableTracing)
 	initReflect(&i)
 
 	for importPath, pkg := range i.Prog.Packages {
@@ -624,7 +627,7 @@ func Interpret(mainpkg *ssa2.Package, mode SSAruntime.Mode, traceMode SSAruntime
 	// Top-level error handler.
 	exitCode = 2
 	defer func() {
-		if exitCode != 2 || (i.Mode & SSAruntime.DisableRecover) != 0 {
+		if exitCode != 2 || (i.Mode & DisableRecover) != 0 {
 			return
 		}
 		switch p := recover().(type) {

@@ -36,18 +36,30 @@ func BacktraceCommand(fr *frame, args []string) {
 	}
 }
 
+func FinishCommand(fr *frame, args []string) {
+	SetStepOut(fr)
+	fmt.Println("Continuing until return...")
+}
+
+func NextCommand(fr *frame, args []string) {
+	SetStepOver(fr)
+	fmt.Println("Step over...")
+}
+
 func HelpCommand(fr *frame, args []string) {
 	fmt.Println(`List of commands:
-Motion commands
-  s: step
+Execution running --
+  s: step in
+  n: next or step over
+  fin: finish or step out
   c: continue
 
-Variables
+Variables --
   local [name]:  show local variables info
   global [name]: show global variable info
   param: show function parameters
 
-Tracing
+Tracing --
   +: add instruction tracing
   -: remove instruction tracing
 

@@ -11,7 +11,6 @@ import (
 	"code.google.com/p/go.tools/go/types"
 
 	"ssa-interp"
-	"ssa-interp/runtime"
 )
 
 // If the target program panics, the interpreter panics with this type.
@@ -989,10 +988,10 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []valu
 		// function) to have any effect.  Thus we ignore both
 		// "defer recover()" and "defer f() -> g() ->
 		// recover()".
-		if (caller.i.Mode & SSAruntime.DisableRecover) == 0 &&
-			caller != nil && caller.Status == SSAruntime.StRunning &&
-			caller.Caller != nil && caller.Caller.Status == SSAruntime.StPanic {
-			caller.Caller.Status = SSAruntime.StComplete
+		if (caller.i.Mode & DisableRecover) == 0 &&
+			caller != nil && caller.Status == StRunning &&
+			caller.Caller != nil && caller.Caller.Status == StPanic {
+			caller.Caller.Status = StComplete
 			p := caller.Caller.panic
 			caller.Caller.panic = nil
 			switch p := p.(type) {
