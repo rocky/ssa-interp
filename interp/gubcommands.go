@@ -4,6 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"go/token"
+	"code.google.com/p/go.tools/go/exact"
+	"code.google.com/p/go.tools/go/types"
+
+
+	"ssa-interp"
 	"gnureadline"
 )
 
@@ -45,21 +51,42 @@ func GlobalsCommand(fr *frame, args []string) {
 				fmt.Printf("%s: %s\n", k, toString(*v))
 			}
 		}
-	// } else {
-	// 	// This is ugly, but I don't know to easily turn a string into
-	// 	// a ssa2.Value.
-	// 	globals := make(map[string]value)
-	// 	for k, v := range fr.I.Globals {
-	// 		globals[fmt.Sprintf("%s", k)] = v
-	// 	}
+	} else {
+		// This doesn't work and I don't know how to fix it.
+		for i:=1; i<=argc; i++ {
+			vv := ssa2.NewLiteral(exact.MakeString(args[i]),
+				types.Typ[types.String], token.NoPos, token.NoPos)
+			// fmt.Println(vv, "vs", toString(vv))
+			v, ok := fr.I.Globals[vv]
+			if ok {
+				fmt.Printf("%s: %s\n", vv, toString(*v))
+			}
+		}
 
-	// 	for i:=1; i<argc; i++ {
-	// 		vv := args[i]
-	// 		v := globals[vv]
-	// 		fmt.Printf("%s: %s\n", vv, toString(v))
-	// 	}
+		// This is ugly, but I don't know how to turn a string into
+		// a ssa2.Value.
+		globals := make(map[string]*value)
+		for k, v := range fr.I.Globals {
+			globals[fmt.Sprintf("%s", k)] = v
+		}
+
+		for i:=1; i<=argc; i++ {
+			vv := args[i]
+			v, ok := globals[vv]
+			if ok {
+				fmt.Printf("%s: %s\n", vv, toString(*v))
+			}
+		}
 	}
 }
+
+func ParametersCommand(fr *frame, args []string) {
+	for i, p := range fr.Fn.Params {
+		fmt.Printf("%d %s: %s\n", i, p.Name(), p.Type())
+	}
+}
+
+
 func LocalsCommand(fr *frame, args []string) {
 	if !argCountOK(0, 1, args) { return }
 	for k, v := range fr.Locals {

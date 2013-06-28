@@ -108,6 +108,8 @@ func GubTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
 			GlobalsCommand(fr, args)
 		case "lo", "locals":
 			LocalsCommand(fr, args)
+		case "param", "parameters":
+			ParametersCommand(fr, args)
 		case "q", "quit":
 			QuitCommand(fr, args)
 		case "bt", "T", "backtrace":
