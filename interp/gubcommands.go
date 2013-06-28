@@ -3,6 +3,7 @@ package interp
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"go/token"
 	"code.google.com/p/go.tools/go/exact"
@@ -33,6 +34,30 @@ func BacktraceCommand(fr *frame, args []string) {
 		fmt.Printf("   #%d %s\n", i, StackLocation(curFrame))
 		i++
 	}
+}
+
+func HelpCommand(fr *frame, args []string) {
+	fmt.Println(`List of commands:
+Motion commands
+  s: step
+  c: continue
+
+Variables
+  local [name]:  show local variables info
+  global [name]: show global variable info
+  param: show function parameters
+
+Tracing
+  +: add instruction tracing
+  -: remove instruction tracing
+
+Stack:
+  bt: print a backtrace
+
+Other:
+  ?: this help
+  q: quit
+`)
 }
 
 func GlobalsCommand(fr *frame, args []string) {
@@ -88,21 +113,47 @@ func ParametersCommand(fr *frame, args []string) {
 
 
 func LocalsCommand(fr *frame, args []string) {
-	if !argCountOK(0, 1, args) { return }
-	i := 0
-	for _, v := range fr.Locals {
-		name := fr.Fn.Locals[i].Name()
-		fmt.Printf("%s: %s\n", name, toString(v))
-		i++
+	argc := len(args) - 1
+	if !argCountOK(0, 2, args) { return }
+	if argc == 0 {
+		i := 0
+		for _, v := range fr.Locals {
+			name := fr.Fn.Locals[i].Name()
+			fmt.Printf("%s: %s\n", name, toString(v))
+			i++
+		}
+	} else {
+		varname := args[1]
+		i := 0
+		for _, v := range fr.Locals {
+			if args[1] == fr.Fn.Locals[i].Name() {
+				fmt.Printf("%s %s: %s\n", varname, fr.Fn.Locals[i], toString(v))
+				break
+			}
+			i++
+		}
+
 	}
 }
 
-
+// quit [exit-code]
+//
+// Terminates program. If an exit code is given, that is the exit code
+// for the program. Zero (normal termination) is used if no
+// termintation code.
 func QuitCommand(fr *frame, args []string) {
 	if !argCountOK(0, 1, args) { return }
+	rc := 0
+	if len(args) == 2 {
+		new_rc, ok := strconv.Atoi(args[1])
+		if ok == nil { rc = new_rc } else {
+			fmt.Printf("Expecting integer return code; got %s. Ignoring\n",
+				args[1])
+		}
+	}
 	fmt.Println("That's all folks...")
 	gnureadline.Rl_reset_terminal(term)
-	os.Exit(0)  // FIXME: Should use int arg
+	os.Exit(rc)
 
 }
 
