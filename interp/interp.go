@@ -531,6 +531,8 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.Block)
 		}
 	block:
+		// rocky: may eventually want to change this
+		// if I want to allow a "skip" or "jump" command
 		for fr.Pc, instr = range fr.Block.Instrs {
 			if InstTracing() {
 				fmt.Fprint(os.Stderr, fr.Block.Index, fr.Pc, "\t")
@@ -582,9 +584,8 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		Prog:    mainpkg.Prog,
 		Globals: make(map[ssa2.Value]*value),
 		Mode:    mode,
-		TraceMode: traceMode,
+		TraceMode: traceMode & ^(EnableStmtTracing|EnableTracing),
 	}
-	i.TraceMode &= ^(EnableStmtTracing|EnableTracing)
 	initReflect(&i)
 
 	for importPath, pkg := range i.Prog.Packages {

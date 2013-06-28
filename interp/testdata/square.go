@@ -13,6 +13,6 @@ func square(n int) int {
 }
 
 func main() {
-	rc := square(3)
+	rc := square(4)
 	os.Exit(rc)
 }

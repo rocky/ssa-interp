@@ -1,16 +1,20 @@
 # Comments starting with #: below are remake GNU Makefile comments. See
 # https://github.com/rocky/remake/wiki/Rake-tasks-for-gnu-make
 
-.PHONY: all interp check test check-quick test-interp
+.PHONY: all builder interp check test check-quick test-interp
 
 all: tortoise
 
-tortoise: interp tortoise.go
+tortoise: interp builder tortoise.go
 	go build tortoise.go
 
 #: Build the interpeter
-interp:
+builder:
 	go install
+
+#: Build the interpeter
+interp:
+	(cd interp && go install)
 
 #: Same as "check"
 test: check

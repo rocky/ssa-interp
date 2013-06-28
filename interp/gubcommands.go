@@ -55,9 +55,9 @@ Execution running --
   c: continue
 
 Variables --
-  local [name]:  show local variables info
+  local [name]:  show local variable info
   global [name]: show global variable info
-  param: show function parameters
+  param [name]: show function parameter info
 
 Tracing --
   +: add instruction tracing
@@ -118,11 +118,22 @@ func GlobalsCommand(fr *frame, args []string) {
 }
 
 func ParametersCommand(fr *frame, args []string) {
-	for i, p := range fr.Fn.Params {
-		fmt.Printf("%d %s: %s\n", i, p.Name(), p.Type())
+	argc := len(args) - 1
+	if !argCountOK(0, 1, args) { return }
+	if argc == 0 {
+		for i, p := range fr.Fn.Params {
+			fmt.Println(fr.Fn.Params[i], fr.Env[p])
+		}
+	} else {
+		varname := args[1]
+		for i, p := range fr.Fn.Params {
+			if varname == fr.Fn.Params[i].Name() {
+				fmt.Println(fr.Fn.Params[i], fr.Env[p])
+				break
+			}
+		}
 	}
 }
-
 
 func LocalsCommand(fr *frame, args []string) {
 	argc := len(args) - 1

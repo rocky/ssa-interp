@@ -2,7 +2,6 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 	"os"
 
 	"gnureadline"
@@ -66,69 +65,13 @@ func printLocInfo(fr *frame, start token.Position, end token.Position,
 		s += fr.Fn.Name() + "() "
 	}
 	fmt.Println(s)
-	fmt.Println(fmtLocation(start, end))
-}
-
-func GubTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
-	fset := fr.Fn.Prog.Fset
-	startP := fset.Position(fr.StartP)
-	endP   := fset.Position(fr.EndP)
-	printLocInfo(fr, startP, endP, event)
-	line := ""
-	inCmdLoop := true
-	var err error
-	for ; err == nil && inCmdLoop; cmdCount++ {
-		line, err = gnureadline.Readline(fmt.Sprintf("gub[%d]: ", cmdCount),
-			true)
-		args  := strings.Split(line, " ")
-		if len(args) == 0 {
-			fmt.Println("Empty line skipped")
-			continue
-		}
-
-		cmd := args[0]
-
-		switch cmd {
-		case "s":
-			fmt.Println("Stepping...")
-			SetStepIn(fr)
-			inCmdLoop = false
-			break
-		case "h", "?", "help":
-			HelpCommand(fr, args)
-		case "c":
-			SetStepOff(fr)
-			fmt.Println("Continuing...")
-			inCmdLoop = false
-			break
-		case "finish", "fin":
- 			FinishCommand(fr, args)
-			inCmdLoop = false
-			break
-		case "next", "n":
- 			NextCommand(fr, args)
-			inCmdLoop = false
-			break
-		case "+":
-			fmt.Println("Setting Instruction Trace")
-			SetInstTracing()
-		case "-":
-			fmt.Println("Clearing Instruction Trace")
-			ClearInstTracing()
-		case "gl", "global", "globals":
-			GlobalsCommand(fr, args)
-		case "lo", "local", "locals":
-			LocalsCommand(fr, args)
-		case "param", "parameters":
-			ParametersCommand(fr, args)
-		case "q", "quit", "exit":
-			QuitCommand(fr, args)
-		case "bt", "T", "backtrace":
-			BacktraceCommand(fr, args)
-		case "v":
-			VariableCommand(fr, args)
-		default:
-			fmt.Printf("Unknown command %s\n", cmd)
+	if (event == ssa2.CALL_RETURN) {
+		fmt.Printf("return: %s\n", toString(fr.result))
+	} else if (event == ssa2.CALL_ENTER) {
+		for i, p := range fr.Fn.Params {
+			fmt.Println(fr.Fn.Params[i], fr.Env[p])
 		}
 	}
+
+	fmt.Println(fmtLocation(start, end))
 }
