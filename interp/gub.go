@@ -104,9 +104,13 @@ func GubTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
 		case "-":
 			fmt.Println("Clearing Instruction Trace")
 			ClearInstTracing()
-		case "q":
+		case "gl", "globals":
+			GlobalsCommand(fr, args)
+		case "lo", "locals":
+			LocalsCommand(fr, args)
+		case "q", "quit":
 			QuitCommand(fr, args)
-		case "T":
+		case "bt", "T", "backtrace":
 			BacktraceCommand(fr, args)
 		case "v":
 			VariableCommand(fr, args)

@@ -29,6 +29,45 @@ func BacktraceCommand(fr *frame, args []string) {
 	}
 }
 
+func GlobalsCommand(fr *frame, args []string) {
+	argc := len(args) - 1
+	if argc == 0 {
+		for k, v := range fr.I.Globals {
+			if v == nil {
+				fmt.Printf("%s: nil\n")
+			} else {
+				// FIXME: figure out why reflect.lookupCache causes
+				// an panic on a nil pointer or invalid address
+				if fmt.Sprintf("%s", k) == "reflect.lookupCache" {
+					fmt.Println("got one!")
+					continue
+				}
+				fmt.Printf("%s: %s\n", k, toString(*v))
+			}
+		}
+	// } else {
+	// 	// This is ugly, but I don't know to easily turn a string into
+	// 	// a ssa2.Value.
+	// 	globals := make(map[string]value)
+	// 	for k, v := range fr.I.Globals {
+	// 		globals[fmt.Sprintf("%s", k)] = v
+	// 	}
+
+	// 	for i:=1; i<argc; i++ {
+	// 		vv := args[i]
+	// 		v := globals[vv]
+	// 		fmt.Printf("%s: %s\n", vv, toString(v))
+	// 	}
+	}
+}
+func LocalsCommand(fr *frame, args []string) {
+	if !argCountOK(0, 1, args) { return }
+	for k, v := range fr.Locals {
+		fmt.Printf("%s: %s\n", toString(k), toString(v))
+	}
+}
+
+
 func QuitCommand(fr *frame, args []string) {
 	if !argCountOK(0, 1, args) { return }
 	fmt.Println("That's all folks...")
