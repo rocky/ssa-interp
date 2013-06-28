@@ -83,7 +83,7 @@ type Interpreter struct {
 }
 
 type frame struct {
-	I                *Interpreter
+	i                *Interpreter
 	Caller           *frame
 	Fn               *ssa2.Function
 	Block, PrevBlock *ssa2.BasicBlock
@@ -100,26 +100,26 @@ type frame struct {
 	EndP             token.Pos   // End Postion from last trace instr run
 }
 
-var I Interpreter
+var i Interpreter
 
 func GetInterpeter() Interpreter {
-	return I
+	return i
 }
 
 func SetStmtTracing() {
-	I.TraceMode |= SSAruntime.EnableStmtTracing
+	i.TraceMode |= SSAruntime.EnableStmtTracing
 }
 
 func ClearStmtTracing() {
-	I.TraceMode &= ^SSAruntime.EnableStmtTracing
+	i.TraceMode &= ^SSAruntime.EnableStmtTracing
 }
 
 func SetInstTracing() {
-	I.TraceMode |= SSAruntime.EnableTracing
+	i.TraceMode |= SSAruntime.EnableTracing
 }
 
 func ClearInstTracing() {
-	I.TraceMode &= ^SSAruntime.EnableTracing
+	i.TraceMode &= ^SSAruntime.EnableTracing
 }
 
 func (fr *frame) get(key ssa2.Value) value {
@@ -133,7 +133,7 @@ func (fr *frame) get(key ssa2.Value) value {
 	case *ssa2.Literal:
 		return literalValue(key)
 	case *ssa2.Global:
-		if r, ok := fr.I.Globals[key]; ok {
+		if r, ok := fr.i.Globals[key]; ok {
 			return r
 		}
 	}
@@ -145,7 +145,7 @@ func (fr *frame) get(key ssa2.Value) value {
 
 func (fr *frame) rundefers() {
 	for i := range fr.defers {
-		if (fr.I.TraceMode & SSAruntime.EnableTracing) != 0 {
+		if (fr.i.TraceMode & SSAruntime.EnableTracing) != 0 {
 			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
 		}
 		fr.defers[len(fr.defers)-1-i]()
@@ -178,7 +178,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.Call:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.Env[instr] = call(fr.I, fr, instr.Pos(), fn, args)
+		fr.Env[instr] = call(fr.i, fr, instr.Pos(), fn, args)
 
 	case *ssa2.ChangeInterface:
 		x := fr.get(instr.X)
@@ -242,10 +242,10 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.Defer:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.defers = append(fr.defers, func() { call(fr.I, fr, instr.Pos(), fn, args) })
+		fr.defers = append(fr.defers, func() { call(fr.i, fr, instr.Pos(), fn, args) })
 	case *ssa2.Go:
 		fn, args := prepareCall(fr, &instr.Call)
-		go call(fr.I, nil, instr.Pos(), fn, args)
+		go call(fr.i, nil, instr.Pos(), fn, args)
 
 	case *ssa2.MakeChan:
 		fr.Env[instr] = make(chan value, asInt(fr.get(instr.Size)))
@@ -322,12 +322,12 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		}
 
 	case *ssa2.TypeAssert:
-		fr.Env[instr] = typeAssert(fr.I, instr, fr.get(instr.X).(iface))
+		fr.Env[instr] = typeAssert(fr.i, instr, fr.get(instr.X).(iface))
 
 	case *ssa2.Trace:
 		fr.StartP = instr.Start
 		fr.EndP   = instr.End
-		if (fr.I.TraceMode & SSAruntime.EnableStmtTracing) != 0 {
+		if (fr.i.TraceMode & SSAruntime.EnableStmtTracing) != 0 {
 			TraceHook(fr, &genericInstr, instr.Event)
 		}
 
@@ -415,7 +415,7 @@ func prepareCall(fr *frame, call *ssa2.CallCommon) (fn value, args []value) {
 			panic("method invoked on nil interface")
 		}
 		id := call.MethodId()
-		fn = findMethodSet(fr.I, recv.t)[id]
+		fn = findMethodSet(fr.i, recv.t)[id]
 		if fn == nil {
 			// Unreachable in well-typed programs.
 			panic(fmt.Sprintf("method set for dynamic type %v does not contain %s", recv.t, id))
@@ -482,7 +482,7 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 		}
 	}
 	fr := &frame{
-		I:      i,
+		i:      i,
 		Caller: caller, // currently unused; for unwinding.
 		Fn:     fn,
 		Env:    make(map[ssa2.Value]value),
@@ -503,7 +503,7 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 
 	defer func() {
 		if fr.Status != SSAruntime.StComplete {
-			if (fr.I.Mode & SSAruntime.DisableRecover) != 0 {
+			if (fr.i.Mode & SSAruntime.DisableRecover) != 0 {
 				return // let interpreter crash
 			}
 			fr.Status, fr.panic = SSAruntime.StPanic, recover()
@@ -575,22 +575,22 @@ func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v value) {
 //
 func Interpret(mainpkg *ssa2.Package, mode SSAruntime.Mode, traceMode SSAruntime.TraceMode,
 	filename string, args []string) (exitCode int) {
-	I = Interpreter{
+	i = Interpreter{
 		Prog:    mainpkg.Prog,
 		Globals: make(map[ssa2.Value]*value),
 		Mode:    mode,
 		TraceMode: traceMode,
 	}
-	I.TraceMode &= ^(SSAruntime.EnableStmtTracing|SSAruntime.EnableTracing)
-	initReflect(&I)
+	i.TraceMode &= ^(SSAruntime.EnableStmtTracing|SSAruntime.EnableTracing)
+	initReflect(&i)
 
-	for importPath, pkg := range I.Prog.Packages {
+	for importPath, pkg := range i.Prog.Packages {
 		// Initialize global storage.
 		for _, m := range pkg.Members {
 			switch v := m.(type) {
 			case *ssa2.Global:
 				cell := zero(v.Type().Deref())
-				I.Globals[v] = &cell
+				i.Globals[v] = &cell
 			}
 		}
 
@@ -602,7 +602,7 @@ func Interpret(mainpkg *ssa2.Package, mode SSAruntime.Mode, traceMode SSAruntime
 				envs = append(envs, s)
 			}
 			envs = append(envs, "GOSSAINTERP=1")
-			setGlobal(&I, pkg, "envs", envs)
+			setGlobal(&i, pkg, "envs", envs)
 
 		case "runtime":
 			// TODO(gri): expose go/types.sizeof so we can
@@ -610,21 +610,21 @@ func Interpret(mainpkg *ssa2.Package, mode SSAruntime.Mode, traceMode SSAruntime
 			// unsafe.Sizeof(memStats) won't work since gc
 			// and go/types have different sizeof
 			// functions.
-			setGlobal(&I, pkg, "sizeof_C_MStats", uintptr(3696))
+			setGlobal(&i, pkg, "sizeof_C_MStats", uintptr(3696))
 
 		case "os":
 			Args := []value{filename}
 			for _, s := range args {
 				Args = append(Args, s)
 			}
-			setGlobal(&I, pkg, "Args", Args)
+			setGlobal(&i, pkg, "Args", Args)
 		}
 	}
 
 	// Top-level error handler.
 	exitCode = 2
 	defer func() {
-		if exitCode != 2 || (I.Mode & SSAruntime.DisableRecover) != 0 {
+		if exitCode != 2 || (i.Mode & SSAruntime.DisableRecover) != 0 {
 			return
 		}
 		switch p := recover().(type) {
@@ -649,7 +649,7 @@ func Interpret(mainpkg *ssa2.Package, mode SSAruntime.Mode, traceMode SSAruntime
 	}()
 
 	// Run!
-	call(&I, nil, token.NoPos, mainpkg.Init, nil)
+	call(&i, nil, token.NoPos, mainpkg.Init, nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
 		// fr := &frame{
 		// 	I: &I,
@@ -661,8 +661,8 @@ func Interpret(mainpkg *ssa2.Package, mode SSAruntime.Mode, traceMode SSAruntime
 		//  End   : mainFn.Pos()
 		// }
 		// TraceHook(fr, nil&mainFn.Blocks[0].Instrs[0], ssa2.MAIN)
-		I.TraceMode = traceMode
-		call(&I, nil, token.NoPos, mainFn, nil)
+		i.TraceMode = traceMode
+		call(&i, nil, token.NoPos, mainFn, nil)
 		exitCode = 0
 	} else {
 		fmt.Fprintln(os.Stderr, "No main function.")

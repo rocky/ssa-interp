@@ -38,7 +38,7 @@ func BacktraceCommand(fr *frame, args []string) {
 func GlobalsCommand(fr *frame, args []string) {
 	argc := len(args) - 1
 	if argc == 0 {
-		for k, v := range fr.I.Globals {
+		for k, v := range fr.i.Globals {
 			if v == nil {
 				fmt.Printf("%s: nil\n")
 			} else {
@@ -57,7 +57,7 @@ func GlobalsCommand(fr *frame, args []string) {
 			vv := ssa2.NewLiteral(exact.MakeString(args[i]),
 				types.Typ[types.String], token.NoPos, token.NoPos)
 			// fmt.Println(vv, "vs", toString(vv))
-			v, ok := fr.I.Globals[vv]
+			v, ok := fr.i.Globals[vv]
 			if ok {
 				fmt.Printf("%s: %s\n", vv, toString(*v))
 			}
@@ -66,7 +66,7 @@ func GlobalsCommand(fr *frame, args []string) {
 		// This is ugly, but I don't know how to turn a string into
 		// a ssa2.Value.
 		globals := make(map[string]*value)
-		for k, v := range fr.I.Globals {
+		for k, v := range fr.i.Globals {
 			globals[fmt.Sprintf("%s", k)] = v
 		}
 
@@ -89,8 +89,11 @@ func ParametersCommand(fr *frame, args []string) {
 
 func LocalsCommand(fr *frame, args []string) {
 	if !argCountOK(0, 1, args) { return }
-	for k, v := range fr.Locals {
-		fmt.Printf("%s: %s\n", toString(k), toString(v))
+	i := 0
+	for _, v := range fr.Locals {
+		name := fr.Fn.Locals[i].Name()
+		fmt.Printf("%s: %s\n", name, toString(v))
+		i++
 	}
 }
 
