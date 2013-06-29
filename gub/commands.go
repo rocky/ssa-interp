@@ -56,28 +56,44 @@ func FrameCommand(args []string) {
 			args[1])
 		return
 	}
-	if frameIndex >= stackSize {
-		fmt.Printf("Frame number %d too large. Max is %d.\n", frameIndex, stackSize-1)
-		return
-	} else if frameIndex < -stackSize {
-		fmt.Printf("Frame number %d too small. Min is %d.\n", frameIndex, -stackSize)
-		return
-	}
+	adjustFrame(frameIndex, true)
 
-	if frameIndex < 0 { frameIndex = stackSize + frameIndex }
+}
 
-	fr := topFrame
-	for i:=0; i<frameIndex && fr !=nil; fr = fr.Caller(0) {
-		fmt.Println("next")
-		i++
+func UpCommand(args []string) {
+	if !argCountOK(0, 1, args) { return }
+	var frameIndex int
+	var ok error
+	if len(args) == 1 {
+		frameIndex = 1
+	} else {
+		frameIndex, ok = strconv.Atoi(args[1])
+		if ok != nil {
+			fmt.Printf("Expecting integer frame number; got %s\n",
+				args[1])
+			return
+		}
 	}
-	if fr == nil { return }
-	curFrame = fr
-	event := ssa2.CALL_ENTER
-	if (0 == frameIndex) {
-		event = traceEvent
+	adjustFrame(frameIndex, false)
+
+}
+
+func DownCommand(args []string) {
+	if !argCountOK(0, 1, args) { return }
+	var frameIndex int
+	var ok error
+	if len(args) == 1 {
+		frameIndex = 1
+	} else {
+		frameIndex, ok = strconv.Atoi(args[1])
+		if ok != nil {
+			fmt.Printf("Expecting integer frame number; got %s\n",
+				args[1])
+			return
+		}
 	}
-	printLocInfo(curFrame, event)
+	adjustFrame(-frameIndex, false)
+
 }
 
 func NextCommand(args []string) {
@@ -105,6 +121,8 @@ Tracing --
 Stack:
   bt: print a backtrace
   frame *num*: switch stack frame
+  up *num*: switch to a newer frame
+  down *num*: switch to a older frame
 
 Other:
   ?: this help

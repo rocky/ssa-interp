@@ -34,11 +34,8 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		cmd := args[0]
 
 		switch cmd {
-		case "s":
-			fmt.Println("Stepping...")
-			interp.SetStepIn(curFrame)
-			inCmdLoop = false
-			break
+		case "down":
+			DownCommand(args)
 		case "h", "?", "help":
 			HelpCommand(args)
 		case "c":
@@ -76,6 +73,13 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			QuitCommand(args)
 		case "bt", "T", "backtrace", "where":
 			BacktraceCommand(args)
+		case "s", "step":
+			fmt.Println("Stepping...")
+			interp.SetStepIn(curFrame)
+			inCmdLoop = false
+			break
+		case "up":
+			UpCommand(args)
 		case "v":
 			VariableCommand(args)
 		default:
