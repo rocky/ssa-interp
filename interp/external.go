@@ -145,7 +145,7 @@ func ext۰runtime۰Breakpoint(fr *frame, args []value) value {
 }
 
 func encode_pc(fr *frame) int {
-	return fr.Block.Index * 1000 + fr.Pc
+	return fr.block.Index * 1000 + fr.pc
 }
 
 func ext۰runtime۰Caller(fr *frame, args []value) value {
@@ -153,14 +153,14 @@ func ext۰runtime۰Caller(fr *frame, args []value) value {
 
 	final_fr := fr
 	for i:=0; i<skip; i++ {
-		final_fr = final_fr.Caller
+		final_fr = final_fr.caller
 		if final_fr == nil {
 			return tuple{0, "None", 0, false}
 		}
 	}
 
-	fset := fr.Fn.Prog.Fset
-	startP := fset.Position(final_fr.StartP)
+	fset := fr.fn.Prog.Fset
+	startP := fset.Position(final_fr.startP)
 
 	var filename string
 	if startP.IsValid() {

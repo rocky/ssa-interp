@@ -1,3 +1,5 @@
+// Copyright 2013 Rocky Bernstein.
+// Top-level debugger interface
 package interp
 
 import (
@@ -41,7 +43,7 @@ func init() {
 }
 
 func StackLocation(fr *frame) string {
-	fn := fr.Fn
+	fn := fr.Fn()
 	s := fmt.Sprintf("%s(", fn.Name())
 	params :=""
 	if len(fn.Params) > 0 {
@@ -61,15 +63,15 @@ func fmtLocation(start token.Position, end token.Position) string {
 func printLocInfo(fr *frame, start token.Position, end token.Position,
                   event ssa2.TraceEvent) {
 	s := Event2Icon[event] + " "
-	if len(fr.Fn.Name()) > 0 {
-		s += fr.Fn.Name() + "() "
+	if len(fr.Fn().Name()) > 0 {
+		s += fr.Fn().Name() + "() "
 	}
 	fmt.Println(s)
 	if (event == ssa2.CALL_RETURN) {
 		fmt.Printf("return: %s\n", toString(fr.result))
 	} else if (event == ssa2.CALL_ENTER) {
-		for i, p := range fr.Fn.Params {
-			fmt.Println(fr.Fn.Params[i], fr.Env[p])
+		for i, p := range fr.Fn().Params {
+			fmt.Println(fr.Fn().Params[i], fr.Env[p])
 		}
 	}
 

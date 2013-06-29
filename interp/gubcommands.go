@@ -1,3 +1,5 @@
+// Copyright 2013 Rocky Bernstein.
+// Debugger commands
 package interp
 
 import (
@@ -30,7 +32,7 @@ func BacktraceCommand(fr *frame, args []string) {
 	if !argCountOK(0, 1, args) { return }
 	// FIXME: should get limit from args
 	curFrame := fr
-	for i:=0; curFrame !=nil; curFrame = curFrame.Caller {
+	for i:=0; curFrame !=nil; curFrame = curFrame.caller {
 		fmt.Printf("   #%d %s\n", i, StackLocation(curFrame))
 		i++
 	}
@@ -121,14 +123,14 @@ func ParametersCommand(fr *frame, args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 1, args) { return }
 	if argc == 0 {
-		for i, p := range fr.Fn.Params {
-			fmt.Println(fr.Fn.Params[i], fr.Env[p])
+		for i, p := range fr.Fn().Params {
+			fmt.Println(fr.Fn().Params[i], fr.Env[p])
 		}
 	} else {
 		varname := args[1]
-		for i, p := range fr.Fn.Params {
-			if varname == fr.Fn.Params[i].Name() {
-				fmt.Println(fr.Fn.Params[i], fr.Env[p])
+		for i, p := range fr.Fn().Params {
+			if varname == fr.Fn().Params[i].Name() {
+				fmt.Println(fr.Fn().Params[i], fr.Env[p])
 				break
 			}
 		}
@@ -140,17 +142,17 @@ func LocalsCommand(fr *frame, args []string) {
 	if !argCountOK(0, 2, args) { return }
 	if argc == 0 {
 		i := 0
-		for _, v := range fr.Locals {
-			name := fr.Fn.Locals[i].Name()
+		for _, v := range fr.Locals() {
+			name := fr.Fn().Locals[i].Name()
 			fmt.Printf("%s: %s\n", name, toString(v))
 			i++
 		}
 	} else {
 		varname := args[1]
 		i := 0
-		for _, v := range fr.Locals {
-			if args[1] == fr.Fn.Locals[i].Name() {
-				fmt.Printf("%s %s: %s\n", varname, fr.Fn.Locals[i], toString(v))
+		for _, v := range fr.Locals() {
+			if args[1] == fr.Fn().Locals[i].Name() {
+				fmt.Printf("%s %s: %s\n", varname, fr.Fn().Locals[i], toString(v))
 				break
 			}
 			i++
@@ -182,7 +184,7 @@ func QuitCommand(fr *frame, args []string) {
 
 func VariableCommand(fr *frame, args []string) {
 	if !argCountOK(1, 1, args) { return }
-	fn := fr.Fn
+	fn := fr.Fn()
 	varname := args[1]
 	for _, p := range fn.Locals {
 		if varname == p.Name() { break }

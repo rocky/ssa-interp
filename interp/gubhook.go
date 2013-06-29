@@ -1,3 +1,5 @@
+// Copyright 2013 Rocky Bernstein.
+// Debugger callback hook
 package interp
 
 import (
@@ -10,9 +12,9 @@ import (
 
 // Call-back hook from interpreter. Contains top-level statement breakout
 func GubTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
-	fset := fr.Fn.Prog.Fset
-	startP := fset.Position(fr.StartP)
-	endP   := fset.Position(fr.EndP)
+	fset := fr.Fn().Prog.Fset
+	startP := fset.Position(fr.StartP())
+	endP   := fset.Position(fr.EndP())
 	printLocInfo(fr, startP, endP, event)
 	line := ""
 	inCmdLoop := true
@@ -49,6 +51,10 @@ func GubTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
  			NextCommand(fr, args)
 			inCmdLoop = false
 			break
+		case "env":
+			for i, p := range fr.Env {
+				fmt.Println(i, p)
+			}
 		case "+":
 			fmt.Println("Setting Instruction Trace")
 			SetInstTracing()

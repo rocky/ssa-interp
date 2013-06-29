@@ -73,12 +73,12 @@ var TraceHook TraceHookFunc
 // This gets called for special trace events if tracing is on
 // FIXME: Move elsewhere
 func DefaultTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
-	fset := fr.Fn.Prog.Fset
-	startP := fset.Position(fr.StartP)
-	endP   := fset.Position(fr.EndP)
+	fset := fr.Fn().Prog.Fset
+	startP := fset.Position(fr.StartP())
+	endP   := fset.Position(fr.EndP())
 	s := fmt.Sprintf("Event: %s ", ssa2.Event2Name[event])
-	if len(fr.Fn.Name()) > 0 {
-		s += fr.Fn.Name() + "() "
+	if len(fr.Fn().Name()) > 0 {
+		s += fr.Fn().Name() + "() "
 	}
 	fmt.Printf("%sat\n%s\n", s, PositionRange(startP, endP))
 }

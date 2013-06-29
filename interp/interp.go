@@ -90,25 +90,6 @@ type Interpreter struct {
 	rtypeMethods   ssa2.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
 }
 
-type frame struct {
-	i                *Interpreter
-	Caller           *frame
-	Fn               *ssa2.Function
-	Block, PrevBlock *ssa2.BasicBlock
-	Env              map[ssa2.Value]value // dynamic values of SSA variables
-	Locals           []value
-	defers           []func()
-	result           value
-	Status           Status
-	tracing			 traceType
-	panic            interface{}
-
-	// For tracking where we are
-	Pc               int         // Instruction index of basic block
-	StartP           token.Pos   // Start Position from last trace instr run
-	EndP             token.Pos   // End Postion from last trace instr run
-}
-
 var i Interpreter
 
 func GetInterpeter() Interpreter {
@@ -226,11 +207,11 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		if fr.get(instr.Cond).(bool) {
 			succ = 0
 		}
-		fr.PrevBlock, fr.Block = fr.Block, fr.Block.Succs[succ]
+		fr.prevBlock, fr.block = fr.block, fr.block.Succs[succ]
 		return kJump
 
 	case *ssa2.Jump:
-		fr.PrevBlock, fr.Block = fr.Block, fr.Block.Succs[0]
+		fr.prevBlock, fr.block = fr.block, fr.block.Succs[0]
 		return kJump
 
 	case *ssa2.Defer:
@@ -318,8 +299,8 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		fr.Env[instr] = typeAssert(fr.i, instr, fr.get(instr.X).(iface))
 
 	case *ssa2.Trace:
-		fr.StartP = instr.Start
-		fr.EndP   = instr.End
+		fr.startP = instr.Start
+		fr.endP   = instr.End
 		if (fr.tracing == TRACE_STEP_IN) || (fr.tracing == TRACE_STEP_OVER) && GlobalStmtTracing() {
 			TraceHook(fr, &genericInstr, instr.Event)
 		}
@@ -333,7 +314,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.Phi:
 		for i, pred := range instr.Block().Preds {
-			if fr.PrevBlock == pred {
+			if fr.prevBlock == pred {
 				fr.Env[instr] = fr.get(instr.Edges[i])
 				break
 			}
@@ -433,7 +414,7 @@ func call(i *Interpreter, caller *frame, callpos token.Pos, fn value, args []val
 		}
 		return callSSA(i, caller, callpos, fn, args, nil)
 	case *closure:
-		return callSSA(i, caller, callpos, fn.Fn, args, fn.Env)
+		return callSSA(i, caller, callpos, fn.fn, args, fn.Env)
 	case *ssa2.Builtin:
 		return callBuiltin(caller, callpos, fn, args)
 	}
@@ -458,7 +439,7 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 		fmt.Fprintf(os.Stderr, "\tEntering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
 		suffix := ""
 		if caller != nil {
-			suffix = ", resuming " + caller.Fn.FullName() + loc(fset, callpos)
+			suffix = ", resuming " + caller.fn.FullName() + loc(fset, callpos)
 		}
 		defer fmt.Fprintf(os.Stderr, "\tLeaving %s%s.\n", fn.FullName(), suffix)
 	}
@@ -476,11 +457,11 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 	}
 	fr := &frame{
 		i:      i,
-		Caller: caller,
-		Fn:     fn,
+		caller: caller,
+		fn:     fn,
 		Env:    make(map[ssa2.Value]value),
-		Block:  fn.Blocks[0],
-		Locals: make([]value, len(fn.Locals)),
+		block:  fn.Blocks[0],
+		locals: make([]value, len(fn.Locals)),
 		tracing: TRACE_STEP_NONE,
 	}
 
@@ -493,8 +474,8 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 	}
 
 	for i, l := range fn.Locals {
-		fr.Locals[i] = zero(l.Type().Deref())
-		fr.Env[l] = &fr.Locals[i]
+		fr.locals[i] = zero(l.Type().Deref())
+		fr.Env[l] = &fr.locals[i]
 	}
 	for i, p := range fn.Params {
 		fr.Env[p] = args[i]
@@ -514,28 +495,28 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 		fr.rundefers()
 		// Destroy the locals to avoid accidental use after return.
 		for i := range fn.Locals {
-			fr.Locals[i] = bad{}
+			fr.locals[i] = bad{}
 		}
 		if fr.Status == StPanic {
 			panic(fr.panic) // panic stack is not entirely clean
 		}
 	}()
 
-	fr.StartP = fn.Pos()
-	fr.EndP   = fn.Pos()
-	if fr.tracing == TRACE_STEP_IN && len(fr.Block.Instrs) > 0 && GlobalStmtTracing() {
-		TraceHook(fr, &fr.Block.Instrs[0], ssa2.CALL_ENTER)
+	fr.startP = fn.Pos()
+	fr.endP   = fn.Pos()
+	if fr.tracing == TRACE_STEP_IN && len(fr.block.Instrs) > 0 && GlobalStmtTracing() {
+		TraceHook(fr, &fr.block.Instrs[0], ssa2.CALL_ENTER)
 	}
 	for {
 		if InstTracing() {
-			fmt.Fprintf(os.Stderr, ".%s:\n", fr.Block)
+			fmt.Fprintf(os.Stderr, ".%s:\n", fr.block)
 		}
 	block:
 		// rocky: may eventually want to change this
 		// if I want to allow a "skip" or "jump" command
-		for fr.Pc, instr = range fr.Block.Instrs {
+		for fr.pc, instr = range fr.block.Instrs {
 			if InstTracing() {
-				fmt.Fprint(os.Stderr, fr.Block.Index, fr.Pc, "\t")
+				fmt.Fprint(os.Stderr, fr.block.Index, fr.pc, "\t")
 				if v, ok := instr.(ssa2.Value); ok {
 					fmt.Fprintln(os.Stderr, v.Name(), "=", instr)
 				} else {
@@ -545,8 +526,8 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 			switch visitInstr(fr, instr) {
 			case kReturn:
 				fr.Status = StComplete
-				fr.StartP = instr.Pos()
-				fr.EndP   = instr.Pos()
+				fr.startP = instr.Pos()
+				fr.endP   = instr.Pos()
 				if (fr.tracing != TRACE_STEP_NONE) && GlobalStmtTracing() {
 					TraceHook(fr, &instr, ssa2.CALL_RETURN)
 				}
@@ -657,10 +638,10 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
 		// fr := &frame{
 		// 	I: &I,
-		// 	Caller: nil,
+		// 	caller: nil,
 		// 	Env:    make(map[ssa2.Value]value),
 		// 	Block:  mainFn.Blocks[0],
-		// 	Locals: make([]value, len(mainFn.Locals)),
+		// 	locals: make([]value, len(mainFn.Locals)),
 		//  Start : mainFn.Pos()
 		//  End   : mainFn.Pos()
 		// }

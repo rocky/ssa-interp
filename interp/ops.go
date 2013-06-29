@@ -990,10 +990,10 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []valu
 		// recover()".
 		if (caller.i.Mode & DisableRecover) == 0 &&
 			caller != nil && caller.Status == StRunning &&
-			caller.Caller != nil && caller.Caller.Status == StPanic {
-			caller.Caller.Status = StComplete
-			p := caller.Caller.panic
-			caller.Caller.panic = nil
+			caller.caller != nil && caller.caller.Status == StPanic {
+			caller.caller.Status = StComplete
+			p := caller.caller.panic
+			caller.caller.panic = nil
 			switch p := p.(type) {
 			case targetPanic:
 				return p.v

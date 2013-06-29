@@ -62,7 +62,7 @@ type iter interface {
 }
 
 type closure struct {
-	Fn  *ssa2.Function
+	fn  *ssa2.Function
 	Env []value
 }
 
