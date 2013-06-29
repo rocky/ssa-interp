@@ -94,9 +94,9 @@ Execution running --
   c: continue
 
 Variables --
-  local [name]:  show local variable info
-  global [name]: show global variable info
-  param [name]: show function parameter info
+  local [*name*]:  show local variable info
+  global [*name*]: show global variable info
+  param [*name*]: show function parameter info
 
 Tracing --
   +: add instruction tracing
@@ -104,6 +104,7 @@ Tracing --
 
 Stack:
   bt: print a backtrace
+  frame *num*: switch stack frame
 
 Other:
   ?: this help
