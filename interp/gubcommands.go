@@ -32,7 +32,7 @@ func BacktraceCommand(fr *frame, args []string) {
 	if !argCountOK(0, 1, args) { return }
 	// FIXME: should get limit from args
 	curFrame := fr
-	for i:=0; curFrame !=nil; curFrame = curFrame.caller {
+	for i:=0; curFrame !=nil; curFrame = curFrame.Caller(0) {
 		fmt.Printf("   #%d %s\n", i, StackLocation(curFrame))
 		i++
 	}

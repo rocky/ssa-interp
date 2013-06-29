@@ -1,6 +1,8 @@
 package interp
 
 import (
+	"fmt"
+	"os"
 	"go/token"
 	"ssa-interp"
 )
@@ -24,6 +26,37 @@ type frame struct {
 	endP             token.Pos   // End Postion from last trace instr run
 }
 
+func (fr *frame) get(key ssa2.Value) value {
+	switch key := key.(type) {
+	case nil:
+		// Hack; simplifies handling of optional attributes
+		// such as ssa2.Slice.{Low,High}.
+		return nil
+	case *ssa2.Function, *ssa2.Builtin:
+		return key
+	case *ssa2.Literal:
+		return literalValue(key)
+	case *ssa2.Global:
+		if r, ok := fr.i.Globals[key]; ok {
+			return r
+		}
+	}
+	if r, ok := fr.env[key]; ok {
+		return r
+	}
+	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
+}
+
+func (fr *frame) rundefers() {
+	for i := range fr.defers {
+		if (fr.i.TraceMode & EnableTracing) != 0 {
+			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
+		}
+		fr.defers[len(fr.defers)-1-i]()
+	}
+	fr.defers = fr.defers[:0]
+}
+
 // Various Frame accessors
 func (fr *frame) PC() int { return fr.pc }
 func (fr *frame) Fn() *ssa2.Function { return fr.fn }
@@ -37,7 +70,7 @@ func (fr *frame) Env() map[ssa2.Value]value { return fr.env }
 
 func (fr *frame) Caller(skip int) *frame {
 	targetFrame := fr
-	for i:=0; i<skip; i++ {
+	for i:=0; i<=skip; i++ {
 		if targetFrame.caller != nil {
 			targetFrame  = targetFrame.caller
 		} else {

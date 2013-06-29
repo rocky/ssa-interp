@@ -96,37 +96,6 @@ func GetInterpeter() Interpreter {
 	return i
 }
 
-func (fr *frame) get(key ssa2.Value) value {
-	switch key := key.(type) {
-	case nil:
-		// Hack; simplifies handling of optional attributes
-		// such as ssa2.Slice.{Low,High}.
-		return nil
-	case *ssa2.Function, *ssa2.Builtin:
-		return key
-	case *ssa2.Literal:
-		return literalValue(key)
-	case *ssa2.Global:
-		if r, ok := fr.i.Globals[key]; ok {
-			return r
-		}
-	}
-	if r, ok := fr.env[key]; ok {
-		return r
-	}
-	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
-}
-
-func (fr *frame) rundefers() {
-	for i := range fr.defers {
-		if (fr.i.TraceMode & EnableTracing) != 0 {
-			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
-		}
-		fr.defers[len(fr.defers)-1-i]()
-	}
-	fr.defers = fr.defers[:0]
-}
-
 // findMethodSet returns the method set for type typ, which may be one
 // of the interpreter's fake types.
 func findMethodSet(i *Interpreter, typ types.Type) ssa2.MethodSet {
