@@ -52,7 +52,7 @@ func GubTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
 			inCmdLoop = false
 			break
 		case "env":
-			for i, p := range fr.Env {
+			for i, p := range fr.Env() {
 				fmt.Println(i, p)
 			}
 		case "+":

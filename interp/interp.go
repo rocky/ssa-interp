@@ -111,7 +111,7 @@ func (fr *frame) get(key ssa2.Value) value {
 			return r
 		}
 	}
-	if r, ok := fr.Env[key]; ok {
+	if r, ok := fr.env[key]; ok {
 		return r
 	}
 	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
@@ -145,36 +145,36 @@ func findMethodSet(i *Interpreter, typ types.Type) ssa2.MethodSet {
 func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 	switch instr := genericInstr.(type) {
 	case *ssa2.UnOp:
-		fr.Env[instr] = unop(instr, fr.get(instr.X))
+		fr.env[instr] = unop(instr, fr.get(instr.X))
 
 	case *ssa2.BinOp:
-		fr.Env[instr] = binop(instr.Op, fr.get(instr.X), fr.get(instr.Y))
+		fr.env[instr] = binop(instr.Op, fr.get(instr.X), fr.get(instr.Y))
 
 	case *ssa2.Call:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.Env[instr] = call(fr.i, fr, instr.Pos(), fn, args)
+		fr.env[instr] = call(fr.i, fr, instr.Pos(), fn, args)
 
 	case *ssa2.ChangeInterface:
 		x := fr.get(instr.X)
 		if x.(iface).t == nil {
 			panic(fmt.Sprintf("interface conversion: interface is nil, not %s", instr.Type()))
 		}
-		fr.Env[instr] = x
+		fr.env[instr] = x
 
 	case *ssa2.ChangeType:
-		fr.Env[instr] = fr.get(instr.X) // (can't fail)
+		fr.env[instr] = fr.get(instr.X) // (can't fail)
 
 	case *ssa2.Convert:
-		fr.Env[instr] = conv(instr.Type(), instr.X.Type(), fr.get(instr.X))
+		fr.env[instr] = conv(instr.Type(), instr.X.Type(), fr.get(instr.X))
 
 	case *ssa2.MakeInterface:
-		fr.Env[instr] = iface{t: instr.X.Type(), v: fr.get(instr.X)}
+		fr.env[instr] = iface{t: instr.X.Type(), v: fr.get(instr.X)}
 
 	case *ssa2.Extract:
-		fr.Env[instr] = fr.get(instr.Tuple).(tuple)[instr.Index]
+		fr.env[instr] = fr.get(instr.Tuple).(tuple)[instr.Index]
 
 	case *ssa2.Slice:
-		fr.Env[instr] = slice(fr.get(instr.X), fr.get(instr.Low), fr.get(instr.High))
+		fr.env[instr] = slice(fr.get(instr.X), fr.get(instr.Low), fr.get(instr.High))
 
 	case *ssa2.Ret:
 		switch len(instr.Results) {
@@ -222,17 +222,17 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		go call(fr.i, nil, instr.Pos(), fn, args)
 
 	case *ssa2.MakeChan:
-		fr.Env[instr] = make(chan value, asInt(fr.get(instr.Size)))
+		fr.env[instr] = make(chan value, asInt(fr.get(instr.Size)))
 
 	case *ssa2.Alloc:
 		var addr *value
 		if instr.Heap {
 			// new
 			addr = new(value)
-			fr.Env[instr] = addr
+			fr.env[instr] = addr
 		} else {
 			// local
-			addr = fr.Env[instr].(*value)
+			addr = fr.env[instr].(*value)
 		}
 		*addr = zero(instr.Type().Deref())
 
@@ -242,45 +242,45 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		for i := range slice {
 			slice[i] = zero(tElt)
 		}
-		fr.Env[instr] = slice[:asInt(fr.get(instr.Len))]
+		fr.env[instr] = slice[:asInt(fr.get(instr.Len))]
 
 	case *ssa2.MakeMap:
 		reserve := 0
 		if instr.Reserve != nil {
 			reserve = asInt(fr.get(instr.Reserve))
 		}
-		fr.Env[instr] = makeMap(instr.Type().Underlying().(*types.Map).Key(), reserve)
+		fr.env[instr] = makeMap(instr.Type().Underlying().(*types.Map).Key(), reserve)
 
 	case *ssa2.Range:
-		fr.Env[instr] = rangeIter(fr.get(instr.X), instr.X.Type())
+		fr.env[instr] = rangeIter(fr.get(instr.X), instr.X.Type())
 
 	case *ssa2.Next:
-		fr.Env[instr] = fr.get(instr.Iter).(iter).next()
+		fr.env[instr] = fr.get(instr.Iter).(iter).next()
 
 	case *ssa2.FieldAddr:
 		x := fr.get(instr.X)
-		fr.Env[instr] = &(*x.(*value)).(structure)[instr.Field]
+		fr.env[instr] = &(*x.(*value)).(structure)[instr.Field]
 
 	case *ssa2.Field:
-		fr.Env[instr] = copyVal(fr.get(instr.X).(structure)[instr.Field])
+		fr.env[instr] = copyVal(fr.get(instr.X).(structure)[instr.Field])
 
 	case *ssa2.IndexAddr:
 		x := fr.get(instr.X)
 		idx := fr.get(instr.Index)
 		switch x := x.(type) {
 		case []value:
-			fr.Env[instr] = &x[asInt(idx)]
+			fr.env[instr] = &x[asInt(idx)]
 		case *value: // *array
-			fr.Env[instr] = &(*x).(array)[asInt(idx)]
+			fr.env[instr] = &(*x).(array)[asInt(idx)]
 		default:
 			panic(fmt.Sprintf("unexpected x type in IndexAddr: %T", x))
 		}
 
 	case *ssa2.Index:
-		fr.Env[instr] = copyVal(fr.get(instr.X).(array)[asInt(fr.get(instr.Index))])
+		fr.env[instr] = copyVal(fr.get(instr.X).(array)[asInt(fr.get(instr.Index))])
 
 	case *ssa2.Lookup:
-		fr.Env[instr] = lookup(instr, fr.get(instr.X), fr.get(instr.Index))
+		fr.env[instr] = lookup(instr, fr.get(instr.X), fr.get(instr.Index))
 
 	case *ssa2.MapUpdate:
 		m := fr.get(instr.Map)
@@ -296,7 +296,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		}
 
 	case *ssa2.TypeAssert:
-		fr.Env[instr] = typeAssert(fr.i, instr, fr.get(instr.X).(iface))
+		fr.env[instr] = typeAssert(fr.i, instr, fr.get(instr.X).(iface))
 
 	case *ssa2.Trace:
 		fr.startP = instr.Start
@@ -310,12 +310,12 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		for _, binding := range instr.Bindings {
 			bindings = append(bindings, fr.get(binding))
 		}
-		fr.Env[instr] = &closure{instr.Fn.(*ssa2.Function), bindings}
+		fr.env[instr] = &closure{instr.Fn.(*ssa2.Function), bindings}
 
 	case *ssa2.Phi:
 		for i, pred := range instr.Block().Preds {
 			if fr.prevBlock == pred {
-				fr.Env[instr] = fr.get(instr.Edges[i])
+				fr.env[instr] = fr.get(instr.Edges[i])
 				break
 			}
 		}
@@ -361,14 +361,14 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 				r = append(r, v)
 			}
 		}
-		fr.Env[instr] = r
+		fr.env[instr] = r
 
 	default:
 		panic(fmt.Sprintf("unexpected instruction: %T", instr))
 	}
 
 	// if val, ok := instr.(ssa2.Value); ok {
-	// 	fmt.Println(toString(fr.Env[val])) // debugging
+	// 	fmt.Println(toString(fr.env[val])) // debugging
 	// }
 
 	return kNext
@@ -414,7 +414,7 @@ func call(i *Interpreter, caller *frame, callpos token.Pos, fn value, args []val
 		}
 		return callSSA(i, caller, callpos, fn, args, nil)
 	case *closure:
-		return callSSA(i, caller, callpos, fn.fn, args, fn.Env)
+		return callSSA(i, caller, callpos, fn.fn, args, fn.env)
 	case *ssa2.Builtin:
 		return callBuiltin(caller, callpos, fn, args)
 	}
@@ -459,7 +459,7 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 		i:      i,
 		caller: caller,
 		fn:     fn,
-		Env:    make(map[ssa2.Value]value),
+		env:    make(map[ssa2.Value]value),
 		block:  fn.Blocks[0],
 		locals: make([]value, len(fn.Locals)),
 		tracing: TRACE_STEP_NONE,
@@ -475,29 +475,29 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 
 	for i, l := range fn.Locals {
 		fr.locals[i] = zero(l.Type().Deref())
-		fr.Env[l] = &fr.locals[i]
+		fr.env[l] = &fr.locals[i]
 	}
 	for i, p := range fn.Params {
-		fr.Env[p] = args[i]
+		fr.env[p] = args[i]
 	}
 	for i, fv := range fn.FreeVars {
-		fr.Env[fv] = env[i]
+		fr.env[fv] = env[i]
 	}
 	var instr ssa2.Instruction
 
 	defer func() {
-		if fr.Status != StComplete {
+		if fr.status != StComplete {
 			if (fr.i.Mode & DisableRecover) != 0 {
 				return // let interpreter crash
 			}
-			fr.Status, fr.panic = StPanic, recover()
+			fr.status, fr.panic = StPanic, recover()
 		}
 		fr.rundefers()
 		// Destroy the locals to avoid accidental use after return.
 		for i := range fn.Locals {
 			fr.locals[i] = bad{}
 		}
-		if fr.Status == StPanic {
+		if fr.status == StPanic {
 			panic(fr.panic) // panic stack is not entirely clean
 		}
 	}()
@@ -525,7 +525,7 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 			}
 			switch visitInstr(fr, instr) {
 			case kReturn:
-				fr.Status = StComplete
+				fr.status = StComplete
 				fr.startP = instr.Pos()
 				fr.endP   = instr.Pos()
 				if (fr.tracing != TRACE_STEP_NONE) && GlobalStmtTracing() {
@@ -639,8 +639,8 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		// fr := &frame{
 		// 	I: &I,
 		// 	caller: nil,
-		// 	Env:    make(map[ssa2.Value]value),
-		// 	Block:  mainFn.Blocks[0],
+		// 	env:    make(map[ssa2.Value]value),
+		// 	block:  mainFn.Blocks[0],
 		// 	locals: make([]value, len(mainFn.Locals)),
 		//  Start : mainFn.Pos()
 		//  End   : mainFn.Pos()

@@ -10,11 +10,11 @@ type frame struct {
 	caller           *frame
 	fn               *ssa2.Function
 	block, prevBlock *ssa2.BasicBlock
-	Env              map[ssa2.Value]value // dynamic values of SSA variables
+	env              map[ssa2.Value]value // dynamic values of SSA variables
 	locals           []value
 	defers           []func()
 	result           value
-	Status           Status
+	status           RunStatusType
 	tracing			 traceType
 	panic            interface{}
 
@@ -32,6 +32,8 @@ func (fr *frame) PrevBlock() *ssa2.BasicBlock { return fr.prevBlock }
 func (fr *frame) Locals() []value { return fr.locals }
 func (fr *frame) StartP() token.Pos { return fr.startP }
 func (fr *frame) EndP()   token.Pos { return fr.endP }
+func (fr *frame) Status() RunStatusType { return fr.status }
+func (fr *frame) Env() map[ssa2.Value]value { return fr.env }
 
 func (fr *frame) Caller(skip int) *frame {
 	targetFrame := fr

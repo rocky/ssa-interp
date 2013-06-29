@@ -25,10 +25,10 @@ const (
 	EnableStmtTracing
 )
 
-type Status int
+type RunStatusType int
 
 const (
-	StRunning Status = iota
+	StRunning RunStatusType = iota
 	StComplete
 	StPanic
 )

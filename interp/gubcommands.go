@@ -124,13 +124,13 @@ func ParametersCommand(fr *frame, args []string) {
 	if !argCountOK(0, 1, args) { return }
 	if argc == 0 {
 		for i, p := range fr.Fn().Params {
-			fmt.Println(fr.Fn().Params[i], fr.Env[p])
+			fmt.Println(fr.Fn().Params[i], fr.Env()[p])
 		}
 	} else {
 		varname := args[1]
 		for i, p := range fr.Fn().Params {
 			if varname == fr.Fn().Params[i].Name() {
-				fmt.Println(fr.Fn().Params[i], fr.Env[p])
+				fmt.Println(fr.Fn().Params[i], fr.Env()[p])
 				break
 			}
 		}

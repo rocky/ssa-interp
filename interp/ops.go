@@ -989,9 +989,9 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []valu
 		// "defer recover()" and "defer f() -> g() ->
 		// recover()".
 		if (caller.i.Mode & DisableRecover) == 0 &&
-			caller != nil && caller.Status == StRunning &&
-			caller.caller != nil && caller.caller.Status == StPanic {
-			caller.caller.Status = StComplete
+			caller != nil && caller.status == StRunning &&
+			caller.caller != nil && caller.caller.status == StPanic {
+			caller.caller.status = StComplete
 			p := caller.caller.panic
 			caller.caller.panic = nil
 			switch p := p.(type) {

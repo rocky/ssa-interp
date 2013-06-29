@@ -71,7 +71,7 @@ func printLocInfo(fr *frame, start token.Position, end token.Position,
 		fmt.Printf("return: %s\n", toString(fr.result))
 	} else if (event == ssa2.CALL_ENTER) {
 		for i, p := range fr.Fn().Params {
-			fmt.Println(fr.Fn().Params[i], fr.Env[p])
+			fmt.Println(fr.Fn().Params[i], fr.Env()[p])
 		}
 	}
 

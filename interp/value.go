@@ -63,7 +63,7 @@ type iter interface {
 
 type closure struct {
 	fn  *ssa2.Function
-	Env []value
+	env []value
 }
 
 type bad struct{}
