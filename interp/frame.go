@@ -37,7 +37,7 @@ func (fr *Frame) get(key ssa2.Value) Value {
 	case *ssa2.Literal:
 		return literalValue(key)
 	case *ssa2.Global:
-		if r, ok := fr.i.Globals[key]; ok {
+		if r, ok := fr.i.globals[key]; ok {
 			return r
 		}
 	}
@@ -57,7 +57,7 @@ func (fr *Frame) rundefers() {
 	fr.defers = fr.defers[:0]
 }
 
-// Various Frame accessors
+// Frame accessors
 func (fr *Frame) Block() *ssa2.BasicBlock { return fr.block }
 func (fr *Frame) EndP()   token.Pos { return fr.endP }
 func (fr *Frame) Env() map[ssa2.Value]Value { return fr.env }

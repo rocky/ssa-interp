@@ -79,8 +79,8 @@ const (
 
 // State shared between all interpreted goroutines.
 type Interpreter struct {
-	Prog           *ssa2.Program         // the SSA program
-	Globals        map[ssa2.Value]*Value // addresses of global variables (immutable)
+	prog           *ssa2.Program         // the SSA program
+	globals        map[ssa2.Value]*Value // addresses of global variables (immutable)
 	Mode           Mode                  // interpreter options
 	TraceMode      TraceMode             // interpreter trace options
 	reflectPackage *ssa2.Package         // the fake reflect package
@@ -103,7 +103,7 @@ func findMethodSet(i *Interpreter, typ types.Type) ssa2.MethodSet {
 	case errorType:
 		return i.errorMethods
 	}
-	return i.Prog.MethodSet(typ)
+	return i.prog.MethodSet(typ)
 }
 
 // visitInstr interprets a single ssa2.Instruction within the activation
@@ -512,7 +512,7 @@ func callSSA(i *Interpreter, caller *Frame, callpos token.Pos, fn *ssa2.Function
 
 // setGlobal sets the Value of a system-initialized global variable.
 func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v Value) {
-	if g, ok := i.Globals[pkg.Var(name)]; ok {
+	if g, ok := i.globals[pkg.Var(name)]; ok {
 		*g = v
 		return
 	}
@@ -529,20 +529,20 @@ func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v Value) {
 func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	filename string, args []string) (exitCode int) {
 	i = &Interpreter{
-		Prog:    mainpkg.Prog,
-		Globals: make(map[ssa2.Value]*Value),
+		prog:    mainpkg.Prog,
+		globals: make(map[ssa2.Value]*Value),
 		Mode:    mode,
 		TraceMode: traceMode & ^(EnableStmtTracing|EnableTracing),
 	}
 	initReflect(i)
 
-	for importPath, pkg := range i.Prog.Packages {
+	for importPath, pkg := range i.prog.Packages {
 		// Initialize global storage.
 		for _, m := range pkg.Members {
 			switch v := m.(type) {
 			case *ssa2.Global:
 				cell := zero(v.Type().Deref())
-				i.Globals[v] = &cell
+				i.globals[v] = &cell
 			}
 		}
 
@@ -622,3 +622,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	}
 	return
 }
+
+// Interpret accessors
+func (i  *Interpreter) Program() *ssa2.Program { return i.prog }
+func (i  *Interpreter) Globals() map[ssa2.Value]*Value { return i.globals }

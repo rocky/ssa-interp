@@ -20,10 +20,10 @@ import (
 func argCountOK(min int, max int, args [] string) bool {
 	l := len(args)-1 // strip command name from count
 	if (l < min) {
-		fmt.Printf("Too few args; need at least %d, got %d\n", min, l)
+		errmsg("Too few args; need at least %d, got %d", min, l)
 		return false
 	} else if (l > max) {
-		fmt.Printf("Too many args; need at most %d, got %d\n", max, l)
+		errmsg("Too many args; need at most %d, got %d", max, l)
 		return false
 	}
 	return true
@@ -38,21 +38,21 @@ func BacktraceCommand(args []string) {
 		if fr == curFrame {
 			pointer = "=> "
 		}
-		fmt.Printf("%s#%d %s\n", pointer, i, StackLocation(fr))
+		msg("%s#%d %s", pointer, i, StackLocation(fr))
 		i++
 	}
 }
 
 func FinishCommand(args []string) {
 	interp.SetStepOut(topFrame)
-	fmt.Println("Continuing until return...")
+	msg("Continuing until return...")
 }
 
 func FrameCommand(args []string) {
 	if !argCountOK(1, 1, args) { return }
 	frameIndex, ok := strconv.Atoi(args[1])
 	if ok != nil {
-		fmt.Printf("Expecting integer frame number; got %s\n",
+		errmsg("Expecting integer frame number; got %s",
 			args[1])
 		return
 	}
@@ -69,7 +69,7 @@ func UpCommand(args []string) {
 	} else {
 		frameIndex, ok = strconv.Atoi(args[1])
 		if ok != nil {
-			fmt.Printf("Expecting integer frame number; got %s\n",
+			fmt.Printf("Expecting integer frame number; got %s",
 				args[1])
 			return
 		}
@@ -87,8 +87,7 @@ func DownCommand(args []string) {
 	} else {
 		frameIndex, ok = strconv.Atoi(args[1])
 		if ok != nil {
-			fmt.Printf("Expecting integer frame number; got %s\n",
-				args[1])
+			errmsg("Expecting integer frame number; got %s", args[1])
 			return
 		}
 	}
@@ -133,17 +132,16 @@ Other:
 func GlobalsCommand(args []string) {
 	argc := len(args) - 1
 	if argc == 0 {
-		for k, v := range curFrame.I().Globals {
+		for k, v := range curFrame.I().Globals() {
 			if v == nil {
 				fmt.Printf("%s: nil\n")
 			} else {
 				// FIXME: figure out why reflect.lookupCache causes
 				// an panic on a nil pointer or invalid address
 				if fmt.Sprintf("%s", k) == "reflect.lookupCache" {
-					fmt.Println("got one!")
 					continue
 				}
-				fmt.Printf("%s: %s\n", k, interp.ToString(*v))
+				msg("%s: %s", k, interp.ToString(*v))
 			}
 		}
 	} else {
@@ -152,16 +150,16 @@ func GlobalsCommand(args []string) {
 			vv := ssa2.NewLiteral(exact.MakeString(args[i]),
 				types.Typ[types.String], token.NoPos, token.NoPos)
 			// fmt.Println(vv, "vs", interp.ToString(vv))
-			v, ok := curFrame.I().Globals[vv]
+			v, ok := curFrame.I().Globals()[vv]
 			if ok {
-				fmt.Printf("%s: %s\n", vv, interp.ToString(*v))
+				msg("%s: %s", vv, interp.ToString(*v))
 			}
 		}
 
 		// This is ugly, but I don't know how to turn a string into
 		// a ssa2.Value.
 		globals := make(map[string]*interp.Value)
-		for k, v := range curFrame.I().Globals {
+		for k, v := range curFrame.I().Globals() {
 			globals[fmt.Sprintf("%s", k)] = v
 		}
 
@@ -169,7 +167,7 @@ func GlobalsCommand(args []string) {
 			vv := args[i]
 			v, ok := globals[vv]
 			if ok {
-				fmt.Printf("%s: %s\n", vv, interp.ToString(*v))
+				msg("%s: %s", vv, interp.ToString(*v))
 			}
 		}
 	}
@@ -208,7 +206,7 @@ func LocalsCommand(args []string) {
 		i := 0
 		for _, v := range curFrame.Locals() {
 			if args[1] == curFrame.Fn().Locals[i].Name() {
-				fmt.Printf("%s %s: %s\n", varname, curFrame.Fn().Locals[i], interp.ToString(v))
+				msg("%s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToString(v))
 				break
 			}
 			i++
@@ -228,11 +226,11 @@ func QuitCommand(args []string) {
 	if len(args) == 2 {
 		new_rc, ok := strconv.Atoi(args[1])
 		if ok == nil { rc = new_rc } else {
-			fmt.Printf("Expecting integer return code; got %s. Ignoring\n",
+			errmsg("Expecting integer return code; got %s. Ignoring",
 				args[1])
 		}
 	}
-	fmt.Println("That's all folks...")
+	msg("That's all folks...")
 	gnureadline.Rl_reset_terminal(term)
 	os.Exit(rc)
 
