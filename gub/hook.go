@@ -1,5 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
-// Debugger callback hook
+// Debugger callback hook. Contains the main command loop.
 package gub
 
 import (
@@ -11,17 +11,17 @@ import (
 	"ssa-interp/interp"
 )
 
-// Call-back hook from interpreter. Contains top-level statement breakout
-func GubTraceHook(topFrame *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
+var cmdCount int = 0
+var traceEvent ssa2.TraceEvent
 
-	fset := topFrame.Fn().Prog.Fset
-	startP := fset.Position(topFrame.StartP())
-	endP   := fset.Position(topFrame.EndP())
-	printLocInfo(topFrame, startP, endP, event)
+// Call-back hook from interpreter. Contains top-level statement breakout
+func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
+	traceEvent = event
+	frameInit(fr)
+	printLocInfo(topFrame, event)
 
 	line := ""
 	var err error
-	curFrame := topFrame
 	for inCmdLoop := true; err == nil && inCmdLoop; cmdCount++ {
 		line, err = gnureadline.Readline(fmt.Sprintf("gub[%d]: ", cmdCount),
 			true)
@@ -40,18 +40,18 @@ func GubTraceHook(topFrame *interp.Frame, instr *ssa2.Instruction, event ssa2.Tr
 			inCmdLoop = false
 			break
 		case "h", "?", "help":
-			HelpCommand(topFrame, args)
+			HelpCommand(args)
 		case "c":
 			interp.SetStepOff(topFrame)
 			fmt.Println("Continuing...")
 			inCmdLoop = false
 			break
 		case "finish", "fin":
- 			FinishCommand(topFrame, args)
+ 			FinishCommand(args)
 			inCmdLoop = false
 			break
 		case "next", "n":
- 			NextCommand(topFrame, args)
+ 			NextCommand(args)
 			inCmdLoop = false
 			break
 		case "env":
@@ -64,18 +64,20 @@ func GubTraceHook(topFrame *interp.Frame, instr *ssa2.Instruction, event ssa2.Tr
 		case "-":
 			fmt.Println("Clearing Instruction Trace")
 			interp.ClearInstTracing()
+		case "frame":
+			FrameCommand(args)
 		case "gl", "global", "globals":
-			GlobalsCommand(topFrame, args)
+			GlobalsCommand(args)
 		case "lo", "local", "locals":
-			LocalsCommand(curFrame, args)
+			LocalsCommand(args)
 		case "param", "parameters":
-			ParametersCommand(curFrame, args)
+			ParametersCommand(args)
 		case "q", "quit", "exit":
-			QuitCommand(topFrame, args)
-		case "bt", "T", "backtrace":
-			BacktraceCommand(topFrame, args)
+			QuitCommand(args)
+		case "bt", "T", "backtrace", "where":
+			BacktraceCommand(args)
 		case "v":
-			VariableCommand(curFrame, args)
+			VariableCommand(args)
 		default:
 			fmt.Printf("Unknown command %s\n", cmd)
 		}

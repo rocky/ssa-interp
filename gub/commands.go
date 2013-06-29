@@ -29,27 +29,63 @@ func argCountOK(min int, max int, args [] string) bool {
 	return true
 }
 
-func BacktraceCommand(fr *interp.Frame, args []string) {
+func BacktraceCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
 	// FIXME: should get limit from args
-	curFrame := fr
-	for i:=0; curFrame !=nil; curFrame = curFrame.Caller(0) {
-		fmt.Printf("   #%d %s\n", i, StackLocation(curFrame))
+	fr := topFrame
+	for i:=0; fr !=nil; fr = fr.Caller(0) {
+		pointer := "   "
+		if fr == curFrame {
+			pointer = "=> "
+		}
+		fmt.Printf("%s#%d %s\n", pointer, i, StackLocation(fr))
 		i++
 	}
 }
 
-func FinishCommand(fr *interp.Frame, args []string) {
-	interp.SetStepOut(fr)
+func FinishCommand(args []string) {
+	interp.SetStepOut(topFrame)
 	fmt.Println("Continuing until return...")
 }
 
-func NextCommand(fr *interp.Frame, args []string) {
-	interp.SetStepOver(fr)
+func FrameCommand(args []string) {
+	if !argCountOK(1, 1, args) { return }
+	frameIndex, ok := strconv.Atoi(args[1])
+	if ok != nil {
+		fmt.Printf("Expecting integer frame number; got %s\n",
+			args[1])
+		return
+	}
+	if frameIndex >= stackSize {
+		fmt.Printf("Frame number %d too large. Max is %d.\n", frameIndex, stackSize-1)
+		return
+	} else if frameIndex < -stackSize {
+		fmt.Printf("Frame number %d too small. Min is %d.\n", frameIndex, -stackSize)
+		return
+	}
+
+	if frameIndex < 0 { frameIndex = stackSize + frameIndex }
+
+	fr := topFrame
+	for i:=0; i<frameIndex && fr !=nil; fr = fr.Caller(0) {
+		fmt.Println("next")
+		i++
+	}
+	if fr == nil { return }
+	curFrame = fr
+	event := ssa2.CALL_ENTER
+	if (0 == frameIndex) {
+		event = traceEvent
+	}
+	printLocInfo(curFrame, event)
+}
+
+func NextCommand(args []string) {
+	interp.SetStepOver(topFrame)
 	fmt.Println("Step over...")
 }
 
-func HelpCommand(fr *interp.Frame, args []string) {
+func HelpCommand(args []string) {
 	fmt.Println(`List of commands:
 Execution running --
   s: step in
@@ -75,10 +111,10 @@ Other:
 `)
 }
 
-func GlobalsCommand(fr *interp.Frame, args []string) {
+func GlobalsCommand(args []string) {
 	argc := len(args) - 1
 	if argc == 0 {
-		for k, v := range fr.I().Globals {
+		for k, v := range curFrame.I().Globals {
 			if v == nil {
 				fmt.Printf("%s: nil\n")
 			} else {
@@ -97,7 +133,7 @@ func GlobalsCommand(fr *interp.Frame, args []string) {
 			vv := ssa2.NewLiteral(exact.MakeString(args[i]),
 				types.Typ[types.String], token.NoPos, token.NoPos)
 			// fmt.Println(vv, "vs", interp.ToString(vv))
-			v, ok := fr.I().Globals[vv]
+			v, ok := curFrame.I().Globals[vv]
 			if ok {
 				fmt.Printf("%s: %s\n", vv, interp.ToString(*v))
 			}
@@ -106,7 +142,7 @@ func GlobalsCommand(fr *interp.Frame, args []string) {
 		// This is ugly, but I don't know how to turn a string into
 		// a ssa2.Value.
 		globals := make(map[string]*interp.Value)
-		for k, v := range fr.I().Globals {
+		for k, v := range curFrame.I().Globals {
 			globals[fmt.Sprintf("%s", k)] = v
 		}
 
@@ -120,40 +156,40 @@ func GlobalsCommand(fr *interp.Frame, args []string) {
 	}
 }
 
-func ParametersCommand(fr *interp.Frame, args []string) {
+func ParametersCommand(args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 1, args) { return }
 	if argc == 0 {
-		for i, p := range fr.Fn().Params {
-			fmt.Println(fr.Fn().Params[i], fr.Env()[p])
+		for i, p := range curFrame.Fn().Params {
+			fmt.Println(curFrame.Fn().Params[i], curFrame.Env()[p])
 		}
 	} else {
 		varname := args[1]
-		for i, p := range fr.Fn().Params {
-			if varname == fr.Fn().Params[i].Name() {
-				fmt.Println(fr.Fn().Params[i], fr.Env()[p])
+		for i, p := range curFrame.Fn().Params {
+			if varname == curFrame.Fn().Params[i].Name() {
+				fmt.Println(curFrame.Fn().Params[i], curFrame.Env()[p])
 				break
 			}
 		}
 	}
 }
 
-func LocalsCommand(fr *interp.Frame, args []string) {
+func LocalsCommand(args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 2, args) { return }
 	if argc == 0 {
 		i := 0
-		for _, v := range fr.Locals() {
-			name := fr.Fn().Locals[i].Name()
+		for _, v := range curFrame.Locals() {
+			name := curFrame.Fn().Locals[i].Name()
 			fmt.Printf("%s: %s\n", name, interp.ToString(v))
 			i++
 		}
 	} else {
 		varname := args[1]
 		i := 0
-		for _, v := range fr.Locals() {
-			if args[1] == fr.Fn().Locals[i].Name() {
-				fmt.Printf("%s %s: %s\n", varname, fr.Fn().Locals[i], interp.ToString(v))
+		for _, v := range curFrame.Locals() {
+			if args[1] == curFrame.Fn().Locals[i].Name() {
+				fmt.Printf("%s %s: %s\n", varname, curFrame.Fn().Locals[i], interp.ToString(v))
 				break
 			}
 			i++
@@ -167,7 +203,7 @@ func LocalsCommand(fr *interp.Frame, args []string) {
 // Terminates program. If an exit code is given, that is the exit code
 // for the program. Zero (normal termination) is used if no
 // termintation code.
-func QuitCommand(fr *interp.Frame, args []string) {
+func QuitCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
 	rc := 0
 	if len(args) == 2 {
@@ -183,9 +219,9 @@ func QuitCommand(fr *interp.Frame, args []string) {
 
 }
 
-func VariableCommand(fr *interp.Frame, args []string) {
+func VariableCommand(args []string) {
 	if !argCountOK(1, 1, args) { return }
-	fn := fr.Fn()
+	fn := curFrame.Fn()
 	varname := args[1]
 	for _, p := range fn.Locals {
 		if varname == p.Name() { break }
