@@ -58,15 +58,16 @@ func (fr *frame) rundefers() {
 }
 
 // Various Frame accessors
-func (fr *frame) PC() int { return fr.pc }
-func (fr *frame) Fn() *ssa2.Function { return fr.fn }
 func (fr *frame) Block() *ssa2.BasicBlock { return fr.block }
-func (fr *frame) PrevBlock() *ssa2.BasicBlock { return fr.prevBlock }
-func (fr *frame) Locals() []value { return fr.locals }
-func (fr *frame) StartP() token.Pos { return fr.startP }
 func (fr *frame) EndP()   token.Pos { return fr.endP }
-func (fr *frame) Status() RunStatusType { return fr.status }
 func (fr *frame) Env() map[ssa2.Value]value { return fr.env }
+func (fr *frame) Fn() *ssa2.Function { return fr.fn }
+func (fr *frame) I() *Interpreter { return fr.i }
+func (fr *frame) Locals() []value { return fr.locals }
+func (fr *frame) PC() int { return fr.pc }
+func (fr *frame) PrevBlock() *ssa2.BasicBlock { return fr.prevBlock }
+func (fr *frame) StartP() token.Pos { return fr.startP }
+func (fr *frame) Status() RunStatusType { return fr.status }
 
 func (fr *frame) Caller(skip int) *frame {
 	targetFrame := fr
