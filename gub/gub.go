@@ -1,6 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 // Top-level debugger interface
-package interp
+package gub
 
 import (
 	"fmt"
@@ -10,6 +10,11 @@ import (
 
 	"go/token"
 	"ssa-interp"
+	"ssa-interp/interp"
+)
+
+const (
+	version string = "0.1"
 )
 
 var Event2Icon map[ssa2.TraceEvent]string
@@ -42,7 +47,13 @@ func init() {
 
 }
 
-func StackLocation(fr *frame) string {
+func Install() {
+	fmt.Printf("Gub version %s\n", version)
+	fmt.Println("Type 'h' for help")
+	interp.SetTraceHook(GubTraceHook)
+}
+
+func StackLocation(fr *interp.Frame) string {
 	fn := fr.Fn()
 	s := fmt.Sprintf("%s(", fn.Name())
 	params :=""
@@ -57,10 +68,10 @@ func StackLocation(fr *frame) string {
 }
 
 func fmtLocation(start token.Position, end token.Position) string {
-	return fmt.Sprintf("%s", PositionRange(start, end))
+	return fmt.Sprintf("%s", interp.PositionRange(start, end))
 }
 
-func printLocInfo(fr *frame, start token.Position, end token.Position,
+func printLocInfo(fr *interp.Frame, start token.Position, end token.Position,
                   event ssa2.TraceEvent) {
 	s := Event2Icon[event] + " "
 	if len(fr.Fn().Name()) > 0 {
@@ -68,7 +79,7 @@ func printLocInfo(fr *frame, start token.Position, end token.Position,
 	}
 	fmt.Println(s)
 	if (event == ssa2.CALL_RETURN) {
-		fmt.Printf("return: %s\n", toString(fr.result))
+		fmt.Printf("return: %s\n", interp.ToString(fr.Result()))
 	} else if (event == ssa2.CALL_ENTER) {
 		for i, p := range fr.Fn().Params {
 			fmt.Println(fr.Fn().Params[i], fr.Env()[p])

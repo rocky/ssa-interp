@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-type externalFn func(fr *frame, args []value) value
+type externalFn func(fr *Frame, args []Value) Value
 
 // TODO(adonovan): fix: reflect.Value abstracts an lvalue or an
 // rvalue; Set() causes mutations that can be observed via aliases.
@@ -89,17 +89,17 @@ var externals = map[string]externalFn{
 }
 
 // wrapError returns an interpreted 'error' interface value for err.
-func wrapError(err error) value {
+func wrapError(err error) Value {
 	if err == nil {
 		return iface{}
 	}
 	return iface{t: errorType, v: err.Error()}
 }
 
-func ext۰bytes۰Equal(fr *frame, args []value) value {
+func ext۰bytes۰Equal(fr *Frame, args []Value) Value {
 	// func Equal(a, b []byte) bool
-	a := args[0].([]value)
-	b := args[1].([]value)
+	a := args[0].([]Value)
+	b := args[1].([]Value)
 	if len(a) != len(b) {
 		return false
 	}
@@ -111,9 +111,9 @@ func ext۰bytes۰Equal(fr *frame, args []value) value {
 	return true
 }
 
-func ext۰bytes۰IndexByte(fr *frame, args []value) value {
+func ext۰bytes۰IndexByte(fr *Frame, args []Value) Value {
 	// func IndexByte(s []byte, c byte) int
-	s := args[0].([]value)
+	s := args[0].([]Value)
 	c := args[1].(byte)
 	for i, b := range s {
 		if b.(byte) == c {
@@ -123,32 +123,32 @@ func ext۰bytes۰IndexByte(fr *frame, args []value) value {
 	return -1
 }
 
-func ext۰math۰Float64frombits(fr *frame, args []value) value {
+func ext۰math۰Float64frombits(fr *Frame, args []Value) Value {
 	return math.Float64frombits(args[0].(uint64))
 }
 
-func ext۰math۰Float64bits(fr *frame, args []value) value {
+func ext۰math۰Float64bits(fr *Frame, args []Value) Value {
 	return math.Float64bits(args[0].(float64))
 }
 
-func ext۰math۰Float32frombits(fr *frame, args []value) value {
+func ext۰math۰Float32frombits(fr *Frame, args []Value) Value {
 	return math.Float32frombits(args[0].(uint32))
 }
 
-func ext۰math۰Float32bits(fr *frame, args []value) value {
+func ext۰math۰Float32bits(fr *Frame, args []Value) Value {
 	return math.Float32bits(args[0].(float32))
 }
 
-func ext۰runtime۰Breakpoint(fr *frame, args []value) value {
+func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
 	runtime.Breakpoint()
 	return nil
 }
 
-func encode_pc(fr *frame) int {
+func encode_pc(fr *Frame) int {
 	return fr.block.Index * 1000 + fr.pc
 }
 
-func ext۰runtime۰Caller(fr *frame, args []value) value {
+func ext۰runtime۰Caller(fr *Frame, args []Value) Value {
 	skip := args[0].(int)
 
 	final_fr := fr
@@ -173,54 +173,54 @@ func ext۰runtime۰Caller(fr *frame, args []value) value {
 	return tuple{pc, filename, line, true}
 }
 
-func ext۰runtime۰getgoroot(fr *frame, args []value) value {
+func ext۰runtime۰getgoroot(fr *Frame, args []Value) Value {
 	return os.Getenv("GOROOT")
 }
 
-func ext۰runtime۰GOMAXPROCS(fr *frame, args []value) value {
+func ext۰runtime۰GOMAXPROCS(fr *Frame, args []Value) Value {
 	return runtime.GOMAXPROCS(args[0].(int))
 }
 
-func ext۰runtime۰GC(fr *frame, args []value) value {
+func ext۰runtime۰GC(fr *Frame, args []Value) Value {
 	runtime.GC()
 	return nil
 }
 
-func ext۰runtime۰Gosched(fr *frame, args []value) value {
+func ext۰runtime۰Gosched(fr *Frame, args []Value) Value {
 	runtime.Gosched()
 	return nil
 }
 
-func ext۰runtime۰ReadMemStats(fr *frame, args []value) value {
+func ext۰runtime۰ReadMemStats(fr *Frame, args []Value) Value {
 	// TODO(adonovan): populate args[0].(Struct)
 	return nil
 }
 
-func ext۰atomic۰LoadUint32(fr *frame, args []value) value {
+func ext۰atomic۰LoadUint32(fr *Frame, args []Value) Value {
 	// TODO(adonovan): fix: not atomic!
-	return (*args[0].(*value)).(uint32)
+	return (*args[0].(*Value)).(uint32)
 }
 
-func ext۰atomic۰StoreUint32(fr *frame, args []value) value {
+func ext۰atomic۰StoreUint32(fr *Frame, args []Value) Value {
 	// TODO(adonovan): fix: not atomic!
-	*args[0].(*value) = args[1].(uint32)
+	*args[0].(*Value) = args[1].(uint32)
 	return nil
 }
 
-func ext۰atomic۰LoadInt32(fr *frame, args []value) value {
+func ext۰atomic۰LoadInt32(fr *Frame, args []Value) Value {
 	// TODO(adonovan): fix: not atomic!
-	return (*args[0].(*value)).(int32)
+	return (*args[0].(*Value)).(int32)
 }
 
-func ext۰atomic۰StoreInt32(fr *frame, args []value) value {
+func ext۰atomic۰StoreInt32(fr *Frame, args []Value) Value {
 	// TODO(adonovan): fix: not atomic!
-	*args[0].(*value) = args[1].(int32)
+	*args[0].(*Value) = args[1].(int32)
 	return nil
 }
 
-func ext۰atomic۰CompareAndSwapInt32(fr *frame, args []value) value {
+func ext۰atomic۰CompareAndSwapInt32(fr *Frame, args []Value) Value {
 	// TODO(adonovan): fix: not atomic!
-	p := args[0].(*value)
+	p := args[0].(*Value)
 	if (*p).(int32) == args[1].(int32) {
 		*p = args[2].(int32)
 		return true
@@ -228,38 +228,38 @@ func ext۰atomic۰CompareAndSwapInt32(fr *frame, args []value) value {
 	return false
 }
 
-func ext۰atomic۰AddInt32(fr *frame, args []value) value {
+func ext۰atomic۰AddInt32(fr *Frame, args []Value) Value {
 	// TODO(adonovan): fix: not atomic!
-	p := args[0].(*value)
+	p := args[0].(*Value)
 	newv := (*p).(int32) + args[1].(int32)
 	*p = newv
 	return newv
 }
 
-func ext۰runtime۰SetFinalizer(fr *frame, args []value) value {
+func ext۰runtime۰SetFinalizer(fr *Frame, args []Value) Value {
 	return nil // ignore
 }
 
-func ext۰time۰now(fr *frame, args []value) value {
+func ext۰time۰now(fr *Frame, args []Value) Value {
 	nano := time.Now().UnixNano()
 	return tuple{int64(nano / 1e9), int32(nano % 1e9)}
 }
 
-func ext۰time۰Sleep(fr *frame, args []value) value {
+func ext۰time۰Sleep(fr *Frame, args []Value) Value {
 	time.Sleep(time.Duration(args[0].(int64)))
 	return nil
 }
 
-func ext۰syscall۰Exit(fr *frame, args []value) value {
+func ext۰syscall۰Exit(fr *Frame, args []Value) Value {
 	panic(exitPanic(args[0].(int)))
 }
 
-func ext۰syscall۰Getwd(fr *frame, args []value) value {
+func ext۰syscall۰Getwd(fr *Frame, args []Value) Value {
 	s, err := syscall.Getwd()
 	return tuple{s, wrapError(err)}
 }
 
-func ext۰syscall۰Getpid(fr *frame, args []value) value {
+func ext۰syscall۰Getpid(fr *Frame, args []Value) Value {
 	return syscall.Getpid()
 }
 

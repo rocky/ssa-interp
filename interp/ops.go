@@ -15,7 +15,7 @@ import (
 
 // If the target program panics, the interpreter panics with this type.
 type targetPanic struct {
-	v value
+	v Value
 }
 
 // If the target program calls exit, the interpreter panics with this type.
@@ -23,7 +23,7 @@ type exitPanic int
 
 // literalValue returns the value of the literal with the
 // dynamic type tag appropriate for l.Type().
-func literalValue(l *ssa2.Literal) value {
+func literalValue(l *ssa2.Literal) Value {
 	if l.IsNil() {
 		return zero(l.Type()) // typed nil
 	}
@@ -83,13 +83,13 @@ func literalValue(l *ssa2.Literal) value {
 		case *types.Basic:
 			switch et.Kind() {
 			case types.Byte: // string -> []byte
-				var v []value
+				var v []Value
 				for _, b := range []byte(exact.StringVal(l.Value)) {
 					v = append(v, b)
 				}
 				return v
 			case types.Rune: // string -> []rune
-				var v []value
+				var v []Value
 				for _, r := range []rune(exact.StringVal(l.Value)) {
 					v = append(v, r)
 				}
@@ -103,7 +103,7 @@ func literalValue(l *ssa2.Literal) value {
 
 // asInt converts x, which must be an integer, to an int suitable for
 // use as a slice or array index or operand to make().
-func asInt(x value) int {
+func asInt(x Value) int {
 	switch x := x.(type) {
 	case int:
 		return x
@@ -133,7 +133,7 @@ func asInt(x value) int {
 
 // asUint64 converts x, which must be an unsigned integer, to a uint64
 // suitable for use as a bitwise shift count.
-func asUint64(x value) uint64 {
+func asUint64(x Value) uint64 {
 	switch x := x.(type) {
 	case uint:
 		return uint64(x)
@@ -152,7 +152,7 @@ func asUint64(x value) uint64 {
 }
 
 // zero returns a new "zero" value of the specified type.
-func zero(t types.Type) value {
+func zero(t types.Type) Value {
 	switch t := t.(type) {
 	case *types.Basic:
 		if t.Kind() == types.UntypedNil {
@@ -202,7 +202,7 @@ func zero(t types.Type) value {
 			panic(fmt.Sprint("zero for unexpected type:", t))
 		}
 	case *types.Pointer:
-		return (*value)(nil)
+		return (*Value)(nil)
 	case *types.Array:
 		a := make(array, t.Len())
 		for i := range a {
@@ -214,7 +214,7 @@ func zero(t types.Type) value {
 	case *types.Interface:
 		return iface{} // nil type, methodset and value
 	case *types.Slice:
-		return []value(nil)
+		return []Value(nil)
 	case *types.Struct:
 		s := make(structure, t.NumFields())
 		for i := range s {
@@ -222,10 +222,10 @@ func zero(t types.Type) value {
 		}
 		return s
 	case *types.Chan:
-		return chan value(nil)
+		return chan Value(nil)
 	case *types.Map:
 		if usesBuiltinMap(t.Key()) {
-			return map[value]value(nil)
+			return map[Value]Value(nil)
 		}
 		return (*hashmap)(nil)
 	case *types.Signature:
@@ -235,7 +235,7 @@ func zero(t types.Type) value {
 }
 
 // slice returns x[lo:hi].  Either or both of lo and hi may be nil.
-func slice(x, lo, hi value) value {
+func slice(x, lo, hi Value) Value {
 	l := 0
 	if lo != nil {
 		l = asInt(lo)
@@ -246,29 +246,29 @@ func slice(x, lo, hi value) value {
 			return x[l:asInt(hi)]
 		}
 		return x[l:]
-	case []value:
+	case []Value:
 		if hi != nil {
 			return x[l:asInt(hi)]
 		}
 		return x[l:]
-	case *value: // *array
+	case *Value: // *array
 		a := (*x).(array)
 		if hi != nil {
-			return []value(a)[l:asInt(hi)]
+			return []Value(a)[l:asInt(hi)]
 		}
-		return []value(a)[l:]
+		return []Value(a)[l:]
 	}
 	panic(fmt.Sprintf("slice: unexpected X type: %T", x))
 }
 
 // lookup returns x[idx] where x is a map or string.
-func lookup(instr *ssa2.Lookup, x, idx value) value {
+func lookup(instr *ssa2.Lookup, x, idx Value) Value {
 	switch x := x.(type) { // map or string
-	case map[value]value, *hashmap:
-		var v value
+	case map[Value]Value, *hashmap:
+		var v Value
 		var ok bool
 		switch x := x.(type) {
-		case map[value]value:
+		case map[Value]Value:
 			v, ok = x[idx]
 		case *hashmap:
 			v = x.lookup(idx.(hashable))
@@ -293,7 +293,7 @@ func lookup(instr *ssa2.Lookup, x, idx value) value {
 // numeric datatypes and strings.  Both operands must have identical
 // dynamic type.
 //
-func binop(op token.Token, x, y value) value {
+func binop(op token.Token, x, y Value) Value {
 	switch op {
 	case token.ADD:
 		switch x.(type) {
@@ -754,10 +754,10 @@ func binop(op token.Token, x, y value) value {
 	panic(fmt.Sprintf("invalid binary op: %T %s %T", x, op, y))
 }
 
-func unop(instr *ssa2.UnOp, x value) value {
+func unop(instr *ssa2.UnOp, x Value) Value {
 	switch instr.Op {
 	case token.ARROW: // receive
-		v, ok := <-x.(chan value)
+		v, ok := <-x.(chan Value)
 		if !ok {
 			v = zero(instr.X.Type().Underlying().(*types.Chan).Elem())
 		}
@@ -795,7 +795,7 @@ func unop(instr *ssa2.UnOp, x value) value {
 			return -x
 		}
 	case token.MUL:
-		return copyVal(*x.(*value)) // load
+		return copyVal(*x.(*Value)) // load
 	case token.NOT:
 		return !x.(bool)
 	case token.XOR:
@@ -831,8 +831,8 @@ func unop(instr *ssa2.UnOp, x value) value {
 // It returns the extracted value on success, and panics on failure,
 // unless instr.CommaOk, in which case it always returns a "value,ok" tuple.
 //
-func typeAssert(i *Interpreter, instr *ssa2.TypeAssert, itf iface) value {
-	var v value
+func typeAssert(i *Interpreter, instr *ssa2.TypeAssert, itf iface) Value {
+	var v Value
 	err := ""
 	if idst, ok := instr.AssertedType.Underlying().(*types.Interface); ok {
 		v = itf
@@ -859,7 +859,7 @@ func typeAssert(i *Interpreter, instr *ssa2.TypeAssert, itf iface) value {
 
 // callBuiltin interprets a call to builtin fn with arguments args,
 // returning its result.
-func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []value) value {
+func callBuiltin(caller *Frame, callpos token.Pos, fn *ssa2.Builtin, args []Value) Value {
 	switch fn.Name() {
 	case "append":
 		if len(args) == 1 {
@@ -867,28 +867,28 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []valu
 		}
 		if s, ok := args[1].(string); ok {
 			// append([]byte, ...string) []byte
-			arg0 := args[0].([]value)
+			arg0 := args[0].([]Value)
 			for i := 0; i < len(s); i++ {
 				arg0 = append(arg0, s[i])
 			}
 			return arg0
 		}
 		// append([]T, ...[]T) []T
-		return append(args[0].([]value), args[1].([]value)...)
+		return append(args[0].([]Value), args[1].([]Value)...)
 
 	case "copy": // copy([]T, []T) int
 		if _, ok := args[1].(string); ok {
 			panic("copy([]byte, string) not yet implemented")
 		}
-		return copy(args[0].([]value), args[1].([]value))
+		return copy(args[0].([]Value), args[1].([]Value))
 
 	case "close": // close(chan T)
-		close(args[0].(chan value))
+		close(args[0].(chan Value))
 		return nil
 
-	case "delete": // delete(map[K]value, K)
+	case "delete": // delete(map[K]Value, K)
 		switch m := args[0].(type) {
-		case map[value]value:
+		case map[Value]Value:
 			delete(m, args[1])
 		case *hashmap:
 			m.delete(args[1].(hashable))
@@ -899,13 +899,13 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []valu
 
 	case "print", "println": // print(anytype, ...interface{})
 		ln := fn.Name() == "println"
-		fmt.Print(toString(args[0]))
+		fmt.Print(ToString(args[0]))
 		if len(args) == 2 {
-			for _, arg := range args[1].([]value) {
+			for _, arg := range args[1].([]Value) {
 				if ln {
 					fmt.Print(" ")
 				}
-				fmt.Print(toString(arg))
+				fmt.Print(ToString(arg))
 			}
 		}
 		if ln {
@@ -919,15 +919,15 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []valu
 			return len(x)
 		case array:
 			return len(x)
-		case *value:
+		case *Value:
 			return len((*x).(array))
-		case []value:
+		case []Value:
 			return len(x)
-		case map[value]value:
+		case map[Value]Value:
 			return len(x)
 		case *hashmap:
 			return x.len()
-		case chan value:
+		case chan Value:
 			return len(x)
 		default:
 			panic(fmt.Sprintf("len: illegal operand: %T", x))
@@ -937,11 +937,11 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []valu
 		switch x := args[0].(type) {
 		case array:
 			return cap(x)
-		case *value:
+		case *Value:
 			return cap((*x).(array))
-		case []value:
+		case []Value:
 			return cap(x)
-		case chan value:
+		case chan Value:
 			return cap(x)
 		default:
 			panic(fmt.Sprintf("cap: illegal operand: %T", x))
@@ -1013,9 +1013,9 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa2.Builtin, args []valu
 	panic("unknown built-in: " + fn.Name())
 }
 
-func rangeIter(x value, t types.Type) iter {
+func rangeIter(x Value, t types.Type) iter {
 	switch x := x.(type) {
-	case map[value]value:
+	case map[Value]Value:
 		// TODO(adonovan): fix: leaks goroutines and channels
 		// on each incomplete map iteration.  We need to open
 		// up an iteration interface using the
@@ -1023,7 +1023,7 @@ func rangeIter(x value, t types.Type) iter {
 		it := make(mapIter)
 		go func() {
 			for k, v := range x {
-				it <- [2]value{k, v}
+				it <- [2]Value{k, v}
 			}
 			close(it)
 		}()
@@ -1037,7 +1037,7 @@ func rangeIter(x value, t types.Type) iter {
 		go func() {
 			for _, e := range x.table {
 				for e != nil {
-					it <- [2]value{e.key, e.value}
+					it <- [2]Value{e.key, e.Value}
 					e = e.next
 				}
 			}
@@ -1056,7 +1056,7 @@ func rangeIter(x value, t types.Type) iter {
 // This is inefficient but reduces the size of the cross-product of
 // cases we have to consider.
 //
-func widen(x value) value {
+func widen(x Value) Value {
 	switch y := x.(type) {
 	case bool, int64, uint64, float64, complex128, string, unsafe.Pointer:
 		return x
@@ -1090,7 +1090,7 @@ func widen(x value) value {
 // the result.
 // Possible cases are described with the ssa2.Convert operator.
 //
-func conv(t_dst, t_src types.Type, x value) value {
+func conv(t_dst, t_src types.Type, x Value) Value {
 	ut_src := t_src.Underlying()
 	ut_dst := t_dst.Underlying()
 
@@ -1124,9 +1124,9 @@ func conv(t_dst, t_src types.Type, x value) value {
 	case *types.Pointer:
 		switch ut_dst := ut_dst.(type) {
 		case *types.Basic:
-			// *value to unsafe.Pointer?
+			// *Value to unsafe.Pointer?
 			if ut_dst.Kind() == types.UnsafePointer {
-				return unsafe.Pointer(x.(*value))
+				return unsafe.Pointer(x.(*Value))
 			}
 		}
 
@@ -1135,7 +1135,7 @@ func conv(t_dst, t_src types.Type, x value) value {
 		// TODO(adonovan): fix: type B byte; conv([]B -> string).
 		switch ut_src.Elem().(*types.Basic).Kind() {
 		case types.Byte:
-			x := x.([]value)
+			x := x.([]Value)
 			b := make([]byte, 0, len(x))
 			for i := range x {
 				b = append(b, x[i].(byte))
@@ -1143,7 +1143,7 @@ func conv(t_dst, t_src types.Type, x value) value {
 			return string(b)
 
 		case types.Rune:
-			x := x.([]value)
+			x := x.([]Value)
 			r := make([]rune, 0, len(x))
 			for i := range x {
 				r = append(r, x[i].(rune))
@@ -1166,7 +1166,7 @@ func conv(t_dst, t_src types.Type, x value) value {
 		if s, ok := x.(string); ok {
 			switch ut_dst := ut_dst.(type) {
 			case *types.Slice:
-				var res []value
+				var res []Value
 				// TODO(adonovan): fix: test named alias of rune, byte.
 				switch ut_dst.Elem().(*types.Basic).Kind() {
 				case types.Rune:
@@ -1188,20 +1188,20 @@ func conv(t_dst, t_src types.Type, x value) value {
 			break // fail: no other conversions for string
 		}
 
-		// unsafe.Pointer -> *value
+		// unsafe.Pointer -> *Value
 		if ut_src.Kind() == types.UnsafePointer {
 			// TODO(adonovan): this is wrong and cannot
 			// really be fixed with the current design.
 			//
 			// It creates a new pointer of a different
-			// type but the underlying interface value
+			// type but the underlying interface Value
 			// knows its "true" type and so cannot be
 			// meaningfully used through the new pointer.
 			//
 			// To make this work, the interpreter needs to
 			// simulate the memory layout of a real
 			// compiled implementation.
-			return (*value)(x.(unsafe.Pointer))
+			return (*Value)(x.(unsafe.Pointer))
 		}
 
 		// Conversions between complex numeric types?

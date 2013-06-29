@@ -1,6 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 // Debugger commands
-package interp
+package gub
 
 import (
 	"fmt"
@@ -13,6 +13,7 @@ import (
 
 
 	"ssa-interp"
+	"ssa-interp/interp"
 	"gnureadline"
 )
 
@@ -28,7 +29,7 @@ func argCountOK(min int, max int, args [] string) bool {
 	return true
 }
 
-func BacktraceCommand(fr *frame, args []string) {
+func BacktraceCommand(fr *interp.Frame, args []string) {
 	if !argCountOK(0, 1, args) { return }
 	// FIXME: should get limit from args
 	curFrame := fr
@@ -38,17 +39,17 @@ func BacktraceCommand(fr *frame, args []string) {
 	}
 }
 
-func FinishCommand(fr *frame, args []string) {
-	SetStepOut(fr)
+func FinishCommand(fr *interp.Frame, args []string) {
+	interp.SetStepOut(fr)
 	fmt.Println("Continuing until return...")
 }
 
-func NextCommand(fr *frame, args []string) {
-	SetStepOver(fr)
+func NextCommand(fr *interp.Frame, args []string) {
+	interp.SetStepOver(fr)
 	fmt.Println("Step over...")
 }
 
-func HelpCommand(fr *frame, args []string) {
+func HelpCommand(fr *interp.Frame, args []string) {
 	fmt.Println(`List of commands:
 Execution running --
   s: step in
@@ -74,10 +75,10 @@ Other:
 `)
 }
 
-func GlobalsCommand(fr *frame, args []string) {
+func GlobalsCommand(fr *interp.Frame, args []string) {
 	argc := len(args) - 1
 	if argc == 0 {
-		for k, v := range fr.i.Globals {
+		for k, v := range fr.I().Globals {
 			if v == nil {
 				fmt.Printf("%s: nil\n")
 			} else {
@@ -87,7 +88,7 @@ func GlobalsCommand(fr *frame, args []string) {
 					fmt.Println("got one!")
 					continue
 				}
-				fmt.Printf("%s: %s\n", k, toString(*v))
+				fmt.Printf("%s: %s\n", k, interp.ToString(*v))
 			}
 		}
 	} else {
@@ -95,17 +96,17 @@ func GlobalsCommand(fr *frame, args []string) {
 		for i:=1; i<=argc; i++ {
 			vv := ssa2.NewLiteral(exact.MakeString(args[i]),
 				types.Typ[types.String], token.NoPos, token.NoPos)
-			// fmt.Println(vv, "vs", toString(vv))
-			v, ok := fr.i.Globals[vv]
+			// fmt.Println(vv, "vs", interp.ToString(vv))
+			v, ok := fr.I().Globals[vv]
 			if ok {
-				fmt.Printf("%s: %s\n", vv, toString(*v))
+				fmt.Printf("%s: %s\n", vv, interp.ToString(*v))
 			}
 		}
 
 		// This is ugly, but I don't know how to turn a string into
 		// a ssa2.Value.
-		globals := make(map[string]*value)
-		for k, v := range fr.i.Globals {
+		globals := make(map[string]*interp.Value)
+		for k, v := range fr.I().Globals {
 			globals[fmt.Sprintf("%s", k)] = v
 		}
 
@@ -113,13 +114,13 @@ func GlobalsCommand(fr *frame, args []string) {
 			vv := args[i]
 			v, ok := globals[vv]
 			if ok {
-				fmt.Printf("%s: %s\n", vv, toString(*v))
+				fmt.Printf("%s: %s\n", vv, interp.ToString(*v))
 			}
 		}
 	}
 }
 
-func ParametersCommand(fr *frame, args []string) {
+func ParametersCommand(fr *interp.Frame, args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 1, args) { return }
 	if argc == 0 {
@@ -137,14 +138,14 @@ func ParametersCommand(fr *frame, args []string) {
 	}
 }
 
-func LocalsCommand(fr *frame, args []string) {
+func LocalsCommand(fr *interp.Frame, args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 2, args) { return }
 	if argc == 0 {
 		i := 0
 		for _, v := range fr.Locals() {
 			name := fr.Fn().Locals[i].Name()
-			fmt.Printf("%s: %s\n", name, toString(v))
+			fmt.Printf("%s: %s\n", name, interp.ToString(v))
 			i++
 		}
 	} else {
@@ -152,7 +153,7 @@ func LocalsCommand(fr *frame, args []string) {
 		i := 0
 		for _, v := range fr.Locals() {
 			if args[1] == fr.Fn().Locals[i].Name() {
-				fmt.Printf("%s %s: %s\n", varname, fr.Fn().Locals[i], toString(v))
+				fmt.Printf("%s %s: %s\n", varname, fr.Fn().Locals[i], interp.ToString(v))
 				break
 			}
 			i++
@@ -166,7 +167,7 @@ func LocalsCommand(fr *frame, args []string) {
 // Terminates program. If an exit code is given, that is the exit code
 // for the program. Zero (normal termination) is used if no
 // termintation code.
-func QuitCommand(fr *frame, args []string) {
+func QuitCommand(fr *interp.Frame, args []string) {
 	if !argCountOK(0, 1, args) { return }
 	rc := 0
 	if len(args) == 2 {
@@ -182,7 +183,7 @@ func QuitCommand(fr *frame, args []string) {
 
 }
 
-func VariableCommand(fr *frame, args []string) {
+func VariableCommand(fr *interp.Frame, args []string) {
 	if !argCountOK(1, 1, args) { return }
 	fn := fr.Fn()
 	varname := args[1]

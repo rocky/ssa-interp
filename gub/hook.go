@@ -1,6 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 // Debugger callback hook
-package interp
+package gub
 
 import (
 	"fmt"
@@ -8,19 +8,21 @@ import (
 
 	"gnureadline"
 	"ssa-interp"
+	"ssa-interp/interp"
 )
 
 // Call-back hook from interpreter. Contains top-level statement breakout
-func GubTraceHook(topFrame *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
+func GubTraceHook(topFrame *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
+
 	fset := topFrame.Fn().Prog.Fset
 	startP := fset.Position(topFrame.StartP())
 	endP   := fset.Position(topFrame.EndP())
 	printLocInfo(topFrame, startP, endP, event)
+
 	line := ""
-	inCmdLoop := true
 	var err error
 	curFrame := topFrame
-	for ; err == nil && inCmdLoop; cmdCount++ {
+	for inCmdLoop := true; err == nil && inCmdLoop; cmdCount++ {
 		line, err = gnureadline.Readline(fmt.Sprintf("gub[%d]: ", cmdCount),
 			true)
 		args  := strings.Split(line, " ")
@@ -34,13 +36,13 @@ func GubTraceHook(topFrame *frame, instr *ssa2.Instruction, event ssa2.TraceEven
 		switch cmd {
 		case "s":
 			fmt.Println("Stepping...")
-			SetStepIn(curFrame)
+			interp.SetStepIn(curFrame)
 			inCmdLoop = false
 			break
 		case "h", "?", "help":
 			HelpCommand(topFrame, args)
 		case "c":
-			SetStepOff(topFrame)
+			interp.SetStepOff(topFrame)
 			fmt.Println("Continuing...")
 			inCmdLoop = false
 			break
@@ -58,10 +60,10 @@ func GubTraceHook(topFrame *frame, instr *ssa2.Instruction, event ssa2.TraceEven
 			}
 		case "+":
 			fmt.Println("Setting Instruction Trace")
-			SetInstTracing()
+			interp.SetInstTracing()
 		case "-":
 			fmt.Println("Clearing Instruction Trace")
-			ClearInstTracing()
+			interp.ClearInstTracing()
 		case "gl", "global", "globals":
 			GlobalsCommand(topFrame, args)
 		case "lo", "local", "locals":

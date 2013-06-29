@@ -13,6 +13,7 @@ import (
 	"code.google.com/p/go.tools/importer"
 	"ssa-interp"
 	"ssa-interp/interp"
+	"ssa-interp/gub"
 )
 
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
@@ -119,6 +120,9 @@ func main() {
 	// Run the interpreter.
 	if *runFlag {
 		fmt.Println("Running....")
+		if interpTraceMode | interp.EnableStmtTracing != 0 {
+			gub.Install()
+		}
 		interp.Interpret(prog.Package(info.Pkg), interpMode, interpTraceMode,
 			info.Pkg.Path(), args)
 	}

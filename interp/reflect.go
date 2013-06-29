@@ -46,31 +46,31 @@ func makeNamedType(name string, underlying types.Type) *types.Named {
 	return types.NewNamed(obj, underlying, nil)
 }
 
-func makeReflectValue(t types.Type, v value) value {
+func makeReflectValue(t types.Type, v Value) Value {
 	return structure{rtype{t}, v}
 }
 
 // Given a reflect.Value, returns its rtype.
-func rV2T(v value) rtype {
+func rV2T(v Value) rtype {
 	return v.(structure)[0].(rtype)
 }
 
 // Given a reflect.Value, returns the underlying interpreter value.
-func rV2V(v value) value {
+func rV2V(v Value) Value {
 	return v.(structure)[1]
 }
 
 // makeReflectType boxes up an rtype in a reflect.Type interface.
-func makeReflectType(rt rtype) value {
+func makeReflectType(rt rtype) Value {
 	return iface{rtypeType, rt}
 }
 
-func ext۰reflect۰Init(fn *frame, args []value) value {
+func ext۰reflect۰Init(fn *Frame, args []Value) Value {
 	// Signature: func()
 	return nil
 }
 
-func ext۰reflect۰rtype۰Bits(fn *frame, args []value) value {
+func ext۰reflect۰rtype۰Bits(fn *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) int
 	rt := args[0].(rtype).t
 	basic, ok := rt.Underlying().(*types.Basic)
@@ -106,40 +106,40 @@ func ext۰reflect۰rtype۰Bits(fn *frame, args []value) value {
 	return nil
 }
 
-func ext۰reflect۰rtype۰Elem(fn *frame, args []value) value {
+func ext۰reflect۰rtype۰Elem(fn *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) reflect.Type
 	return makeReflectType(rtype{args[0].(rtype).t.Underlying().(interface {
 		Elem() types.Type
 	}).Elem()})
 }
 
-func ext۰reflect۰rtype۰Kind(fn *frame, args []value) value {
+func ext۰reflect۰rtype۰Kind(fn *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) uint
 	return uint(reflectKind(args[0].(rtype).t))
 }
 
-func ext۰reflect۰rtype۰NumOut(fn *frame, args []value) value {
+func ext۰reflect۰rtype۰NumOut(fn *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) int
 	return args[0].(rtype).t.(*types.Signature).Results().Len()
 }
 
-func ext۰reflect۰rtype۰Out(fn *frame, args []value) value {
+func ext۰reflect۰rtype۰Out(fn *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype, i int) int
 	i := args[1].(int)
 	return makeReflectType(rtype{args[0].(rtype).t.(*types.Signature).Results().At(i).Type()})
 }
 
-func ext۰reflect۰rtype۰String(fn *frame, args []value) value {
+func ext۰reflect۰rtype۰String(fn *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) string
 	return args[0].(rtype).t.String()
 }
 
-func ext۰reflect۰TypeOf(fn *frame, args []value) value {
+func ext۰reflect۰TypeOf(fn *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) string
 	return makeReflectType(rtype{args[0].(iface).t})
 }
 
-func ext۰reflect۰ValueOf(fn *frame, args []value) value {
+func ext۰reflect۰ValueOf(fn *Frame, args []Value) Value {
 	// Signature: func (interface{}) reflect.Value
 	itf := args[0].(iface)
 	return makeReflectValue(itf.t, itf.v)
@@ -208,35 +208,35 @@ func reflectKind(t types.Type) reflect.Kind {
 	panic(fmt.Sprint("unexpected type: ", t))
 }
 
-func ext۰reflect۰Value۰Kind(fn *frame, args []value) value {
+func ext۰reflect۰Value۰Kind(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) uint
 	return uint(reflectKind(rV2T(args[0]).t))
 }
 
-func ext۰reflect۰Value۰String(fn *frame, args []value) value {
+func ext۰reflect۰Value۰String(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) string
-	return toString(rV2V(args[0]))
+	return ToString(rV2V(args[0]))
 }
 
-func ext۰reflect۰Value۰Type(fn *frame, args []value) value {
+func ext۰reflect۰Value۰Type(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) reflect.Type
 	return makeReflectType(rV2T(args[0]))
 }
 
-func ext۰reflect۰Value۰Len(fn *frame, args []value) value {
+func ext۰reflect۰Value۰Len(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) int
 	switch v := rV2V(args[0]).(type) {
 	case string:
 		return len(v)
 	case array:
 		return len(v)
-	case chan value:
+	case chan Value:
 		return cap(v)
-	case []value:
+	case []Value:
 		return len(v)
 	case *hashmap:
 		return v.len()
-	case map[value]value:
+	case map[Value]Value:
 		return len(v)
 	default:
 		panic(fmt.Sprintf("reflect.(Value).Len(%v)", v))
@@ -244,25 +244,25 @@ func ext۰reflect۰Value۰Len(fn *frame, args []value) value {
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰NumField(fn *frame, args []value) value {
+func ext۰reflect۰Value۰NumField(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) int
 	return len(rV2V(args[0]).(structure))
 }
 
-func ext۰reflect۰Value۰Pointer(fn *frame, args []value) value {
+func ext۰reflect۰Value۰Pointer(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value) uintptr
 	switch v := rV2V(args[0]).(type) {
-	case *value:
+	case *Value:
 		return uintptr(unsafe.Pointer(v))
-	case chan value:
+	case chan Value:
 		return reflect.ValueOf(v).Pointer()
-	case []value:
+	case []Value:
 		return reflect.ValueOf(v).Pointer()
 	case *hashmap:
 		return reflect.ValueOf(v.table).Pointer()
-	case map[value]value:
+	case map[Value]Value:
 		return reflect.ValueOf(v).Pointer()
-	case *frame:
+	case *Frame:
 		return uintptr(unsafe.Pointer(v))
 	default:
 		panic(fmt.Sprintf("reflect.(Value).Pointer(%T)", v))
@@ -270,14 +270,14 @@ func ext۰reflect۰Value۰Pointer(fn *frame, args []value) value {
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰Index(fn *frame, args []value) value {
+func ext۰reflect۰Value۰Index(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value, i int) Value
 	i := args[1].(int)
 	t := rV2T(args[0]).t.Underlying()
 	switch v := rV2V(args[0]).(type) {
 	case array:
 		return makeReflectValue(t.(*types.Array).Elem(), v[i])
-	case []value:
+	case []Value:
 		return makeReflectValue(t.(*types.Slice).Elem(), v[i])
 	default:
 		panic(fmt.Sprintf("reflect.(Value).Index(%T)", v))
@@ -285,29 +285,29 @@ func ext۰reflect۰Value۰Index(fn *frame, args []value) value {
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰Bool(fn *frame, args []value) value {
+func ext۰reflect۰Value۰Bool(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) bool
 	return rV2V(args[0]).(bool)
 }
 
-func ext۰reflect۰Value۰CanAddr(fn *frame, args []value) value {
+func ext۰reflect۰Value۰CanAddr(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value) bool
 	// Always false for our representation.
 	return false
 }
 
-func ext۰reflect۰Value۰CanInterface(fn *frame, args []value) value {
+func ext۰reflect۰Value۰CanInterface(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value) bool
 	// Always true for our representation.
 	return true
 }
 
-func ext۰reflect۰Value۰Elem(fn *frame, args []value) value {
+func ext۰reflect۰Value۰Elem(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value) reflect.Value
 	switch x := rV2V(args[0]).(type) {
 	case iface:
 		return makeReflectValue(x.t, x.v)
-	case *value:
+	case *Value:
 		return makeReflectValue(rV2T(args[0]).t.Underlying().(*types.Pointer).Elem(), *x)
 	default:
 		panic(fmt.Sprintf("reflect.(Value).Elem(%T)", x))
@@ -315,19 +315,19 @@ func ext۰reflect۰Value۰Elem(fn *frame, args []value) value {
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰Field(fn *frame, args []value) value {
+func ext۰reflect۰Value۰Field(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value, i int) reflect.Value
 	v := args[0]
 	i := args[1].(int)
 	return makeReflectValue(rV2T(v).t.Underlying().(*types.Struct).Field(i).Type(), rV2V(v).(structure)[i])
 }
 
-func ext۰reflect۰Value۰Interface(fn *frame, args []value) value {
+func ext۰reflect۰Value۰Interface(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value) interface{}
 	return ext۰reflect۰valueInterface(fn, args)
 }
 
-func ext۰reflect۰Value۰Int(fn *frame, args []value) value {
+func ext۰reflect۰Value۰Int(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) int64
 	switch x := rV2V(args[0]).(type) {
 	case int:
@@ -346,22 +346,22 @@ func ext۰reflect۰Value۰Int(fn *frame, args []value) value {
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰IsNil(fn *frame, args []value) value {
+func ext۰reflect۰Value۰IsNil(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) bool
 	switch x := rV2V(args[0]).(type) {
-	case *value:
+	case *Value:
 		return x == nil
-	case chan value:
+	case chan Value:
 		return x == nil
-	case map[value]value:
+	case map[Value]Value:
 		return x == nil
 	case *hashmap:
 		return x == nil
 	case iface:
 		return x.t == nil
-	case []value:
+	case []Value:
 		return x == nil
-	case *frame:
+	case *Frame:
 		return x == nil
 	case *ssa2.Builtin:
 		return x == nil
@@ -373,18 +373,18 @@ func ext۰reflect۰Value۰IsNil(fn *frame, args []value) value {
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰IsValid(fn *frame, args []value) value {
+func ext۰reflect۰Value۰IsValid(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) bool
 	return rV2V(args[0]) != nil
 }
 
-func ext۰reflect۰valueInterface(fn *frame, args []value) value {
+func ext۰reflect۰valueInterface(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value, safe bool) interface{}
 	v := args[0].(structure)
 	return iface{rV2T(v).t, rV2V(v)}
 }
 
-func ext۰reflect۰error۰Error(fn *frame, args []value) value {
+func ext۰reflect۰error۰Error(fn *Frame, args []Value) Value {
 	return args[0]
 }
 

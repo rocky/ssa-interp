@@ -18,12 +18,12 @@ type hashable interface {
 
 type entry struct {
 	key   hashable
-	value value
+	Value Value
 	next  *entry
 }
 
 // A hashtable atop the built-in map.  Since each bucket contains
-// exactly one hash value, there's no need to perform hash-equality
+// exactly one hash Value, there's no need to perform hash-equality
 // tests when walking the linked list.  Rehashing is done by the
 // underlying map.
 type hashmap struct {
@@ -33,9 +33,9 @@ type hashmap struct {
 
 // makeMap returns an empty initialized map of key type kt,
 // preallocating space for reserve elements.
-func makeMap(kt types.Type, reserve int) value {
+func makeMap(kt types.Type, reserve int) Value {
 	if usesBuiltinMap(kt) {
-		return make(map[value]value, reserve)
+		return make(map[Value]Value, reserve)
 	}
 	return &hashmap{table: make(map[int]*entry, reserve)}
 }
@@ -64,11 +64,11 @@ func (m *hashmap) delete(k hashable) {
 
 // lookup returns the value associated with key k, if present, or
 // value(nil) otherwise.
-func (m *hashmap) lookup(k hashable) value {
+func (m *hashmap) lookup(k hashable) Value {
 	hash := k.hash()
 	for e := m.table[hash]; e != nil; e = e.next {
 		if k.eq(e.key) {
-			return e.value
+			return e.Value
 		}
 	}
 	return nil
@@ -78,18 +78,18 @@ func (m *hashmap) lookup(k hashable) value {
 // was already an association for an eq() (though not necessarily ==)
 // k, the previous key remains in the map and its associated value is
 // updated.
-func (m *hashmap) insert(k hashable, v value) {
+func (m *hashmap) insert(k hashable, v Value) {
 	hash := k.hash()
 	head := m.table[hash]
 	for e := head; e != nil; e = e.next {
 		if k.eq(e.key) {
-			e.value = v
+			e.Value = v
 			return
 		}
 	}
 	m.table[hash] = &entry{
 		key:   k,
-		value: v,
+		Value: v,
 		next:  head,
 	}
 	m.length++

@@ -7,15 +7,15 @@ import (
 	"ssa-interp"
 )
 
-type frame struct {
+type Frame struct {
 	i                *Interpreter
-	caller           *frame
+	caller           *Frame
 	fn               *ssa2.Function
 	block, prevBlock *ssa2.BasicBlock
-	env              map[ssa2.Value]value // dynamic values of SSA variables
-	locals           []value
+	env              map[ssa2.Value]Value // dynamic Values of SSA variables
+	locals           []Value
 	defers           []func()
-	result           value
+	result           Value
 	status           RunStatusType
 	tracing			 traceType
 	panic            interface{}
@@ -26,7 +26,7 @@ type frame struct {
 	endP             token.Pos   // End Postion from last trace instr run
 }
 
-func (fr *frame) get(key ssa2.Value) value {
+func (fr *Frame) get(key ssa2.Value) Value {
 	switch key := key.(type) {
 	case nil:
 		// Hack; simplifies handling of optional attributes
@@ -47,7 +47,7 @@ func (fr *frame) get(key ssa2.Value) value {
 	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
 }
 
-func (fr *frame) rundefers() {
+func (fr *Frame) rundefers() {
 	for i := range fr.defers {
 		if (fr.i.TraceMode & EnableTracing) != 0 {
 			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
@@ -58,18 +58,19 @@ func (fr *frame) rundefers() {
 }
 
 // Various Frame accessors
-func (fr *frame) Block() *ssa2.BasicBlock { return fr.block }
-func (fr *frame) EndP()   token.Pos { return fr.endP }
-func (fr *frame) Env() map[ssa2.Value]value { return fr.env }
-func (fr *frame) Fn() *ssa2.Function { return fr.fn }
-func (fr *frame) I() *Interpreter { return fr.i }
-func (fr *frame) Locals() []value { return fr.locals }
-func (fr *frame) PC() int { return fr.pc }
-func (fr *frame) PrevBlock() *ssa2.BasicBlock { return fr.prevBlock }
-func (fr *frame) StartP() token.Pos { return fr.startP }
-func (fr *frame) Status() RunStatusType { return fr.status }
+func (fr *Frame) Block() *ssa2.BasicBlock { return fr.block }
+func (fr *Frame) EndP()   token.Pos { return fr.endP }
+func (fr *Frame) Env() map[ssa2.Value]Value { return fr.env }
+func (fr *Frame) Fn() *ssa2.Function { return fr.fn }
+func (fr *Frame) I() *Interpreter { return fr.i }
+func (fr *Frame) Locals() []Value { return fr.locals }
+func (fr *Frame) PC() int { return fr.pc }
+func (fr *Frame) PrevBlock() *ssa2.BasicBlock { return fr.prevBlock }
+func (fr *Frame) Result() Value { return fr.result }
+func (fr *Frame) StartP() token.Pos { return fr.startP }
+func (fr *Frame) Status() RunStatusType { return fr.status }
 
-func (fr *frame) Caller(skip int) *frame {
+func (fr *Frame) Caller(skip int) *Frame {
 	targetFrame := fr
 	for i:=0; i<=skip; i++ {
 		if targetFrame.caller != nil {

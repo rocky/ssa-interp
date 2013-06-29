@@ -66,13 +66,13 @@ func PositionRange(start token.Position, end token.Position) string {
 	return s
 }
 
-type TraceHookFunc func(*frame, *ssa2.Instruction, ssa2.TraceEvent)
+type TraceHookFunc func(*Frame, *ssa2.Instruction, ssa2.TraceEvent)
 // FIXME: turn into a map of TraceHookFuncs
 var TraceHook TraceHookFunc
 
 // This gets called for special trace events if tracing is on
 // FIXME: Move elsewhere
-func DefaultTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
+func DefaultTraceHook(fr *Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
 	fset := fr.Fn().Prog.Fset
 	startP := fset.Position(fr.StartP())
 	endP   := fset.Position(fr.EndP())
@@ -85,7 +85,7 @@ func DefaultTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent)
 
 // This gets called for special trace events if tracing is on
 // FIXME: Move elsewhere
-func NullTraceHook(fr *frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
+func NullTraceHook(fr *Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
 	return
 }
 
@@ -95,22 +95,22 @@ func SetTraceHook(hook TraceHookFunc) {
 	TraceHook = hook
 }
 
-func SetStepIn(fr *frame) {
+func SetStepIn(fr *Frame) {
 	i.TraceMode |= EnableStmtTracing
 	fr.tracing = TRACE_STEP_IN
 }
 
-func SetStepOver(fr *frame) {
+func SetStepOver(fr *Frame) {
 	i.TraceMode |= EnableStmtTracing
 	fr.tracing = TRACE_STEP_OVER
 }
 
-func SetStepOut(fr *frame) {
+func SetStepOut(fr *Frame) {
 	i.TraceMode |= EnableStmtTracing
 	fr.tracing = TRACE_STEP_OUT
 }
 
-func SetStepOff(fr *frame) {
+func SetStepOff(fr *Frame) {
 	i.TraceMode &= ^EnableStmtTracing
 	fr.tracing = TRACE_STEP_NONE
 }

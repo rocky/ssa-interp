@@ -41,29 +41,29 @@ import (
 	"ssa-interp"
 )
 
-type value interface{}
+type Value interface{}
 
-type tuple []value
+type tuple []Value
 
-type array []value
+type array []Value
 
 type iface struct {
 	t types.Type // never an "untyped" type
-	v value
+	v Value
 }
 
-type structure []value
+type structure []Value
 
 // For map, array, *array, slice, string or channel.
 type iter interface {
-	// next returns a Tuple (key, value, ok).
-	// key and value are unaliased, e.g. copies of the sequence element.
+	// next returns a Tuple (key, Value, ok).
+	// key and Value are unaliased, e.g. copies of the sequence element.
 	next() tuple
 }
 
 type closure struct {
 	fn  *ssa2.Function
-	env []value
+	env []Value
 }
 
 type bad struct{}
@@ -137,7 +137,7 @@ func (x structure) eq(_y interface{}) bool {
 	// TODO(adonovan): fix: only non-blank fields should be
 	// compared.  This requires that we have type information
 	// available from the enclosing == operation or map access;
-	// the value is not sufficient.
+	// the Value is not sufficient.
 	for i, xi := range x {
 		if !equals(xi, y[i]) {
 			return false
@@ -174,7 +174,7 @@ func (x rtype) eq(y interface{}) bool {
 // equals returns true iff x and y are equal according to Go's
 // linguistic equivalence relation.  In a well-typed program, the
 // types of x and y are guaranteed equal.
-func equals(x, y value) bool {
+func equals(x, y Value) bool {
 	switch x := x.(type) {
 	case bool:
 		return x == y.(bool)
@@ -210,10 +210,10 @@ func equals(x, y value) bool {
 		return x == y.(complex128)
 	case string:
 		return x == y.(string)
-	case *value:
-		return x == y.(*value)
-	case chan value:
-		return x == y.(chan value)
+	case *Value:
+		return x == y.(*Value)
+	case chan Value:
+		return x == y.(chan Value)
 	case structure:
 		return x.eq(y)
 	case array:
@@ -228,18 +228,18 @@ func equals(x, y value) bool {
 		// (literally) nil.
 	case *hashmap:
 		return x == y.(*hashmap)
-	case map[value]value:
-		return (x != nil) == (y.(map[value]value) != nil)
+	case map[Value]Value:
+		return (x != nil) == (y.(map[Value]Value) != nil)
 	case *ssa2.Function, *closure:
 		return x == y
-	case []value:
-		return (x != nil) == (y.([]value) != nil)
+	case []Value:
+		return (x != nil) == (y.([]Value) != nil)
 	}
 	panic(fmt.Sprintf("comparing incomparable type %T", x))
 }
 
 // Returns an integer hash of x such that equals(x, y) => hash(x) == hash(y).
-func hash(x value) int {
+func hash(x Value) int {
 	switch x := x.(type) {
 	case bool:
 		if x {
@@ -278,9 +278,9 @@ func hash(x value) int {
 		return int(real(x))
 	case string:
 		return hashString(x)
-	case *value:
+	case *Value:
 		return int(uintptr(unsafe.Pointer(x)))
-	case chan value:
+	case chan Value:
 		return int(uintptr(reflect.ValueOf(x).Pointer()))
 	case structure:
 		return x.hash()
@@ -294,28 +294,28 @@ func hash(x value) int {
 	panic(fmt.Sprintf("%T is unhashable", x))
 }
 
-// copyVal returns a copy of value v.
+// copyVal returns a copy of Value v.
 // TODO(adonovan): add tests of aliasing and mutation.
-func copyVal(v value) value {
+func copyVal(v Value) Value {
 	if v == nil {
 		panic("copyVal(nil)")
 	}
 	switch v := v.(type) {
 	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64, complex64, complex128, string, unsafe.Pointer:
 		return v
-	case map[value]value:
+	case map[Value]Value:
 		return v
 	case *hashmap:
 		return v
-	case chan value:
+	case chan Value:
 		return v
-	case *value:
+	case *Value:
 		return v
 	case *ssa2.Function, *ssa2.Builtin, *closure:
 		return v
 	case iface:
 		return v
-	case []value:
+	case []Value:
 		return v
 	case structure:
 		a := make(structure, len(v))
@@ -336,12 +336,12 @@ func copyVal(v value) value {
 // Prints in the style of built-in println.
 // (More or less; in gc println is actually a compiler intrinsic and
 // can distinguish println(1) from println(interface{}(1)).)
-func toWriter(w io.Writer, v value) {
+func toWriter(w io.Writer, v Value) {
 	switch v := v.(type) {
 	case nil, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64, complex64, complex128, string:
 		fmt.Fprintf(w, "%v", v)
 
-	case map[value]value:
+	case map[Value]Value:
 		io.WriteString(w, "map[")
 		sep := " "
 		for k, e := range v {
@@ -362,16 +362,16 @@ func toWriter(w io.Writer, v value) {
 				sep = " "
 				toWriter(w, e.key)
 				io.WriteString(w, ":")
-				toWriter(w, e.value)
+				toWriter(w, e.Value)
 				e = e.next
 			}
 		}
 		io.WriteString(w, "]")
 
-	case chan value:
+	case chan Value:
 		fmt.Fprintf(w, "%v", v) // (an address)
 
-	case *value:
+	case *Value:
 		if v == nil {
 			io.WriteString(w, "<nil>")
 		} else {
@@ -401,7 +401,7 @@ func toWriter(w io.Writer, v value) {
 		}
 		io.WriteString(w, "]")
 
-	case []value:
+	case []Value:
 		io.WriteString(w, "[")
 		for i, e := range v {
 			if i > 0 {
@@ -433,8 +433,8 @@ func toWriter(w io.Writer, v value) {
 	}
 }
 
-// Implements printing of Go values in the style of built-in println.
-func toString(v value) string {
+// Implements printing of Go Values in the style of built-in println.
+func ToString(v Value) string {
 	var b bytes.Buffer
 	toWriter(&b, v)
 	return b.String()
@@ -461,7 +461,7 @@ func (it *stringIter) next() tuple {
 	return okv
 }
 
-type mapIter chan [2]value
+type mapIter chan [2]Value
 
 func (it mapIter) next() tuple {
 	kv, ok := <-it

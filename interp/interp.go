@@ -56,10 +56,8 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-// FIXME nuke this.
 func init() {
-	// TraceHook = NullTraceHook
-	TraceHook = GubTraceHook
+	TraceHook = NullTraceHook
 }
 
 type continuation int
@@ -82,7 +80,7 @@ const (
 // State shared between all interpreted goroutines.
 type Interpreter struct {
 	Prog           *ssa2.Program         // the SSA program
-	Globals        map[ssa2.Value]*value // addresses of global variables (immutable)
+	Globals        map[ssa2.Value]*Value // addresses of global variables (immutable)
 	Mode           Mode                  // interpreter options
 	TraceMode      TraceMode             // interpreter trace options
 	reflectPackage *ssa2.Package         // the fake reflect package
@@ -90,9 +88,9 @@ type Interpreter struct {
 	rtypeMethods   ssa2.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
 }
 
-var i Interpreter
+var i *Interpreter
 
-func GetInterpeter() Interpreter {
+func GetInterpeter() *Interpreter {
 	return i
 }
 
@@ -111,7 +109,7 @@ func findMethodSet(i *Interpreter, typ types.Type) ssa2.MethodSet {
 // visitInstr interprets a single ssa2.Instruction within the activation
 // record frame.  It returns a continuation value indicating where to
 // read the next instruction from.
-func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
+func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 	switch instr := genericInstr.(type) {
 	case *ssa2.UnOp:
 		fr.env[instr] = unop(instr, fr.get(instr.X))
@@ -151,7 +149,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		case 1:
 			fr.result = fr.get(instr.Results[0])
 		default:
-			var res []value
+			var res []Value
 			for _, r := range instr.Results {
 				res = append(res, fr.get(r))
 			}
@@ -166,10 +164,10 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		panic(targetPanic{fr.get(instr.X)})
 
 	case *ssa2.Send:
-		fr.get(instr.Chan).(chan value) <- copyVal(fr.get(instr.X))
+		fr.get(instr.Chan).(chan Value) <- copyVal(fr.get(instr.X))
 
 	case *ssa2.Store:
-		*fr.get(instr.Addr).(*value) = copyVal(fr.get(instr.Val))
+		*fr.get(instr.Addr).(*Value) = copyVal(fr.get(instr.Val))
 
 	case *ssa2.If:
 		succ := 1
@@ -191,22 +189,22 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		go call(fr.i, nil, instr.Pos(), fn, args)
 
 	case *ssa2.MakeChan:
-		fr.env[instr] = make(chan value, asInt(fr.get(instr.Size)))
+		fr.env[instr] = make(chan Value, asInt(fr.get(instr.Size)))
 
 	case *ssa2.Alloc:
-		var addr *value
+		var addr *Value
 		if instr.Heap {
 			// new
-			addr = new(value)
+			addr = new(Value)
 			fr.env[instr] = addr
 		} else {
 			// local
-			addr = fr.env[instr].(*value)
+			addr = fr.env[instr].(*Value)
 		}
 		*addr = zero(instr.Type().Deref())
 
 	case *ssa2.MakeSlice:
-		slice := make([]value, asInt(fr.get(instr.Cap)))
+		slice := make([]Value, asInt(fr.get(instr.Cap)))
 		tElt := instr.Type().Underlying().(*types.Slice).Elem()
 		for i := range slice {
 			slice[i] = zero(tElt)
@@ -228,7 +226,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.FieldAddr:
 		x := fr.get(instr.X)
-		fr.env[instr] = &(*x.(*value)).(structure)[instr.Field]
+		fr.env[instr] = &(*x.(*Value)).(structure)[instr.Field]
 
 	case *ssa2.Field:
 		fr.env[instr] = copyVal(fr.get(instr.X).(structure)[instr.Field])
@@ -237,9 +235,9 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		x := fr.get(instr.X)
 		idx := fr.get(instr.Index)
 		switch x := x.(type) {
-		case []value:
+		case []Value:
 			fr.env[instr] = &x[asInt(idx)]
-		case *value: // *array
+		case *Value: // *array
 			fr.env[instr] = &(*x).(array)[asInt(idx)]
 		default:
 			panic(fmt.Sprintf("unexpected x type in IndexAddr: %T", x))
@@ -256,7 +254,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		key := fr.get(instr.Key)
 		v := fr.get(instr.Value)
 		switch m := m.(type) {
-		case map[value]value:
+		case map[Value]Value:
 			m[key] = v
 		case *hashmap:
 			m.insert(key.(hashable), v)
@@ -275,7 +273,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		}
 
 	case *ssa2.MakeClosure:
-		var bindings []value
+		var bindings []Value
 		for _, binding := range instr.Bindings {
 			bindings = append(bindings, fr.get(binding))
 		}
@@ -320,10 +318,10 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 		r := tuple{chosen, recvOk}
 		for i, st := range instr.States {
 			if st.Dir == ast.RECV {
-				var v value
+				var v Value
 				if i == chosen && recvOk {
 					// No need to copy since send makes an unaliased copy.
-					v = recv.Interface().(value)
+					v = recv.Interface().(Value)
 				} else {
 					v = zero(st.Chan.Type().Underlying().(*types.Chan).Elem())
 				}
@@ -337,7 +335,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 	}
 
 	// if val, ok := instr.(ssa2.Value); ok {
-	// 	fmt.Println(toString(fr.env[val])) // debugging
+	// 	fmt.Println(ToString(fr.env[val])) // debugging
 	// }
 
 	return kNext
@@ -347,7 +345,7 @@ func visitInstr(fr *frame, genericInstr ssa2.Instruction) continuation {
 // function call in a Call, Go or Defer instruction, performing
 // interface method lookup if needed.
 //
-func prepareCall(fr *frame, call *ssa2.CallCommon) (fn value, args []value) {
+func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
 	if call.Func != nil {
 		// Function call.
 		fn = fr.get(call.Func)
@@ -375,7 +373,7 @@ func prepareCall(fr *frame, call *ssa2.CallCommon) (fn value, args []value) {
 // fn with arguments args, returning its result.
 // callpos is the position of the callsite.
 //
-func call(i *Interpreter, caller *frame, callpos token.Pos, fn value, args []value) value {
+func call(i *Interpreter, caller *Frame, callpos token.Pos, fn Value, args []Value) Value {
 	switch fn := fn.(type) {
 	case *ssa2.Function:
 		if fn == nil {
@@ -401,7 +399,7 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 // and lexical environment env, returning its result.
 // callpos is the position of the callsite.
 //
-func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function, args []value, env []value) value {
+func callSSA(i *Interpreter, caller *Frame, callpos token.Pos, fn *ssa2.Function, args []Value, env []Value) Value {
 	if InstTracing() {
 		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
@@ -424,13 +422,13 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 			panic("no code for function: " + name)
 		}
 	}
-	fr := &frame{
+	fr := &Frame{
 		i:      i,
 		caller: caller,
 		fn:     fn,
-		env:    make(map[ssa2.Value]value),
+		env:    make(map[ssa2.Value]Value),
 		block:  fn.Blocks[0],
-		locals: make([]value, len(fn.Locals)),
+		locals: make([]Value, len(fn.Locals)),
 		tracing: TRACE_STEP_NONE,
 	}
 
@@ -512,8 +510,8 @@ func callSSA(i *Interpreter, caller *frame, callpos token.Pos, fn *ssa2.Function
 	panic("unreachable")
 }
 
-// setGlobal sets the value of a system-initialized global variable.
-func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v value) {
+// setGlobal sets the Value of a system-initialized global variable.
+func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v Value) {
 	if g, ok := i.Globals[pkg.Var(name)]; ok {
 		*g = v
 		return
@@ -530,13 +528,13 @@ func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v value) {
 //
 func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	filename string, args []string) (exitCode int) {
-	i = Interpreter{
+	i = &Interpreter{
 		Prog:    mainpkg.Prog,
-		Globals: make(map[ssa2.Value]*value),
+		Globals: make(map[ssa2.Value]*Value),
 		Mode:    mode,
 		TraceMode: traceMode & ^(EnableStmtTracing|EnableTracing),
 	}
-	initReflect(&i)
+	initReflect(i)
 
 	for importPath, pkg := range i.Prog.Packages {
 		// Initialize global storage.
@@ -551,12 +549,12 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		// Ad-hoc initialization for magic system variables.
 		switch importPath {
 		case "syscall":
-			var envs []value
+			var envs []Value
 			for _, s := range os.Environ() {
 				envs = append(envs, s)
 			}
 			envs = append(envs, "GOSSAINTERP=1")
-			setGlobal(&i, pkg, "envs", envs)
+			setGlobal(i, pkg, "envs", envs)
 
 		case "runtime":
 			// TODO(gri): expose go/types.sizeof so we can
@@ -564,14 +562,14 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 			// unsafe.Sizeof(memStats) won't work since gc
 			// and go/types have different sizeof
 			// functions.
-			setGlobal(&i, pkg, "sizeof_C_MStats", uintptr(3696))
+			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(3696))
 
 		case "os":
-			Args := []value{filename}
+			Args := []Value{filename}
 			for _, s := range args {
 				Args = append(Args, s)
 			}
-			setGlobal(&i, pkg, "Args", Args)
+			setGlobal(i, pkg, "Args", Args)
 		}
 	}
 
@@ -586,7 +584,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 			exitCode = int(p)
 			return
 		case targetPanic:
-			fmt.Fprintln(os.Stderr, "panic:", toString(p.v))
+			fmt.Fprintln(os.Stderr, "panic:", ToString(p.v))
 		case runtime.Error:
 			fmt.Fprintln(os.Stderr, "panic:", p.Error())
 		case string:
@@ -603,20 +601,20 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	}()
 
 	// Run!
-	call(&i, nil, token.NoPos, mainpkg.Init, nil)
+	call(i, nil, token.NoPos, mainpkg.Init, nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
-		// fr := &frame{
-		// 	I: &I,
+		// fr := &Frame{
+		// 	i: i,
 		// 	caller: nil,
-		// 	env:    make(map[ssa2.Value]value),
+		// 	env:    make(map[ssa2.Value]Value),
 		// 	block:  mainFn.Blocks[0],
-		// 	locals: make([]value, len(mainFn.Locals)),
-		//  Start : mainFn.Pos()
-		//  End   : mainFn.Pos()
+		// 	locals: make([]Value, len(mainFn.Locals)),
+		//  start : mainFn.Pos()
+		//  end   : mainFn.Pos()
 		// }
 		// TraceHook(fr, nil&mainFn.Blocks[0].Instrs[0], ssa2.MAIN)
 		i.TraceMode = traceMode
-		call(&i, nil, token.NoPos, mainFn, nil)
+		call(i, nil, token.NoPos, mainFn, nil)
 		exitCode = 0
 	} else {
 		fmt.Fprintln(os.Stderr, "No main function.")
