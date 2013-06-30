@@ -240,9 +240,11 @@ func emitIf(f *Function, cond Value, tblock, fblock *BasicBlock) {
 // So instead we make it it's own instruction.
 
 func emitTrace(f *Function, event TraceEvent, start token.Pos, end token.Pos) Value {
-	t := &Trace{Event: event, Start: start, End: end}
+	t := &Trace{Event: event, Start: start, End: end, Breakpoint: false}
 	// fmt.Printf("event %s StartPos %d EndPos %d\n", Event2Name[event])
 	fset := f.Prog.Fset
+	pkg := f.Pkg
+	pkg.locs = append(pkg.locs, start)
 	if (debugMe) {
 		fmt.Printf("Emitting event %s\n\tFrom: %s\n\tTo: %s\n",
 			Event2Name[event], fset.Position(start), fset.Position(end)	)

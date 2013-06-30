@@ -48,58 +48,6 @@ func FinishCommand(args []string) {
 	msg("Continuing until return...")
 }
 
-func FrameCommand(args []string) {
-	if !argCountOK(1, 1, args) { return }
-	frameIndex, ok := strconv.Atoi(args[1])
-	if ok != nil {
-		errmsg("Expecting integer frame number; got %s",
-			args[1])
-		return
-	}
-	adjustFrame(frameIndex, true)
-
-}
-
-func UpCommand(args []string) {
-	if !argCountOK(0, 1, args) { return }
-	var frameIndex int
-	var ok error
-	if len(args) == 1 {
-		frameIndex = 1
-	} else {
-		frameIndex, ok = strconv.Atoi(args[1])
-		if ok != nil {
-			fmt.Printf("Expecting integer frame number; got %s",
-				args[1])
-			return
-		}
-	}
-	adjustFrame(frameIndex, false)
-
-}
-
-func DownCommand(args []string) {
-	if !argCountOK(0, 1, args) { return }
-	var frameIndex int
-	var ok error
-	if len(args) == 1 {
-		frameIndex = 1
-	} else {
-		frameIndex, ok = strconv.Atoi(args[1])
-		if ok != nil {
-			errmsg("Expecting integer frame number; got %s", args[1])
-			return
-		}
-	}
-	adjustFrame(-frameIndex, false)
-
-}
-
-func NextCommand(args []string) {
-	interp.SetStepOver(topFrame)
-	fmt.Println("Step over...")
-}
-
 func HelpCommand(args []string) {
 	fmt.Println(`List of commands:
 Execution running --
@@ -173,6 +121,20 @@ func GlobalsCommand(args []string) {
 	}
 }
 
+func LocsCommand(args []string) {
+	fn  := curFrame.Fn()
+	pkg := fn.Pkg
+	for _, p := range pkg.Locs() {
+		// FIXME: ? turn into true range
+		msg("\t%s", fmtPos(fn, p))
+	}
+}
+
+func NextCommand(args []string) {
+	interp.SetStepOver(topFrame)
+	fmt.Println("Step over...")
+}
+
 func ParametersCommand(args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 1, args) { return }
@@ -188,30 +150,6 @@ func ParametersCommand(args []string) {
 				break
 			}
 		}
-	}
-}
-
-func LocalsCommand(args []string) {
-	argc := len(args) - 1
-	if !argCountOK(0, 2, args) { return }
-	if argc == 0 {
-		i := 0
-		for _, v := range curFrame.Locals() {
-			name := curFrame.Fn().Locals[i].Name()
-			fmt.Printf("%s: %s\n", name, interp.ToString(v))
-			i++
-		}
-	} else {
-		varname := args[1]
-		i := 0
-		for _, v := range curFrame.Locals() {
-			if args[1] == curFrame.Fn().Locals[i].Name() {
-				msg("%s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToString(v))
-				break
-			}
-			i++
-		}
-
 	}
 }
 
@@ -233,15 +171,5 @@ func QuitCommand(args []string) {
 	msg("That's all folks...")
 	gnureadline.Rl_reset_terminal(term)
 	os.Exit(rc)
-
-}
-
-func VariableCommand(args []string) {
-	if !argCountOK(1, 1, args) { return }
-	fn := curFrame.Fn()
-	varname := args[1]
-	for _, p := range fn.Locals {
-		if varname == p.Name() { break }
-	}
 
 }

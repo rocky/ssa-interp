@@ -5,16 +5,20 @@
 
 all: tortoise
 
-tortoise: interp builder tortoise.go
+tortoise: interp builder gub tortoise.go
 	go build tortoise.go
 
-#: Build the interpeter
+#: Build the SSA Builder
 builder:
 	go install
 
 #: Build the interpeter
-interp:
+interp: builder
 	(cd interp && go install)
+
+#: Build the debugger
+gub: interp
+	(cd gub && go install)
 
 #: Same as "check"
 test: check

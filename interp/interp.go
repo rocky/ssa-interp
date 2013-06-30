@@ -471,7 +471,8 @@ func callSSA(i *Interpreter, caller *Frame, callpos token.Pos, fn *ssa2.Function
 
 	fr.startP = fn.Pos()
 	fr.endP   = fn.Pos()
-	if fr.tracing == TRACE_STEP_IN && len(fr.block.Instrs) > 0 && GlobalStmtTracing() {
+	if (fr.tracing == TRACE_STEP_IN || fn.Breakpoint) &&
+		(len(fr.block.Instrs) > 0 && GlobalStmtTracing()) {
 		TraceHook(fr, &fr.block.Instrs[0], ssa2.CALL_ENTER)
 	}
 	for {

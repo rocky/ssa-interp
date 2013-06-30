@@ -23,7 +23,7 @@ type exitPanic int
 
 // literalValue returns the value of the literal with the
 // dynamic type tag appropriate for l.Type().
-func literalValue(l *ssa2.Literal) Value {
+func LiteralValue(l *ssa2.Literal) Value {
 	if l.IsNil() {
 		return zero(l.Type()) // typed nil
 	}

@@ -48,14 +48,21 @@ func StackLocation(fr *interp.Frame) string {
 	return s
 }
 
-func fmtLocation(start token.Position, end token.Position) string {
-	return fmt.Sprintf("%s", interp.PositionRange(start, end))
+func fmtRange(fn *ssa2.Function, start token.Pos, end token.Pos) string {
+	fset := fn.Prog.Fset
+	startP := fset.Position(start)
+	endP   := fset.Position(end)
+	return fmt.Sprintf("%s", interp.PositionRange(startP, endP))
+}
+
+func fmtPos(fn *ssa2.Function, start token.Pos) string {
+	if start == token.NoPos { return "-" }
+	fset := fn.Prog.Fset
+	startP := fset.Position(start)
+	return fmt.Sprintf("%s", interp.PositionRange(startP, startP))
 }
 
 func printLocInfo(fr *interp.Frame, event ssa2.TraceEvent) {
-	fset := fr.Fn().Prog.Fset
-	startP := fset.Position(fr.StartP())
-	endP   := fset.Position(fr.EndP())
 	s := Event2Icon[event] + " "
 	if len(fr.Fn().Name()) > 0 {
 		s += fr.Fn().Name() + "() "
@@ -69,5 +76,5 @@ func printLocInfo(fr *interp.Frame, event ssa2.TraceEvent) {
 		}
 	}
 
-	fmt.Println(fmtLocation(startP, endP))
+	fmt.Println(fmtRange(fr.Fn(), fr.StartP(), fr.EndP()))
 }

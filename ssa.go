@@ -47,6 +47,8 @@ type Package struct {
 	// after building.
 	started int32                 // atomically tested and set at start of build phase
 	info    *importer.PackageInfo // package ASTs and type information
+
+	locs   []token.Pos            // slice of start source-code positions
 }
 
 // A Member is a member of a Go package, implemented by *Constant,
@@ -270,6 +272,7 @@ type Function struct {
 	name      string
 	Signature *types.Signature
 	pos       token.Pos
+	endP      token.Pos
 
 	Enclosing *Function    // enclosing function if anon; nil if global
 	Pkg       *Package     // enclosing package for Go source functions; otherwise nil
@@ -279,6 +282,8 @@ type Function struct {
 	Locals    []*Alloc
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
 	AnonFuncs []*Function   // anonymous functions directly beneath this one
+
+	Breakpoint bool    // Set on runtime if we should stop here
 
 	// The following fields are set transiently during building,
 	// then cleared.
@@ -1134,72 +1139,6 @@ type MapUpdate struct {
 	pos   token.Pos
 }
 
-//-------------------------------
-type TraceEvent int
-const (
-	OTHER TraceEvent = iota
-	ASSIGN_STMT
-	BLOCK_END
-	BREAK_STMT
-	CALL_ENTER
-	CALL_RETURN
-	EXPR
-	IF_INIT
-	IF_COND
-	FOR_INIT
-	FOR_COND
-	FOR_ITER
-	RANGE_STMT
-	MAIN
-	SELECT_TYPE
-	STMT_IN_LIST
-)
-
-
-var Event2Name map[TraceEvent]string
-
-func init() {
-	Event2Name = map[TraceEvent]string{
-		OTHER:    "?",
-		ASSIGN_STMT: "Assignment Statement",
-		BLOCK_END: "Block End",
-		BREAK_STMT: "BREAK",
-		CALL_ENTER: "function entry",
-		CALL_RETURN: "function return",
-		EXPR:     "Expression",
-		IF_INIT: "IF initialize",
-		IF_COND: "IF expression",
-		FOR_INIT: "FOR initialize",
-		FOR_COND: "FOR condition",
-		FOR_ITER: "FOR iteration",
-		MAIN:     "before main()",
-		RANGE_STMT: "range statement",
-		SELECT_TYPE: "SELECT type",
-		STMT_IN_LIST: "STATEMENT in list",
-	}
-}
-
-// The Trace instruction is a placeholder some event that is
-// about to take place. The event could be
-// - a new statement
-// - an interesting expression in a "case" or "if" or "loop" statement
-// - a return that is about to occur
-// - a message synchronization
-//
-// These are intented to be used by a debugger, profiler, code coverage
-// tool or tracing tool.
-//
-// I'd like this to be a flag an instruction, but that
-// was too difficult or ugly to be able for the high-level
-// builder call to be able to access the first generated instruction.
-// So instead we make it it's own instruction.
-type Trace struct {
-	anInstruction
-	Start   token.Pos  // start position of source
-	End   token.Pos    // end position of source
-	Event TraceEvent
-}
-
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
 
 // Register is a mix-in embedded by all SSA values that are also
@@ -1381,8 +1320,10 @@ func (v *Global) Token() token.Token      { return token.VAR }
 func (v *Function) Name() string            { return v.name }
 func (v *Function) Type() types.Type        { return v.Signature }
 func (v *Function) Pos() token.Pos          { return v.pos }
+func (v *Function) EndP() token.Pos          { return v.endP }
 func (*Function) Referrers() *[]Instruction { return nil }
 func (v *Function) Token() token.Token      { return token.FUNC }
+func (v *Function) NamedResults() []*Alloc  { return v.namedResults }
 
 func (v *Parameter) Type() types.Type          { return v.typ }
 func (v *Parameter) Name() string              { return v.name }
@@ -1420,11 +1361,6 @@ func (c *Constant) String() string     { return c.Name() }
 func (c *Constant) Type() types.Type   { return c.Value.Type() }
 func (c *Constant) Token() token.Token { return token.CONST }
 
-func (t *Trace) String() string {
-	return fmt.Sprintf("trace <%s>", Event2Name[t.Event])
-}
-
-
 // Func returns the package-level function of the specified name,
 // or nil if not found.
 //
@@ -1455,6 +1391,10 @@ func (p *Package) Const(name string) (c *Constant) {
 func (p *Package) Type(name string) (t *Type) {
 	t, _ = p.Members[name].(*Type)
 	return
+}
+
+func (p *Package) Locs() []token.Pos {
+	return p.locs
 }
 
 // Value returns the program-level value corresponding to the
@@ -1491,7 +1431,6 @@ func (s *Store) Pos() token.Pos     { return s.pos }
 func (s *If) Pos() token.Pos        { return token.NoPos }
 func (s *Jump) Pos() token.Pos      { return token.NoPos }
 func (s *RunDefers) Pos() token.Pos { return token.NoPos }
-func (v *Trace) Pos() token.Pos     { return v.Start }
 
 // Operands.
 
@@ -1650,8 +1589,4 @@ func (v *TypeAssert) Operands(rands []*Value) []*Value {
 
 func (v *UnOp) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
-}
-
-func (v *Trace) Operands(rands []*Value) []*Value {
-	return rands
 }

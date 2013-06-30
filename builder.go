@@ -586,12 +586,14 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 	case *ast.FuncLit:
 		posn := fn.Prog.Fset.Position(e.Type.Func)
 		fn2 := &Function{
-			name:      fmt.Sprintf("func@%d.%d", posn.Line, posn.Column),
-			Signature: fn.Pkg.typeOf(e.Type).Underlying().(*types.Signature),
-			pos:       e.Type.Func,
-			Enclosing: fn,
-			Pkg:       fn.Pkg,
-			Prog:      fn.Prog,
+			name:       fmt.Sprintf("func@%d.%d", posn.Line, posn.Column),
+			Signature:  fn.Pkg.typeOf(e.Type).Underlying().(*types.Signature),
+			pos:        e.Type.Func,
+			endP:       e.Body.End(),
+			Enclosing:  fn,
+			Pkg:        fn.Pkg,
+			Prog:       fn.Prog,
+			Breakpoint: false,
 			syntax: &funcSyntax{
 				paramFields:  e.Type.Params,
 				resultFields: e.Type.Results,
@@ -2245,10 +2247,13 @@ func (b *builder) buildFunction(fn *Function) {
 		}
 		return
 	}
+	fset := fn.Prog.Fset
 	if fn.Prog.mode&LogSource != 0 {
 		defer logStack("build function %s @ %s",
-			fn.FullName(), fn.Prog.Fset.Position(fn.pos))()
+			fn.FullName(), fset.Position(fn.pos))()
 	}
+	pkg := fn.Pkg
+	pkg.locs = append(pkg.locs, fn.pos)
 	fn.startBody()
 	fn.createSyntacticParams()
 	b.stmt(fn, fn.syntax.body)

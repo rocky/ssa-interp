@@ -119,12 +119,16 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		}
 		sig := obj.Type().(*types.Signature)
 		fn := &Function{
-			name:      name,
-			Signature: sig,
-			pos:       obj.Pos(), // (iff syntax)
-			Pkg:       pkg,
-			Prog:      pkg.Prog,
-			syntax:    fs,
+			name:       name,
+			Signature:  sig,
+			pos:        obj.Pos(), // (iff syntax)
+			Pkg:        pkg,
+			Prog:       pkg.Prog,
+			Breakpoint: false,
+			syntax:     fs,
+		}
+		if fs != nil && fs.body != nil {
+			fn.endP =  fs.body.End()
 		}
 		if recv := sig.Recv(); recv == nil {
 			// Function declaration.
@@ -205,6 +209,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		values:  make(map[types.Object]Value),
 		Types:   info.Pkg,
 		info:    info, // transient (CREATE and BUILD phases)
+		locs:    make([]token.Pos, 0),
 	}
 
 	// Add init() function (but not to Members since it can't be referenced).

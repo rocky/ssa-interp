@@ -34,8 +34,20 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		cmd := args[0]
 
 		switch cmd {
+		case "+":
+			fmt.Println("Setting Instruction Trace")
+			interp.SetInstTracing()
+		case "-":
+			fmt.Println("Clearing Instruction Trace")
+			interp.ClearInstTracing()
+		case "bt", "T", "backtrace", "where":
+			BacktraceCommand(args)
 		case "down":
 			DownCommand(args)
+		case "env":
+			for i, p := range topFrame.Env() {
+				fmt.Println(i, p)
+			}
 		case "h", "?", "help":
 			HelpCommand(args)
 		case "c":
@@ -47,32 +59,22 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
  			FinishCommand(args)
 			inCmdLoop = false
 			break
-		case "next", "n":
- 			NextCommand(args)
-			inCmdLoop = false
-			break
-		case "env":
-			for i, p := range topFrame.Env() {
-				fmt.Println(i, p)
-			}
-		case "+":
-			fmt.Println("Setting Instruction Trace")
-			interp.SetInstTracing()
-		case "-":
-			fmt.Println("Clearing Instruction Trace")
-			interp.ClearInstTracing()
 		case "frame":
 			FrameCommand(args)
 		case "gl", "global", "globals":
 			GlobalsCommand(args)
+		case "locs":
+			LocsCommand(args)
 		case "lo", "local", "locals":
 			LocalsCommand(args)
 		case "param", "parameters":
 			ParametersCommand(args)
+		case "next", "n":
+ 			NextCommand(args)
+			inCmdLoop = false
+			break
 		case "q", "quit", "exit":
 			QuitCommand(args)
-		case "bt", "T", "backtrace", "where":
-			BacktraceCommand(args)
 		case "s", "step":
 			fmt.Println("Stepping...")
 			interp.SetStepIn(curFrame)
@@ -82,6 +84,8 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			UpCommand(args)
 		case "v":
 			VariableCommand(args)
+		case "whatis":
+			WhatisCommand(args)
 		default:
 			fmt.Printf("Unknown command %s\n", cmd)
 		}
