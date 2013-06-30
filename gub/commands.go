@@ -126,9 +126,9 @@ func GlobalsCommand(args []string) {
 func LocsCommand(args []string) {
 	fn  := curFrame.Fn()
 	pkg := fn.Pkg
-	for _, p := range pkg.Locs() {
+	for _, l := range pkg.Locs() {
 		// FIXME: ? turn into true range
-		msg("\t%s", fmtPos(fn, p))
+		msg("\t%s", fmtPos(fn, l.Pos))
 	}
 }
 

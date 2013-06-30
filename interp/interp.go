@@ -268,7 +268,9 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 	case *ssa2.Trace:
 		fr.startP = instr.Start
 		fr.endP   = instr.End
-		if (fr.tracing == TRACE_STEP_IN) || (fr.tracing == TRACE_STEP_OVER) && GlobalStmtTracing() {
+		if (fr.tracing == TRACE_STEP_IN) ||
+			instr.Breakpoint ||
+			(fr.tracing == TRACE_STEP_OVER) && GlobalStmtTracing() {
 			TraceHook(fr, &genericInstr, instr.Event)
 		}
 

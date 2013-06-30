@@ -90,6 +90,52 @@ func BreakpointCommand(args []string) {
 		bpnum := BreakpointAdd(bp)
 		msg("Breakpoint %d set in function %s at %s", bpnum, name,
 			fmtPos(fn, fn.Pos()))
+		return
+	}
+	line, ok := strconv.Atoi(args[1])
+	if ok != nil {
+		errmsg("Don't know yet how to deal with a break that doesn't start with a function or integer")
+		return
+	}
+
+	column := -1
+	if len(args) == 3 {
+		foo, ok := strconv.Atoi(args[2])
+		if ok != nil {
+			errmsg("Don't know how to deal a non-int argument as 2nd parameter yet")
+			return
+		}
+		column = foo
+	}
+
+	fn := curFrame.Fn()
+	fset := fn.Prog.Fset
+	position := fset.Position(curFrame.StartP())
+	if position.IsValid() {
+		filename := position.Filename
+		for _, l := range fn.Pkg.Locs() {
+			if l.Trace == nil { continue }
+			try := fset.Position(l.Pos)
+			if try.Filename == filename && line == try.Line {
+				if column == -1 || column == try.Column {
+					bp := &Breakpoint {
+						hits: 0,
+						id: len(Breakpoints),
+						pos: l.Pos,
+						endP: l.Pos,
+						ignore: 0,
+						kind: "Statement",
+						temp: false,
+						enabled: true,
+					}
+					bpnum := BreakpointAdd(bp)
+				l.Trace.Breakpoint = true
+					msg("Breakpoint %d set in file %s line %d, column %d", bpnum, filename, line, try.Column)
+					break
+				}
+			}
+		}
+
 	}
 }
 

@@ -209,7 +209,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		values:  make(map[types.Object]Value),
 		Types:   info.Pkg,
 		info:    info, // transient (CREATE and BUILD phases)
-		locs:    make([]token.Pos, 0),
+		locs:    make([] LocInst, 0),
 	}
 
 	// Add init() function (but not to Members since it can't be referenced).

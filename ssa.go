@@ -48,7 +48,7 @@ type Package struct {
 	started int32                 // atomically tested and set at start of build phase
 	info    *importer.PackageInfo // package ASTs and type information
 
-	locs   []token.Pos            // slice of start source-code positions
+	locs   []LocInst            // slice of start source-code positions
 }
 
 // A Member is a member of a Go package, implemented by *Constant,
@@ -1292,6 +1292,11 @@ type CallInstruction interface {
 	Value() *Call        // returns the result value of the call (*Call) or nil (*Go, *Defer)
 }
 
+type LocInst struct {
+	Pos    token.Pos
+	Trace  *Trace
+}
+
 func (s *Call) Common() *CallCommon  { return &s.Call }
 func (s *Defer) Common() *CallCommon { return &s.Call }
 func (s *Go) Common() *CallCommon    { return &s.Call }
@@ -1393,7 +1398,7 @@ func (p *Package) Type(name string) (t *Type) {
 	return
 }
 
-func (p *Package) Locs() []token.Pos {
+func (p *Package) Locs() []LocInst {
 	return p.locs
 }
 
