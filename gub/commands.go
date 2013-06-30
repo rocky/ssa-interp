@@ -170,7 +170,7 @@ func QuitCommand(args []string) {
 				args[1])
 		}
 	}
-	msg("That's all folks...")
+	msg("gub: That's all folks...")
 	gnureadline.Rl_reset_terminal(term)
 	os.Exit(rc)
 

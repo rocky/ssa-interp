@@ -19,6 +19,7 @@ func init() {
 		ssa2.ASSIGN_STMT: ":= ",
 		ssa2.BLOCK_END  : "}  ",
 		ssa2.BREAK_STMT : "<-X",
+		ssa2.BREAKPOINT : "xxx",
 		ssa2.CALL_ENTER : "-> ",
 		ssa2.CALL_RETURN: "<- ",
 		ssa2.EXPR       : "(.)",
@@ -63,6 +64,9 @@ func fmtPos(fn *ssa2.Function, start token.Pos) string {
 }
 
 func printLocInfo(fr *interp.Frame, event ssa2.TraceEvent) {
+	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].kind == "Function" {
+		event = ssa2.CALL_ENTER
+	}
 	s := Event2Icon[event] + " "
 	if len(fr.Fn().Name()) > 0 {
 		s += fr.Fn().Name() + "() "

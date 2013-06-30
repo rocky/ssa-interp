@@ -14,9 +14,30 @@ import (
 var cmdCount int = 0
 var traceEvent ssa2.TraceEvent
 
+// if we are stopped by breakpoint, this is the breakpoint number.
+// Otherwise this is < 0.
+var curBpnum int
+
+func skipEvent(fr *interp.Frame, event ssa2.TraceEvent) bool {
+	curBpnum = -1
+	if event == ssa2.BREAKPOINT {
+		bps := BreakpointFindByPos(fr.StartP())
+		for _, bpnum := range bps {
+			bp := Breakpoints[bpnum]
+			if !bp.enabled { continue }
+			// FIXME: check things like the condition
+			curBpnum = bpnum
+			bp.hits ++
+			break
+		}
+	}
+	return false
+}
+
 // Call-back hook from interpreter. Contains top-level statement breakout
 func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
 	traceEvent = event
+	if skipEvent(fr, event) { return }
 	frameInit(fr)
 	printLocInfo(topFrame, event)
 
@@ -42,8 +63,16 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			interp.ClearInstTracing()
 		case "bt", "T", "backtrace", "where":
 			BacktraceCommand(args)
+		case "break", "breakpoint":
+			BreakpointCommand(args)
+		case "delete":
+			DeleteCommand(args)
+		case "disable":
+			DisableCommand(args)
 		case "down":
 			DownCommand(args)
+		case "enable":
+			EnableCommand(args)
 		case "env":
 			for i, p := range topFrame.Env() {
 				fmt.Println(i, p)

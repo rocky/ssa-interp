@@ -130,3 +130,15 @@ func InstTracing() bool {
 func GlobalStmtTracing() bool {
 	return 0 != i.TraceMode & EnableStmtTracing
 }
+
+func SetFnBreakpoint(fn *ssa2.Function) {
+	fn.Breakpoint = true
+}
+
+func ClearFnBreakpoint(fn *ssa2.Function) {
+	fn.Breakpoint = false
+}
+
+func IsFnBreakpoint(fn *ssa2.Function) bool {
+	return fn.Breakpoint
+}

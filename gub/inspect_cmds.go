@@ -43,13 +43,13 @@ func VariableCommand(args []string) {
 func WhatisCommand(args []string) {
 	if !argCountOK(1, 1, args) { return }
 	name := args[1]
-	fn  := curFrame.Fn()
-	pkg := fn.Pkg
-	if myfn := pkg.Func(name); myfn != nil {
+	myfn  := curFrame.Fn()
+	pkg := myfn.Pkg
+	if fn := pkg.Func(name); fn != nil {
 		msg("%s is a function at:", name)
-		msg("\t%s", fmtRange(myfn, myfn.Pos(), myfn.EndP()))
+		msg("\t%s", fmtRange(myfn, fn.Pos(), fn.EndP()))
 
-		for _, p := range myfn.Params {
+		for _, p := range fn.Params {
 			msg("\t%s", p)
 		}
 		for _, r := range fn.NamedResults() {
@@ -57,11 +57,11 @@ func WhatisCommand(args []string) {
 		}
 	} else if v := pkg.Var(name); v != nil {
 		msg("%s is a variable at:", name)
-		msg("\t%s", fmtPos(fn, v.Pos()))
+		msg("\t%s", fmtPos(myfn, v.Pos()))
 		// msg("Value %s", interp.ToString(v.Value))
 	} else if c := pkg.Const(name); c != nil {
 		msg("%s is a constant at:", name)
-		msg("\t%s", fmtPos(fn, c.Pos()))
+		msg("\t%s", fmtPos(myfn, c.Pos()))
 		msg("Value %s", interp.ToString(interp.LiteralValue(c.Value)))
 	} else if t := pkg.Type(name); t != nil {
 		msg("%s is a type", name)
