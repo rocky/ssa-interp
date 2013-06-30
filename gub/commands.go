@@ -57,11 +57,23 @@ Execution running --
   c: continue
 
 Inspecting --
+  locs          :  show breakpoint locations
   local [*name*]:  show local variable info
   global [*name*]: show global variable info
   param [*name*]: show function parameter info
   whatis *name*: show information about name
   locs: show all stopping locations
+
+Breakpoints --
+
+  break : list breakpoints
+  break line [column] : break at this line (and column)
+                      : run locs for a list
+  break function      : break at function
+
+  enable bpnum [bpnum..]    : enable breakpoint
+  disable bpnum [bpnum...]  : disable breakpoint
+  delete bpnum              : delete breakpoint
 
 Tracing --
   +: add instruction tracing

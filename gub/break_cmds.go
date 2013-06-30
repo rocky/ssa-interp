@@ -131,11 +131,13 @@ func BreakpointCommand(args []string) {
 					bpnum := BreakpointAdd(bp)
 				l.Trace.Breakpoint = true
 					msg("Breakpoint %d set in file %s line %d, column %d", bpnum, filename, line, try.Column)
-					break
+					return
 				}
 			}
 		}
-
+		suffix := ""
+		if column != -1 { suffix = ", column " + args[2] }
+		errmsg("Can't find statement in file %s at line %d%s", filename, line, suffix)
 	}
 }
 
