@@ -56,10 +56,12 @@ Execution running --
   fin: finish or step out
   c: continue
 
-Variables --
+Inspecting --
   local [*name*]:  show local variable info
   global [*name*]: show global variable info
   param [*name*]: show function parameter info
+  whatis *name*: show information about name
+  locs: show all stopping locations
 
 Tracing --
   +: add instruction tracing
