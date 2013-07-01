@@ -74,8 +74,45 @@ type Trace struct {
 	Breakpoint bool    // Set if we should stop here
 }
 
+// FIXME: arrange to put in ast
+func PositionRange(start token.Position, end token.Position) string {
+	s := ""
+	if start.IsValid() {
+		s = start.Filename
+		if s != "" {
+			s += ":"
+		}
+		s += fmt.Sprintf("%d:%d", start.Line, start.Column)
+		if start.Filename == end.Filename && end.IsValid() {
+			// this is what we expect
+			if start.Line == end.Line {
+				if start.Column != end.Column {
+					s += fmt.Sprintf("-%d", end.Column)
+				}
+			} else {
+				s += fmt.Sprintf("-%d:%d", end.Line, end.Column)
+			}
+		}
+
+	} else if end.IsValid() {
+		s = "-"
+		if end.Filename != "" {
+			s += end.Filename + ":"
+		}
+		s += fmt.Sprintf("%d:%d", end.Line, end.Column)
+	}
+	if s == "" {
+		s = "-"
+	}
+	return s
+}
+
 func (t *Trace) String() string {
-	return fmt.Sprintf("trace <%s>", Event2Name[t.Event])
+	fset := t.block.parent.Prog.Fset
+	startP := fset.Position(t.Start)
+	endP   := fset.Position(t.End)
+	return fmt.Sprintf("trace <%s> at %s",
+		Event2Name[t.Event], PositionRange(startP, endP))
 }
 
 func (v *Trace) Operands(rands []*Value) []*Value {

@@ -2,7 +2,6 @@ package interp
 
 import (
 	"fmt"
-	"go/token"
 	"github.com/rocky/ssa-interp"
 )
 
@@ -33,39 +32,6 @@ const (
 	StPanic
 )
 
-// FIXME: arrange to put in ast
-func PositionRange(start token.Position, end token.Position) string {
-	s := ""
-	if start.IsValid() {
-		s = start.Filename
-		if s != "" {
-			s += ":"
-		}
-		s += fmt.Sprintf("%d:%d", start.Line, start.Column)
-		if start.Filename == end.Filename && end.IsValid() {
-			// this is what we expect
-			if start.Line == end.Line {
-				if start.Column != end.Column {
-					s += fmt.Sprintf("-%d", end.Column)
-				}
-			} else {
-				s += fmt.Sprintf("-%d:%d", end.Line, end.Column)
-			}
-		}
-
-	} else if end.IsValid() {
-		s = "-"
-		if end.Filename != "" {
-			s += end.Filename + ":"
-		}
-		s += fmt.Sprintf("%d:%d", end.Line, end.Column)
-	}
-	if s == "" {
-		s = "-"
-	}
-	return s
-}
-
 type TraceHookFunc func(*Frame, *ssa2.Instruction, ssa2.TraceEvent)
 // FIXME: turn into a map of TraceHookFuncs
 var TraceHook TraceHookFunc
@@ -80,7 +46,7 @@ func DefaultTraceHook(fr *Frame, instr *ssa2.Instruction, event ssa2.TraceEvent)
 	if len(fr.Fn().Name()) > 0 {
 		s += fr.Fn().Name() + "() "
 	}
-	fmt.Printf("%sat\n%s\n", s, PositionRange(startP, endP))
+	fmt.Printf("%sat\n%s\n", s, ssa2.PositionRange(startP, endP))
 }
 
 // This gets called for special trace events if tracing is on

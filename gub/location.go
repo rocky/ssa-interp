@@ -53,14 +53,14 @@ func fmtRange(fn *ssa2.Function, start token.Pos, end token.Pos) string {
 	fset := fn.Prog.Fset
 	startP := fset.Position(start)
 	endP   := fset.Position(end)
-	return fmt.Sprintf("%s", interp.PositionRange(startP, endP))
+	return fmt.Sprintf("%s", ssa2.PositionRange(startP, endP))
 }
 
 func fmtPos(fn *ssa2.Function, start token.Pos) string {
 	if start == token.NoPos { return "-" }
 	fset := fn.Prog.Fset
 	startP := fset.Position(start)
-	return fmt.Sprintf("%s", interp.PositionRange(startP, startP))
+	return fmt.Sprintf("%s", ssa2.PositionRange(startP, startP))
 }
 
 func printLocInfo(fr *interp.Frame, event ssa2.TraceEvent) {
