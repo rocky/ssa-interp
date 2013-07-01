@@ -8,7 +8,7 @@ For now, some of the SSA optimizations however have been removed since our focus
 Setup
 -----
 
-* Make sure our GO environment is setup, e.g. $GOBIN*, *$GOPATH*, ...
+* Make sure our GO environment is setup, e.g. *$GOBIN*, *$GOPATH*, ...
 * Make sure you have go 1.1.1 or later installed.
 
      go get github.com/rocky/ssa-interp
@@ -20,6 +20,6 @@ Running the debugger:
 
      gub.sh -- *go-program* [-- *program-opts*...]
 
-Or the interpreter, tortoise:
+Or the interpreter, *tortoise*:
 
      tortoise -run *go-program* [-- *program-opts*..]
