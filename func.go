@@ -528,9 +528,9 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 //
 func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
-	ps := f.Position()
+	ps := f.PositionRange()
 	if ps != "-" {
-		fmt.Fprintf(w, "# Declared at %s\n", ps)
+		fmt.Fprintf(w, "# Located at %s\n", ps)
 	} else {
 		fmt.Fprintln(w, "# Synthetic")
 	}
@@ -621,6 +621,16 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 func (f *Function) Position() string {
 	if pos := f.Pos(); pos.IsValid() {
 		return f.Prog.Fset.Position(pos).String()
+	}
+	return "-"
+}
+
+func (f *Function) PositionRange() string {
+	if start := f.pos; start.IsValid() {
+		fset := f.Prog.Fset
+		end  := f.endP
+		if !end.IsValid() { end = start }
+		return PositionRange(fset.Position(start), fset.Position(end))
 	}
 	return "-"
 }
