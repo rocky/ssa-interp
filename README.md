@@ -8,7 +8,8 @@ For now, some of the SSA optimizations however have been removed since our focus
 Setup
 -----
 
-Make sure you have go 1.1.1 or later installed.
+* Make sure our GO environment is setup, e.g. $GOBIN*, *$GOPATH*, ...
+* Make sure you have go 1.1.1 or later installed.
 
      go get github.com/rocky/ssa-interp
      cd <place where ssa-interp/src copied>
