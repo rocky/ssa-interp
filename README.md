@@ -8,15 +8,17 @@ For now, some of the SSA optimizations however have been removed since our focus
 Setup
 -----
 
-Make sure you have go 1.1.1 installed.
+Make sure you have go 1.1.1 or later installed.
 
      go get github.com/rocky/ssa-interp
-
-Optional:
 
      cd <place where ssa-interp/src copied>
      cp tortroise gub.sh  $GOBIN/
 
-Running
+Running the debugger:
 
-         gub.sh -- *go-program* [*program-opts*...]
+     gub.sh -- *go-program* [-- *program-opts*...]
+
+Or the interpreter, tortoise:
+
+     tortoise -run *go-program* [-- *program-opts*..]
