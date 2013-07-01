@@ -8,7 +8,7 @@ import (
 )
 
 func Continue(args []string) {
-	for fr := topFrame; fr != nil; fr = frame.Caller(0) {
+	for fr := topFrame; fr != nil; fr = fr.Caller(0) {
 		interp.SetStepOff(fr)
 	}
 	fmt.Println("Continuing...")

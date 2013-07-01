@@ -29,6 +29,22 @@ func argCountOK(min int, max int, args [] string) bool {
 	return true
 }
 
+func DisassembleCommand(args []string) {
+	if !argCountOK(0, 1, args) { return }
+	myfn := curFrame.Fn()
+	if len(args) > 1 {
+		name := args[1]
+		pkg  := myfn.Pkg
+		if fn := pkg.Func(name); fn != nil {
+			myfn = fn
+		} else {
+			errmsg("Can't find function %s", name)
+			return
+		}
+	}
+	myfn.DumpTo(os.Stderr)
+}
+
 func HelpCommand(args []string) {
 	fmt.Println(`List of commands:
 Execution running --
@@ -38,12 +54,13 @@ Execution running --
   c: continue
 
 Inspecting --
-  locs          :  show breakpoint locations
-  local [*name*]:  show local variable info
+  disasm [*fn*]  : disassemble functon
+  locs           : show breakpoint locations
+  local [*name*] : show local variable info
   global [*name*]: show global variable info
-  param [*name*]: show function parameter info
-  whatis *name*: show information about name
-  locs: show all stopping locations
+  param [*name*] : show function parameter info
+  whatis *name*  : show information about name
+  locs           : show all stopping locations
 
 Breakpoints --
 

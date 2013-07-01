@@ -72,6 +72,8 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			BreakpointCommand(args)
 		case "delete":
 			DeleteCommand(args)
+		case "disassemble", "disasm":
+			DisassembleCommand(args)
 		case "disable":
 			DisableCommand(args)
 		case "down":
