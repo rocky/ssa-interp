@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"gnureadline"
+	"code.google.com/p/go-gnureadline"
 	"github.com/rocky/ssa-interp/interp"
 )
 

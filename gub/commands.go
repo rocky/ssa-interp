@@ -14,7 +14,7 @@ import (
 
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"gnureadline"
+	"code.google.com/p/go-gnureadline"
 )
 
 func argCountOK(min int, max int, args [] string) bool {
