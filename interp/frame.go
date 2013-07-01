@@ -57,6 +57,18 @@ func (fr *Frame) rundefers() {
 	fr.defers = fr.defers[:0]
 }
 
+func (fr *Frame) Position() token.Position {
+	fset   := fr.fn.Prog.Fset
+	return fset.Position(fr.startP)
+}
+
+func (fr *Frame) PositionRange() string {
+	fset   := fr.fn.Prog.Fset
+	startP := fset.Position(fr.startP)
+	endP   := fset.Position(fr.endP)
+	return ssa2.PositionRange(startP, endP)
+}
+
 // Frame accessors
 func (fr *Frame) Block() *ssa2.BasicBlock { return fr.block }
 func (fr *Frame) EndP()   token.Pos { return fr.endP }

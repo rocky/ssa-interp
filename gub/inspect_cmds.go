@@ -47,7 +47,7 @@ func WhatisCommand(args []string) {
 	pkg := myfn.Pkg
 	if fn := pkg.Func(name); fn != nil {
 		msg("%s is a function at:", name)
-		msg("\t%s", fmtRange(myfn, fn.Pos(), fn.EndP()))
+		msg("\t%s", fn.PositionRange())
 
 		for _, p := range fn.Params {
 			msg("\t%s", p)

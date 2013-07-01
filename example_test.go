@@ -96,7 +96,7 @@ func main() {
 	// 	ret
 	//
 	// # Name: main.main
-	// # Declared at hello.go:8:6
+	// # Located at hello.go:8:6-10:2
 	// func main():
 	// .0.entry:                                                               P:0 S:0
 	//	trace <STATEMENT in list> at hello.go:9:2-22

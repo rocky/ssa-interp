@@ -110,7 +110,7 @@ func BreakpointCommand(args []string) {
 
 	fn := curFrame.Fn()
 	fset := fn.Prog.Fset
-	position := fset.Position(curFrame.StartP())
+	position := curFrame.Position()
 	if position.IsValid() {
 		filename := position.Filename
 		for _, l := range fn.Pkg.Locs() {
