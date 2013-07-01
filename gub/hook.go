@@ -85,8 +85,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		case "h", "?", "help":
 			HelpCommand(args)
 		case "c", "continue":
-			interp.SetStepOff(topFrame)
-			fmt.Println("Continuing...")
+			Continue(args)
 			inCmdLoop = false
 			break
 		case "finish", "fin":
@@ -110,8 +109,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		case "q", "quit", "exit":
 			QuitCommand(args)
 		case "s", "step":
-			fmt.Println("Stepping...")
-			interp.SetStepIn(curFrame)
+			StepCommand(args)
 			inCmdLoop = false
 			break
 		case "up":

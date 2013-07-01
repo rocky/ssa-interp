@@ -7,6 +7,20 @@ import (
 	"strconv"
 )
 
+func BacktraceCommand(args []string) {
+	if !argCountOK(0, 1, args) { return }
+	// FIXME: should get limit from args
+	fr := topFrame
+	for i:=0; fr !=nil; fr = fr.Caller(0) {
+		pointer := "   "
+		if fr == curFrame {
+			pointer = "=> "
+		}
+		msg("%s#%d %s", pointer, i, StackLocation(fr))
+		i++
+	}
+}
+
 func FrameCommand(args []string) {
 	if !argCountOK(1, 1, args) { return }
 	frameIndex, ok := strconv.Atoi(args[1])

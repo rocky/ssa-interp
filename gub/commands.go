@@ -29,25 +29,6 @@ func argCountOK(min int, max int, args [] string) bool {
 	return true
 }
 
-func BacktraceCommand(args []string) {
-	if !argCountOK(0, 1, args) { return }
-	// FIXME: should get limit from args
-	fr := topFrame
-	for i:=0; fr !=nil; fr = fr.Caller(0) {
-		pointer := "   "
-		if fr == curFrame {
-			pointer = "=> "
-		}
-		msg("%s#%d %s", pointer, i, StackLocation(fr))
-		i++
-	}
-}
-
-func FinishCommand(args []string) {
-	interp.SetStepOut(topFrame)
-	msg("Continuing until return...")
-}
-
 func HelpCommand(args []string) {
 	fmt.Println(`List of commands:
 Execution running --
@@ -142,11 +123,6 @@ func LocsCommand(args []string) {
 		// FIXME: ? turn into true range
 		msg("\t%s", fmtPos(fn, l.Pos))
 	}
-}
-
-func NextCommand(args []string) {
-	interp.SetStepOver(topFrame)
-	fmt.Println("Step over...")
 }
 
 func ParametersCommand(args []string) {
