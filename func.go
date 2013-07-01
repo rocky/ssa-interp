@@ -528,8 +528,9 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 //
 func (f *Function) DumpTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
-	if pos := f.Pos(); pos.IsValid() {
-		fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Fset.Position(pos))
+	ps := f.Position()
+	if ps != "-" {
+		fmt.Fprintf(w, "# Declared at %s\n", ps)
 	} else {
 		fmt.Fprintln(w, "# Synthetic")
 	}
@@ -614,6 +615,14 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 	b.Succs = b.succs2[:0]
 	f.Blocks = append(f.Blocks, b)
 	return b
+}
+
+// Return the starting position of function f or "-" if no position found
+func (f *Function) Position() string {
+	if pos := f.Pos(); pos.IsValid() {
+		return f.Prog.Fset.Position(pos).String()
+	}
+	return "-"
 }
 
 // NewFunction returns a new synthetic Function instance with its name
