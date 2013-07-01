@@ -11,8 +11,8 @@ Setup
 Make sure you have go 1.1.1 or later installed.
 
      go get github.com/rocky/ssa-interp
-
      cd <place where ssa-interp/src copied>
+     make
      cp tortroise gub.sh  $GOBIN/
 
 Running the debugger:
