@@ -3,6 +3,7 @@
 package gub
 
 import (
+	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 )
 
@@ -40,21 +41,54 @@ func VariableCommand(args []string) {
 
 }
 
+func printFuncInfo(fn *ssa2.Function) {
+	msg("%s is a function at:", fn.FullName())
+	ps := fn.PositionRange()
+	if ps == "-" {
+		msg("\tsynthetic function (no position)")
+	} else {
+		msg("\t%s", ps)
+	}
+
+	for _, p := range fn.Params {
+		msg("\t%s", p)
+	}
+	for _, r := range fn.NamedResults() {
+		msg("\t%s", r)
+	}
+
+	if fn.Enclosing != nil {
+		section("Parent: %s\n", fn.Enclosing.Name())
+	}
+
+	if fn.FreeVars != nil {
+		section("Free variables:")
+		for i, fv := range fn.FreeVars {
+			msg("%3d:\t%s %s", i, fv.Name(), fv.Type())
+		}
+	}
+
+	if len(fn.Locals) > 0 {
+		section("Locals:")
+		for i, l := range fn.Locals {
+			msg("% 3d:\t%s %s", i, l.Name(), l.Type().Deref())
+		}
+	}
+
+	// writeSignature(w, f.Name(), f.Signature, f.Params)
+
+	if fn.Blocks == nil {
+		msg("\t(external)")
+	}
+}
+
 func WhatisCommand(args []string) {
 	if !argCountOK(1, 1, args) { return }
 	name := args[1]
 	myfn  := curFrame.Fn()
 	pkg := myfn.Pkg
 	if fn := pkg.Func(name); fn != nil {
-		msg("%s is a function at:", name)
-		msg("\t%s", fn.PositionRange())
-
-		for _, p := range fn.Params {
-			msg("\t%s", p)
-		}
-		for _, r := range fn.NamedResults() {
-			msg("\t%s", r)
-		}
+		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {
 		msg("%s is a variable at:", name)
 		msg("\t%s", fmtPos(myfn, v.Pos()))
