@@ -244,7 +244,7 @@ func emitTrace(f *Function, event TraceEvent, start token.Pos, end token.Pos) Va
 	// fmt.Printf("event %s StartPos %d EndPos %d\n", Event2Name[event])
 	fset := f.Prog.Fset
 	pkg := f.Pkg
-	pkg.locs = append(pkg.locs, LocInst{Pos: start, Trace: t})
+	pkg.locs = append(pkg.locs, LocInst{Pos: start, Fn: nil, Trace: t})
 	if (debugMe) {
 		fmt.Printf("Emitting event %s\n\tFrom: %s\n\tTo: %s\n",
 			Event2Name[event], fset.Position(start), fset.Position(end)	)

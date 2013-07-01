@@ -1294,7 +1294,9 @@ type CallInstruction interface {
 
 type LocInst struct {
 	Pos    token.Pos
+	// Fixme: I don't know how to do a C union "Instruction" typecast
 	Trace  *Trace
+	Fn     *Function
 }
 
 func (s *Call) Common() *CallCommon  { return &s.Call }

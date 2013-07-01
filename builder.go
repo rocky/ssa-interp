@@ -2253,7 +2253,7 @@ func (b *builder) buildFunction(fn *Function) {
 			fn.FullName(), fset.Position(fn.pos))()
 	}
 	pkg := fn.Pkg
-	pkg.locs = append(pkg.locs, LocInst{Pos: fn.pos, Trace: nil})
+	pkg.locs = append(pkg.locs, LocInst{Pos: fn.pos, Trace: nil, Fn: fn})
 	fn.startBody()
 	fn.createSyntacticParams()
 	b.stmt(fn, fn.syntax.body)

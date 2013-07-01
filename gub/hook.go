@@ -5,6 +5,7 @@ package gub
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"gnureadline"
 	"ssa-interp"
@@ -13,6 +14,8 @@ import (
 
 var cmdCount int = 0
 var traceEvent ssa2.TraceEvent
+
+var gubLock  sync.Mutex
 
 // if we are stopped by breakpoint, this is the breakpoint number.
 // Otherwise this is < 0.
@@ -36,6 +39,8 @@ func skipEvent(fr *interp.Frame, event ssa2.TraceEvent) bool {
 
 // Call-back hook from interpreter. Contains top-level statement breakout
 func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
+    gubLock.Lock()
+    defer gubLock.Unlock()
 	traceEvent = event
 	if skipEvent(fr, event) { return }
 	frameInit(fr)
@@ -63,7 +68,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			interp.ClearInstTracing()
 		case "bt", "T", "backtrace", "where":
 			BacktraceCommand(args)
-		case "break", "breakpoint":
+		case "b", "break", "breakpoint":
 			BreakpointCommand(args)
 		case "delete":
 			DeleteCommand(args)
@@ -79,7 +84,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			}
 		case "h", "?", "help":
 			HelpCommand(args)
-		case "c":
+		case "c", "continue":
 			interp.SetStepOff(topFrame)
 			fmt.Println("Continuing...")
 			inCmdLoop = false

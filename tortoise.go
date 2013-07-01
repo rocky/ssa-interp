@@ -120,7 +120,7 @@ func main() {
 	// Run the interpreter.
 	if *runFlag {
 		fmt.Println("Running....")
-		if interpTraceMode | interp.EnableStmtTracing != 0 {
+		if interpTraceMode & interp.EnableStmtTracing != 0 {
 			gub.Install()
 		}
 		interp.Interpret(prog.Package(info.Pkg), interpMode, interpTraceMode,

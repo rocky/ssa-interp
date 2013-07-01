@@ -114,7 +114,6 @@ func BreakpointCommand(args []string) {
 	if position.IsValid() {
 		filename := position.Filename
 		for _, l := range fn.Pkg.Locs() {
-			if l.Trace == nil { continue }
 			try := fset.Position(l.Pos)
 			if try.Filename == filename && line == try.Line {
 				if column == -1 || column == try.Column {
@@ -129,7 +128,16 @@ func BreakpointCommand(args []string) {
 						enabled: true,
 					}
 					bpnum := BreakpointAdd(bp)
-				l.Trace.Breakpoint = true
+					if l.Trace != nil {
+						l.Trace.Breakpoint = true
+					} else if l.Fn != nil {
+						l.Fn.Breakpoint = true
+						bp.kind = "Function"
+					} else {
+						errmsg("Internal error setting in file %s line %d, column %d",
+							bpnum, filename, line, try.Column)
+						return
+					}
 					msg("Breakpoint %d set in file %s line %d, column %d", bpnum, filename, line, try.Column)
 					return
 				}
