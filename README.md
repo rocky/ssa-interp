@@ -10,10 +10,13 @@ Setup
 
 Make sure you have go 1.1.1 installed.
 
+     go get github.com/rocky/ssa-interp
 
-    cd $GOPATH/src  # or someplace in your $
-    git clone http://github.com/rocky/ssa-interp
-    cd ssa-interp
-    make
-    # copy tortoise and gub.sh somewhere in your PATH
-    gub.sh -- *go-program* [*program-opts*...]
+Optional:
+
+     cd <place where ssa-interp/src copied>
+     cp tortroise gub.sh  $GOBIN/
+
+Running
+
+         gub.sh -- *go-program* [*program-opts*...]

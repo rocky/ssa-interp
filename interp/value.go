@@ -38,7 +38,7 @@ import (
 	"unsafe"
 
 	"code.google.com/p/go.tools/go/types"
-	"ssa-interp"
+	"github.com/rocky/ssa-interp"
 )
 
 type Value interface{}

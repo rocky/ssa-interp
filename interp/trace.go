@@ -3,7 +3,7 @@ package interp
 import (
 	"fmt"
 	"go/token"
-	"ssa-interp"
+	"github.com/rocky/ssa-interp"
 )
 
 // Mode is a bitmask of options influencing the interpreter.

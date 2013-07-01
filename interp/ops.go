@@ -10,7 +10,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
 
-	"ssa-interp"
+	"github.com/rocky/ssa-interp"
 )
 
 // If the target program panics, the interpreter panics with this type.

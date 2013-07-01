@@ -11,9 +11,9 @@ import (
 	"os"
 	"runtime/pprof"
 	"code.google.com/p/go.tools/importer"
-	"ssa-interp"
-	"ssa-interp/interp"
-	"ssa-interp/gub"
+	"github.com/rocky/ssa-interp"
+	"github.com/rocky/ssa-interp/interp"
+	"github.com/rocky/ssa-interp/gub"
 )
 
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.

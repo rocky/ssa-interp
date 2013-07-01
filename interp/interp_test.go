@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"code.google.com/p/go.tools/importer"
-	"ssa-interp"
-	"ssa-interp/interp"
+	"github.com/rocky/ssa-interp"
+	"github.com/rocky/ssa-interp/interp"
 )
 
 // Each line contains a space-separated list of $GOROOT/test/

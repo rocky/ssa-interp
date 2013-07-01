@@ -3,7 +3,7 @@
 package gub
 
 import (
-	"ssa-interp/interp"
+	"github.com/rocky/ssa-interp/interp"
 )
 
 func LocalsCommand(args []string) {

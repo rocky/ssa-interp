@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"go/token"
-	"ssa-interp"
+	"github.com/rocky/ssa-interp"
 )
 
 type Frame struct {

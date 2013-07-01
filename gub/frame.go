@@ -3,8 +3,8 @@
 package gub
 
 import (
-	"ssa-interp"
-	"ssa-interp/interp"
+	"github.com/rocky/ssa-interp"
+	"github.com/rocky/ssa-interp/interp"
 )
 
 var topFrame *interp.Frame

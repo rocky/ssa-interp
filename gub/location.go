@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"go/token"
-	"ssa-interp"
-	"ssa-interp/interp"
+	"github.com/rocky/ssa-interp"
+	"github.com/rocky/ssa-interp/interp"
 )
 
 var Event2Icon map[ssa2.TraceEvent]string

@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"gnureadline"
-	"ssa-interp/interp"
+	"github.com/rocky/ssa-interp/interp"
 )
 
 const (

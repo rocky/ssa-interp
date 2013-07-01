@@ -7,7 +7,7 @@
 package interp
 
 import (
-	"ssa-interp"
+	"github.com/rocky/ssa-interp"
 )
 
 func ext۰syscall۰Close(fn *frame, args []value) value {

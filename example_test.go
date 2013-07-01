@@ -3,7 +3,7 @@ package ssa2_test
 import (
 	"code.google.com/p/go.tools/importer"
 	"fmt"
-	"ssa-interp"
+	"github.com/rocky/ssa-interp"
 	"go/ast"
 	"go/parser"
 	"os"

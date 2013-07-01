@@ -51,7 +51,7 @@ import (
 	"reflect"
 	"runtime"
 
-	"ssa-interp"
+	"github.com/rocky/ssa-interp"
 
 	"code.google.com/p/go.tools/go/types"
 )

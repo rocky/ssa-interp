@@ -12,8 +12,8 @@ import (
 	"code.google.com/p/go.tools/go/types"
 
 
-	"ssa-interp"
-	"ssa-interp/interp"
+	"github.com/rocky/ssa-interp"
+	"github.com/rocky/ssa-interp/interp"
 	"gnureadline"
 )
 

@@ -5,7 +5,7 @@ package gub
 import (
 	"fmt"
 	"strconv"
-	"ssa-interp/interp"
+	"github.com/rocky/ssa-interp/interp"
 )
 
 func bpprint(bp Breakpoint) {
