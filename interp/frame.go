@@ -20,6 +20,8 @@ type Frame struct {
 	tracing			 traceType
 	panic            interface{}
 
+	goNum            int         // Goroutine number
+
 	// For tracking where we are
 	pc               int         // Instruction index of basic block
 	startP           token.Pos   // Start Position from last trace instr run
@@ -74,6 +76,7 @@ func (fr *Frame) Block() *ssa2.BasicBlock { return fr.block }
 func (fr *Frame) EndP()   token.Pos { return fr.endP }
 func (fr *Frame) Env() map[ssa2.Value]Value { return fr.env }
 func (fr *Frame) Fn() *ssa2.Function { return fr.fn }
+func (fr *Frame) GoNum() int { return fr.goNum }
 func (fr *Frame) I() *Interpreter { return fr.i }
 func (fr *Frame) Locals() []Value { return fr.locals }
 func (fr *Frame) PC() int { return fr.pc }

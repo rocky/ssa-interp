@@ -37,6 +37,19 @@ func skipEvent(fr *interp.Frame, event ssa2.TraceEvent) bool {
 	return false
 }
 
+// Compute the gub read prompt. It has the command count and
+// a goroutine number if we aren't in the main goroutine.
+func computePrompt() string {
+	prompt := fmt.Sprintf("gub[%d", cmdCount)
+	// If we aren't in the main goroutine, show the goroutine number
+	if curFrame.GoNum() != 0 {
+		prompt += fmt.Sprintf("@%d", curFrame.GoNum())
+	}
+	prompt += "] "
+	return prompt
+}
+
+
 // Call-back hook from interpreter. Contains top-level statement breakout
 func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
     gubLock.Lock()
@@ -49,8 +62,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	line := ""
 	var err error
 	for inCmdLoop := true; err == nil && inCmdLoop; cmdCount++ {
-		line, err = gnureadline.Readline(fmt.Sprintf("gub[%d]: ", cmdCount),
-			true)
+		line, err = gnureadline.Readline(computePrompt(), true)
 		args  := strings.Split(line, " ")
 		if len(args) == 0 {
 			fmt.Println("Empty line skipped")

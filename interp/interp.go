@@ -50,6 +50,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"sync"
 
 	"github.com/rocky/ssa-interp"
 
@@ -77,6 +78,15 @@ const (
 	TRACE_STEP_OUT
 )
 
+var gocall sync.Mutex
+
+// type GoreState struct {
+// 	topFrame  *Frame
+// 	id         int
+// 	lastFrame  *Frame
+// 	state      int  // running finished, etc. Fill this in later
+// }
+
 // State shared between all interpreted goroutines.
 type Interpreter struct {
 	prog           *ssa2.Program         // the SSA program
@@ -86,6 +96,8 @@ type Interpreter struct {
 	reflectPackage *ssa2.Package         // the fake reflect package
 	errorMethods   ssa2.MethodSet        // the method set of reflect.error, which implements the error interface.
 	rtypeMethods   ssa2.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
+	nGoroutines    int                   // number of goroutines
+	//goTops         []*GoreState
 }
 
 var i *Interpreter
@@ -119,7 +131,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.Call:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.env[instr] = call(fr.i, fr, instr.Pos(), fn, args)
+		fr.env[instr] = call(fr.i, fr.goNum, fr, instr.Pos(), fn, args)
 
 	case *ssa2.ChangeInterface:
 		x := fr.get(instr.X)
@@ -183,10 +195,14 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.Defer:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.defers = append(fr.defers, func() { call(fr.i, fr, instr.Pos(), fn, args) })
+		fr.defers = append(fr.defers, func() { call(fr.i, fr.goNum, fr, instr.Pos(), fn, args) })
+
 	case *ssa2.Go:
 		fn, args := prepareCall(fr, &instr.Call)
-		go call(fr.i, nil, instr.Pos(), fn, args)
+		gocall.Lock()
+		fr.i.nGoroutines++
+		gocall.Unlock()
+		go call(fr.i, fr.i.nGoroutines, nil, instr.Pos(), fn, args)
 
 	case *ssa2.MakeChan:
 		fr.env[instr] = make(chan Value, asInt(fr.get(instr.Size)))
@@ -375,15 +391,16 @@ func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
 // fn with arguments args, returning its result.
 // callpos is the position of the callsite.
 //
-func call(i *Interpreter, caller *Frame, callpos token.Pos, fn Value, args []Value) Value {
+func call(i *Interpreter, goNum int, caller *Frame, callpos token.Pos,
+	fn Value, args []Value) Value {
 	switch fn := fn.(type) {
 	case *ssa2.Function:
 		if fn == nil {
 			panic("call of nil function") // nil of func type
 		}
-		return callSSA(i, caller, callpos, fn, args, nil)
+		return callSSA(i, goNum, caller, callpos, fn, args, nil)
 	case *closure:
-		return callSSA(i, caller, callpos, fn.fn, args, fn.env)
+		return callSSA(i, goNum, caller, callpos, fn.fn, args, fn.env)
 	case *ssa2.Builtin:
 		return callBuiltin(caller, callpos, fn, args)
 	}
@@ -401,7 +418,7 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 // and lexical environment env, returning its result.
 // callpos is the position of the callsite.
 //
-func callSSA(i *Interpreter, caller *Frame, callpos token.Pos, fn *ssa2.Function, args []Value, env []Value) Value {
+func callSSA(i *Interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ssa2.Function, args []Value, env []Value) Value {
 	if InstTracing() {
 		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
@@ -432,6 +449,7 @@ func callSSA(i *Interpreter, caller *Frame, callpos token.Pos, fn *ssa2.Function
 		block:  fn.Blocks[0],
 		locals: make([]Value, len(fn.Locals)),
 		tracing: TRACE_STEP_NONE,
+		goNum  : goNum,
 	}
 
 	if caller == nil {
@@ -607,7 +625,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	}()
 
 	// Run!
-	call(i, nil, token.NoPos, mainpkg.Init, nil)
+	call(i, 0, nil, token.NoPos, mainpkg.Init, nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
 		// fr := &Frame{
 		// 	i: i,
@@ -620,7 +638,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		// }
 		// TraceHook(fr, nil&mainFn.Blocks[0].Instrs[0], ssa2.MAIN)
 		i.TraceMode = traceMode
-		call(i, nil, token.NoPos, mainFn, nil)
+		call(i, 0, nil, token.NoPos, mainFn, nil)
 		exitCode = 0
 	} else {
 		fmt.Fprintln(os.Stderr, "No main function.")
