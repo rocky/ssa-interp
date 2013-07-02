@@ -1,7 +1,7 @@
 # Comments starting with #: below are remake GNU Makefile comments. See
 # https://github.com/rocky/remake/wiki/Rake-tasks-for-gnu-make
 
-.PHONY: all builder interp check test check-quick test-interp
+.PHONY: all builder interp check test check-quick check-interp check-interp-quick
 
 all: tortoise
 
@@ -29,7 +29,16 @@ check: check-quick test-interp
 #: Run quick tests
 check-quick:
 	go test -i && go test
+	(cd interp && go test -i && go test -test.short)
+
+#: Same as check-quick
+test-quick: check-quick
 
 #: Longer interpreter tests
-test-interp:
+check-interp:
 	(cd interp && go test -i && go test)
+
+
+#: Shorter interpreter tests
+check-interp-quick:
+	(cd interp && go test -i && go test -test.short)

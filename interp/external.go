@@ -59,6 +59,7 @@ var externals = map[string]externalFn{
 	"reflect.valueInterface":          ext۰reflect۰valueInterface,
 	"runtime.Breakpoint":              ext۰runtime۰Breakpoint,
 	"runtime.Caller":                  ext۰runtime۰Caller,
+	"runtime.Callers":                 ext۰runtime۰Callers,
 	"runtime.GC":                      ext۰runtime۰GC,
 	"runtime.GOMAXPROCS":              ext۰runtime۰GOMAXPROCS,
 	"runtime.Gosched":                 ext۰runtime۰Gosched,
@@ -171,6 +172,21 @@ func ext۰runtime۰Caller(fr *Frame, args []Value) Value {
 	pc := encode_pc(final_fr)
 	line := startP.Line
 	return tuple{pc, filename, line, true}
+}
+
+func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
+	skip := args[0].(int)
+	// pc := args[1].([]uintptr)
+	count := 0
+
+	final_fr := fr
+	for i:=0; i<skip; i++ {
+		final_fr = final_fr.caller
+		if final_fr == nil {
+			return tuple{0, "None", 0, false}
+		}
+	}
+	return count
 }
 
 func ext۰runtime۰getgoroot(fr *Frame, args []Value) Value {

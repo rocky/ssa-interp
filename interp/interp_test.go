@@ -130,6 +130,7 @@ var gorootTests = []string{
 // These are files in go.tools/ssa/interp/testdata/.
 var testdataTests = []string{
 	"coverage.go",
+	"calltest.go",
 	"mrvchain.go",
 	"boundmeth.go",
 	"ifaceprom.go",
@@ -191,8 +192,6 @@ const slash = string(os.PathSeparator)
 func TestInterp(t *testing.T) {
 	var failures []string
 
-	fmt.Printf("NOTE: Reinstate 'append.go',  'gc1.go'\n")
-
 	for _, input := range testdataTests {
 		if !run(t, "testdata"+slash, input) {
 			failures = append(failures, input)
@@ -200,6 +199,7 @@ func TestInterp(t *testing.T) {
 	}
 
 	if !testing.Short() {
+		fmt.Printf("NOTE: Reinstate 'append.go',  'gc1.go'\n")
 		for _, input := range gorootTests {
 			if !run(t, filepath.Join(build.Default.GOROOT, "test")+slash, input) {
 				failures = append(failures, input)
