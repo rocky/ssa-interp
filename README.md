@@ -33,5 +33,4 @@ Or the interpreter, *tortoise*:
 See Also
 --------
 
-* [What's left to do](https://github.com/rocky/ssa-interp/wiki/What's-left-to-do)
-*
+* [What's left to do?](https://github.com/rocky/ssa-interp/wiki/What's-left-to-do)
