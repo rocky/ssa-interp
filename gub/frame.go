@@ -11,6 +11,7 @@ var topFrame *interp.Frame
 var curFrame *interp.Frame
 var stackSize int  // Size of call stack
 var frameIndex int  // frame index we are focused on
+const MAXSTACKSHOW = 50  // maximum number of frame entries to show
 
 func frameInit(fr *interp.Frame) {
 	topFrame = fr

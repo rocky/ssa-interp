@@ -17,18 +17,6 @@ import (
 	"code.google.com/p/go-gnureadline"
 )
 
-func argCountOK(min int, max int, args [] string) bool {
-	l := len(args)-1 // strip command name from count
-	if (l < min) {
-		errmsg("Too few args; need at least %d, got %d", min, l)
-		return false
-	} else if (l > max) {
-		errmsg("Too many args; need at most %d, got %d", max, l)
-		return false
-	}
-	return true
-}
-
 func DisassembleCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
 	myfn := curFrame.Fn()
@@ -78,10 +66,11 @@ Tracing --
   -: remove instruction tracing
 
 Stack:
-  bt: print a backtrace
-  frame *num*: switch stack frame
-  up *num*: switch to a newer frame
-  down *num*: switch to a older frame
+  bt [*max*]  : print a backtrace (at most max entries)
+  frame *num* : switch stack frame
+  gor [*num*] : show goroutine stack (for num)
+  up *num*    : switch to a newer frame
+  down *num*  : switch to a older frame
 
 Other:
   ?: this help

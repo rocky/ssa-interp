@@ -108,6 +108,8 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			break
 		case "frame":
 			FrameCommand(args)
+		case "gor", "gore", "goroutine", "goroutines":
+			GoroutinesCommand(args)
 		case "gl", "global", "globals":
 			GlobalsCommand(args)
 		case "locs":

@@ -80,12 +80,10 @@ const (
 
 var gocall sync.Mutex
 
-// type GoreState struct {
-// 	topFrame  *Frame
-// 	id         int
-// 	lastFrame  *Frame
-// 	state      int  // running finished, etc. Fill this in later
-// }
+type GoreState struct {
+	Fr     *Frame
+	state  int  // running, finished, etc. Fill this in later
+}
 
 // State shared between all interpreted goroutines.
 type Interpreter struct {
@@ -97,12 +95,12 @@ type Interpreter struct {
 	errorMethods   ssa2.MethodSet        // the method set of reflect.error, which implements the error interface.
 	rtypeMethods   ssa2.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
 	nGoroutines    int                   // number of goroutines
-	//goTops         []*GoreState
+	goTops         []*GoreState
 }
 
 var i *Interpreter
 
-func GetInterpeter() *Interpreter {
+func GetInterpreter() *Interpreter {
 	return i
 }
 
@@ -199,10 +197,13 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.Go:
 		fn, args := prepareCall(fr, &instr.Call)
+		i := fr.i
 		gocall.Lock()
-		fr.i.nGoroutines++
+		i.nGoroutines++
+		goNum := i.nGoroutines
+		i.goTops = append(i.goTops, &GoreState{Fr: nil, state: 0})
 		gocall.Unlock()
-		go call(fr.i, fr.i.nGoroutines, nil, instr.Pos(), fn, args)
+		go call(i, goNum, nil, instr.Pos(), fn, args)
 
 	case *ssa2.MakeChan:
 		fr.env[instr] = make(chan Value, asInt(fr.get(instr.Size)))
@@ -451,6 +452,7 @@ func callSSA(i *Interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 		tracing: TRACE_STEP_NONE,
 		goNum  : goNum,
 	}
+	i.goTops[goNum].Fr = fr
 
 	if caller == nil {
 		if GlobalStmtTracing() {
@@ -487,6 +489,7 @@ func callSSA(i *Interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 		if fr.status == StPanic {
 			panic(fr.panic) // panic stack is not entirely clean
 		}
+		i.goTops[goNum].Fr = caller
 	}()
 
 	fr.startP = fn.Pos()
@@ -558,6 +561,8 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		Mode:    mode,
 		TraceMode: traceMode & ^(EnableStmtTracing|EnableTracing),
 	}
+
+	i.goTops = append(i.goTops, &GoreState{Fr: nil, state: 0})
 	initReflect(i)
 
 	for importPath, pkg := range i.prog.Packages {
@@ -650,3 +655,4 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 // Interpret accessors
 func (i  *Interpreter) Program() *ssa2.Program { return i.prog }
 func (i  *Interpreter) Globals() map[ssa2.Value]*Value { return i.globals }
+func (i  *Interpreter) GoTops() []*GoreState { return i.goTops }

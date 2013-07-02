@@ -3,15 +3,12 @@
 package gub
 
 import (
-	"fmt"
-	"strconv"
+	"github.com/rocky/ssa-interp/interp"
 )
 
-func BacktraceCommand(args []string) {
-	if !argCountOK(0, 1, args) { return }
-	// FIXME: should get limit from args
-	fr := topFrame
-	for i:=0; fr !=nil; fr = fr.Caller(0) {
+func printStack(fr *interp.Frame, count int) {
+	if (fr == nil) { return }
+	for i:=0; fr !=nil && i < count; fr = fr.Caller(0) {
 		pointer := "   "
 		if fr == curFrame {
 			pointer = "=> "
@@ -21,49 +18,74 @@ func BacktraceCommand(args []string) {
 	}
 }
 
-func FrameCommand(args []string) {
-	if !argCountOK(1, 1, args) { return }
-	frameIndex, ok := strconv.Atoi(args[1])
-	if ok != nil {
-		errmsg("Expecting integer frame number; got %s",
-			args[1])
-		return
+func BacktraceCommand(args []string) {
+	if !argCountOK(0, 1, args) { return }
+	count := MAXSTACKSHOW
+	var err error
+	if len(args) > 1 {
+		count, err = getInt(args[1], "max count",
+			0, MAXSTACKSHOW)
+		if err != nil { return }
 	}
-	adjustFrame(frameIndex, true)
-
+	printStack(topFrame, count)
 }
 
 func DownCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
-	var frameIndex int
-	var ok error
+	var count int
+	var err error
 	if len(args) == 1 {
 		frameIndex = 1
 	} else {
-		frameIndex, ok = strconv.Atoi(args[1])
-		if ok != nil {
-			errmsg("Expecting integer frame number; got %s", args[1])
-			return
-		}
+		count, err = getInt(args[1],
+			"count", -MAXSTACKSHOW, MAXSTACKSHOW)
+		if err != nil { return }
 	}
-	adjustFrame(-frameIndex, false)
+	adjustFrame(-count, false)
 
+}
+
+func FrameCommand(args []string) {
+	if !argCountOK(1, 1, args) { return }
+	i, err := getInt(args[1],
+		"frame number", -MAXSTACKSHOW, MAXSTACKSHOW)
+	if err != nil { return }
+	adjustFrame(i, true)
+
+}
+
+// shows stack of all goroutines
+func GoroutinesCommand(args []string) {
+	if !argCountOK(0, 1, args) { return }
+	i := interp.GetInterpreter()
+	var goNum int
+	var err error
+	goTops := i.GoTops()
+	if len(args) > 1 {
+		goNum, err = getInt(args[1],
+			"goroutine number", 0, len(goTops)-1)
+		if err != nil { return }
+		section("Goroutine %d", goNum)
+		printStack(goTops[goNum].Fr, MAXSTACKSHOW)
+		return
+	}
+	for j, gore := range goTops {
+		section("Goroutine %d", j)
+		printStack(gore.Fr, MAXSTACKSHOW)
+	}
 }
 
 func UpCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
-	var frameIndex int
-	var ok error
+	var count int
+	var err error
 	if len(args) == 1 {
 		frameIndex = 1
 	} else {
-		frameIndex, ok = strconv.Atoi(args[1])
-		if ok != nil {
-			fmt.Printf("Expecting integer frame number; got %s",
-				args[1])
-			return
-		}
+		count, err = getInt(args[1],
+			"count", -MAXSTACKSHOW, MAXSTACKSHOW)
+		if err != nil { return }
 	}
-	adjustFrame(frameIndex, false)
+	adjustFrame(count, false)
 
 }
