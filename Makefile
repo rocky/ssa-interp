@@ -24,7 +24,7 @@ gub: interp
 test: check
 
 #: Run all tests (quick and interpreter)
-check: check-quick test-interp
+check: check-quick check-interp
 
 #: Run quick tests
 check-quick:
