@@ -9,7 +9,9 @@ package interp
 
 import (
 	"unsafe" // For Pointer in encode_pc. Move to separate file?
+	"fmt"
 	"math"
+	"io"
 	"os"
 	"runtime"
 	"syscall"
@@ -54,6 +56,7 @@ var externals = map[string]externalFn{
 	"math.Float32frombits":            ext۰math۰Float32frombits,
 	"math.Float64bits":                ext۰math۰Float64bits,
 	"math.Float64frombits":            ext۰math۰Float64frombits,
+	"os.Exit":                         ext۰os۰Exit,
 	"reflect.TypeOf":                  ext۰reflect۰TypeOf,
 	"reflect.ValueOf":                 ext۰reflect۰ValueOf,
 	"reflect.init":                    ext۰reflect۰Init,
@@ -74,7 +77,8 @@ var externals = map[string]externalFn{
 	"sync/atomic.StoreInt32":          ext۰atomic۰StoreInt32,
 	"sync/atomic.StoreUint32":         ext۰atomic۰StoreUint32,
 	"syscall.Close":                   ext۰syscall۰Close,
-	"syscall.Exit":                    ext۰syscall۰Exit,
+	//"syscall.Exit":                    ext۰syscall۰Exit,
+	"syscall.Exit":                    ext۰os۰Exit,
 	"syscall.Fstat":                   ext۰syscall۰Fstat,
 	"syscall.Getpid":                  ext۰syscall۰Getpid,
 	"syscall.Getwd":                   ext۰syscall۰Getwd,
@@ -123,6 +127,18 @@ func ext۰bytes۰IndexByte(fr *Frame, args []Value) Value {
 		}
 	}
 	return -1
+}
+
+func ext۰os۰Exit(fr *Frame, args []Value) Value {
+	msg := fmt.Sprintf("exit status %d", args[0].(int))
+	io.WriteString(os.Stderr, msg)
+	io.WriteString(os.Stderr, "\n")
+	// os.Exit works even if it doesn't allow cleanup as I suppose
+	// exitPanic might.
+	os.Exit(args[0].(int))
+	// This doesn't seem to work. We leave it uncommented
+	// to make go's return value checking happy.
+	panic(exitPanic(args[0].(int)))
 }
 
 func ext۰math۰Float64frombits(fr *Frame, args []Value) Value {

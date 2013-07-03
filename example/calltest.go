@@ -2,6 +2,7 @@ package main
 
 import "fmt"
 import "runtime"
+import "os"
 
 func sub() {
 	for i := 0; i<10; i++ {

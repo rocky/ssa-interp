@@ -2,6 +2,7 @@ package main
 
 import "runtime"
 import "fmt"
+import "os"
 
 func caller() {
 	for i := 0; i<2; i++ {
@@ -21,5 +22,6 @@ func caller() {
 }
 
 func main() {
+	os.Exit(5)
 	caller()
 }
