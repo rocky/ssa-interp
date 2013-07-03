@@ -8,6 +8,7 @@ package interp
 // external or because they use "unsafe" or "reflect" operations.
 
 import (
+	"unsafe" // For Pointer in encode_pc. Move to separate file?
 	"math"
 	"os"
 	"runtime"
@@ -145,8 +146,10 @@ func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
 	return nil
 }
 
-func encode_pc(fr *Frame) int {
-	return fr.block.Index * 1000 + fr.pc
+func encode_pc(fr *Frame) uintptr {
+	var fnaddr uintptr = uintptr(unsafe.Pointer(fr.fn))
+	bpc := uintptr(fr.block.Index) * 0xff + uintptr(fr.pc)
+	return ((fnaddr & 0x0000ffff) | (bpc << 16))
 }
 
 func ext۰runtime۰Caller(fr *Frame, args []Value) Value {
@@ -176,15 +179,19 @@ func ext۰runtime۰Caller(fr *Frame, args []Value) Value {
 
 func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
 	skip := args[0].(int)
-	// pc := args[1].([]uintptr)
-	count := 0
+	pc   := args[1].([]Value)
+	size := len(pc)
 
-	final_fr := fr
-	for i:=0; i<skip; i++ {
-		final_fr = final_fr.caller
-		if final_fr == nil {
-			return tuple{0, "None", 0, false}
+	for i:=0; i<=skip; i++ {
+		fr = fr.caller
+		if fr == nil {
+			return 0
 		}
+	}
+	var count int
+	for count = 0; fr != nil && count <= size; fr = fr.caller {
+		pc[count] = encode_pc(fr)
+		count++
 	}
 	return count
 }

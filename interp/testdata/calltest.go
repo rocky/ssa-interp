@@ -1,16 +1,25 @@
 package main
 
 import "runtime"
+import "fmt"
 
-func sub() {
+func caller() {
 	for i := 0; i<2; i++ {
-		pc, file, line, ok := runtime.Caller(i)
+		_, _, _, ok := runtime.Caller(i)
 		if !ok { panic(i) }
 	}
-	pc, file, line, ok := runtime.Caller(2)
-	if ok { panic(2) }
+	_, _, _, ok := runtime.Caller(20)
+	if ok { panic(3) }
+	pcA := make([]uintptr, 6, 6)
+	count := runtime.Callers(0, pcA)
+	pcB := make([]uintptr, 6, 6)
+	countM1 := runtime.Callers(1, pcB)
+	if count -1 != countM1 { panic(5) }
+	for i := 1; i<countM1-1; i++ {
+		if pcA[i+1] != pcB[i] { panic(100+i) }
+	}
 }
 
 func main() {
-	sub()
+	caller()
 }
