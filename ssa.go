@@ -1406,6 +1406,17 @@ func (p *Package) Locs() []LocInst {
 	return p.locs
 }
 
+func (p *Package) Member(name string) (m Member) {
+	m, _ = p.Members[name]
+	return
+}
+
+func (prog *Program) PackageByName(name string) (pkg *Package) {
+	pkg, _ = prog.Packages[name]
+	return
+}
+
+
 // Value returns the program-level value corresponding to the
 // specified named object, which may be a universal built-in
 // (*Builtin) or a package-level var (*Global) or func (*Function) of

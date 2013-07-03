@@ -26,7 +26,7 @@ type externalFn func(fr *Frame, args []Value) Value
 
 // Key strings are from Function.FullName().
 // That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
-var externals = map[string]externalFn{
+var Externals = map[string]externalFn{
 	"(reflect.Value).Bool":            ext۰reflect۰Value۰Bool,
 	"(reflect.Value).CanAddr":         ext۰reflect۰Value۰CanAddr,
 	"(reflect.Value).CanInterface":    ext۰reflect۰Value۰CanInterface,

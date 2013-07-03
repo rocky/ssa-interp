@@ -3,6 +3,7 @@
 package gub
 
 import (
+	"strings"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 )
@@ -85,8 +86,20 @@ func printFuncInfo(fn *ssa2.Function) {
 func WhatisCommand(args []string) {
 	if !argCountOK(1, 1, args) { return }
 	name := args[1]
+	ids := strings.Split(name, ".")
 	myfn  := curFrame.Fn()
 	pkg := myfn.Pkg
+	if len(ids) > 1 {
+		try_pkg := curFrame.I().Program().PackageByName(ids[0])
+		if try_pkg != nil { pkg = try_pkg }
+		m := pkg.Member(ids[1])
+		if m == nil {
+			errmsg("%s is not a member of %s", ids[1], pkg)
+			return
+		}
+		name = ids[1]
+	}
+
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {
@@ -99,6 +112,8 @@ func WhatisCommand(args []string) {
 		msg("Value %s", interp.ToString(interp.LiteralValue(c.Value)))
 	} else if t := pkg.Type(name); t != nil {
 		msg("%s is a type", name)
+	} else if p := curFrame.I().Program().PackageByName(name); p != nil {
+		msg("%s is a package", name)
 	} else {
 		msg("can't find %s", name)
 	}

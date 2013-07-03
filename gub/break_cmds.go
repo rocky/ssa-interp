@@ -68,14 +68,17 @@ func BreakpointList() {
 
 func BreakpointCommand(args []string) {
 	if !argCountOK(0, 2, args) { return }
-	myfn  := curFrame.Fn()
-	pkg := myfn.Pkg
 	if len(args) == 1 {
 		BreakpointList()
 		return
 	}
 	name := args[1]
-	if fn := pkg.Func(name); fn != nil {
+	fn := GetFunction(name)
+	if fn != nil {
+		if ext := interp.Externals[name]; ext != nil {
+			msg("Sorry, %s is a built-in external function.", name)
+			return
+		}
 		interp.SetFnBreakpoint(fn)
 		bp := &Breakpoint {
 			hits: 0,
@@ -108,7 +111,7 @@ func BreakpointCommand(args []string) {
 		column = foo
 	}
 
-	fn := curFrame.Fn()
+	fn = curFrame.Fn()
 	fset := fn.Prog.Fset
 	position := curFrame.Position()
 	if position.IsValid() {

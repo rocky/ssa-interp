@@ -432,7 +432,7 @@ func callSSA(i *Interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 	}
 	if fn.Enclosing == nil {
 		name := fn.FullName()
-		if ext := externals[name]; ext != nil {
+		if ext := Externals[name]; ext != nil {
 			if InstTracing() {
 				fmt.Fprintln(os.Stderr, "\t(external)")
 			}
@@ -653,6 +653,6 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 }
 
 // Interpret accessors
-func (i  *Interpreter) Program() *ssa2.Program { return i.prog }
+func (i *Interpreter) Program() *ssa2.Program { return i.prog }
 func (i  *Interpreter) Globals() map[ssa2.Value]*Value { return i.globals }
 func (i  *Interpreter) GoTops() []*GoreState { return i.goTops }
