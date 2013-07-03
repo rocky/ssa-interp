@@ -5,6 +5,8 @@ import "fmt"
 import "os"
 
 func caller() {
+	//FIXME add a test to make sure file, pc from Callers matches
+	// the equivalent from Caller.
 	for i := 0; i<2; i++ {
 		_, _, _, ok := runtime.Caller(i)
 		if !ok { panic(i) }
@@ -22,6 +24,5 @@ func caller() {
 }
 
 func main() {
-	os.Exit(5)
 	caller()
 }
