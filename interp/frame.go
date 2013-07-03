@@ -59,6 +59,8 @@ func (fr *Frame) rundefers() {
 	fr.defers = fr.defers[:0]
 }
 
+func (fr *Frame) Fset() *token.FileSet { return fr.fn.Prog.Fset }
+
 func (fr *Frame) Position() token.Position {
 	fset   := fr.fn.Prog.Fset
 	return fset.Position(fr.startP)
@@ -71,6 +73,17 @@ func (fr *Frame) PositionRange() string {
 	return ssa2.PositionRange(startP, endP)
 }
 
+func (fr *Frame) Caller(skip int) *Frame {
+	targetFrame := fr
+	for i:=0; i<=skip; i++ {
+		if targetFrame.caller != nil {
+			targetFrame  = targetFrame.caller
+		} else {
+			return nil
+		}
+	}
+	return targetFrame
+}
 // Frame accessors
 func (fr *Frame) Block() *ssa2.BasicBlock { return fr.block }
 func (fr *Frame) EndP()   token.Pos { return fr.endP }
@@ -84,15 +97,3 @@ func (fr *Frame) PrevBlock() *ssa2.BasicBlock { return fr.prevBlock }
 func (fr *Frame) Result() Value { return fr.result }
 func (fr *Frame) StartP() token.Pos { return fr.startP }
 func (fr *Frame) Status() RunStatusType { return fr.status }
-
-func (fr *Frame) Caller(skip int) *Frame {
-	targetFrame := fr
-	for i:=0; i<=skip; i++ {
-		if targetFrame.caller != nil {
-			targetFrame  = targetFrame.caller
-		} else {
-			return nil
-		}
-	}
-	return targetFrame
-}

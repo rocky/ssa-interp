@@ -1326,13 +1326,14 @@ func (v *Global) Pos() token.Pos          { return v.pos }
 func (*Global) Referrers() *[]Instruction { return nil }
 func (v *Global) Token() token.Token      { return token.VAR }
 
-func (v *Function) Name() string            { return v.name }
-func (v *Function) Type() types.Type        { return v.Signature }
-func (v *Function) Pos() token.Pos          { return v.pos }
-func (v *Function) EndP() token.Pos          { return v.endP }
-func (*Function) Referrers() *[]Instruction { return nil }
-func (v *Function) Token() token.Token      { return token.FUNC }
-func (v *Function) NamedResults() []*Alloc  { return v.namedResults }
+func (v *Function) Name() string               { return v.name }
+func (v *Function) Type() types.Type           { return v.Signature }
+func (v *Function) Pos() token.Pos             { return v.pos }
+func (v *Function) EndP() token.Pos            { return v.endP }
+func (v *Function) Fset() *token.FileSet       { return v.Prog.Fset }
+func (*Function) Referrers() *[]Instruction    { return nil }
+func (v *Function) Token() token.Token         { return token.FUNC }
+func (v *Function) NamedResults() []*Alloc     { return v.namedResults }
 
 func (v *Parameter) Type() types.Type          { return v.typ }
 func (v *Parameter) Name() string              { return v.name }
@@ -1406,17 +1407,6 @@ func (p *Package) Locs() []LocInst {
 	return p.locs
 }
 
-func (p *Package) Member(name string) (m Member) {
-	m, _ = p.Members[name]
-	return
-}
-
-func (prog *Program) PackageByName(name string) (pkg *Package) {
-	pkg, _ = prog.Packages[name]
-	return
-}
-
-
 // Value returns the program-level value corresponding to the
 // specified named object, which may be a universal built-in
 // (*Builtin) or a package-level var (*Global) or func (*Function) of
@@ -1438,6 +1428,10 @@ func (prog *Program) Value(obj types.Object) Value {
 //
 func (prog *Program) Package(pkg *types.Package) *Package {
 	return prog.packages[pkg]
+}
+
+func (prog *Program) PackageByName(name string) *Package {
+	return prog.Packages[name]
 }
 
 func (v *Call) Pos() token.Pos      { return v.Call.pos }

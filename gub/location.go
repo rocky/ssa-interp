@@ -50,7 +50,7 @@ func StackLocation(fr *interp.Frame) string {
 }
 
 func fmtRange(fn *ssa2.Function, start token.Pos, end token.Pos) string {
-	fset := fn.Prog.Fset
+	fset := fn.Fset()
 	startP := fset.Position(start)
 	endP   := fset.Position(end)
 	return ssa2.PositionRange(startP, endP)
@@ -58,7 +58,7 @@ func fmtRange(fn *ssa2.Function, start token.Pos, end token.Pos) string {
 
 func fmtPos(fn *ssa2.Function, start token.Pos) string {
 	if start == token.NoPos { return "-" }
-	fset := fn.Prog.Fset
+	fset := fn.Fset()
 	startP := fset.Position(start)
 	return ssa2.PositionRange(startP, startP)
 }

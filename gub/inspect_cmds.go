@@ -3,7 +3,9 @@
 package gub
 
 import (
+	"fmt"
 	"strings"
+	"path"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 )
@@ -92,7 +94,7 @@ func WhatisCommand(args []string) {
 	if len(ids) > 1 {
 		try_pkg := curFrame.I().Program().PackageByName(ids[0])
 		if try_pkg != nil { pkg = try_pkg }
-		m := pkg.Member(ids[1])
+		m := pkg.Members[ids[1]]
 		if m == nil {
 			errmsg("%s is not a member of %s", ids[1], pkg)
 			return
@@ -113,7 +115,21 @@ func WhatisCommand(args []string) {
 	} else if t := pkg.Type(name); t != nil {
 		msg("%s is a type", name)
 	} else if p := curFrame.I().Program().PackageByName(name); p != nil {
-		msg("%s is a package", name)
+		s := fmt.Sprintf("%s is a package", name)
+		if len(p.Members) > 0 {
+			fset := curFrame.Fset()
+			for _, m := range p.Members {
+				pos := m.Pos()
+				if pos.IsValid() {
+					position := fset.Position(pos)
+					dir := path.Dir(position.Filename)
+					s += ": at " + dir
+					break
+				}
+			}
+		}
+		msg(s)
+
 	} else {
 		msg("can't find %s", name)
 	}
