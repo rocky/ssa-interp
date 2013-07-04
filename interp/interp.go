@@ -545,7 +545,7 @@ func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v Value) {
 		*g = v
 		return
 	}
-	panic("no global variable: " + pkg.Types.Path() + "." + name)
+	panic("no global variable: " + pkg.Object.Path() + "." + name)
 }
 
 // Interpret interprets the Go program whose main package is mainpkg.
@@ -567,7 +567,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	i.goTops = append(i.goTops, &GoreState{Fr: nil, state: 0})
 	initReflect(i)
 
-	for importPath, pkg := range i.prog.Packages {
+	for importPath, pkg := range i.prog.PackagesByPath {
 		// Initialize global storage.
 		for _, m := range pkg.Members {
 			switch v := m.(type) {

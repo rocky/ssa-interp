@@ -476,7 +476,7 @@ func (f *Function) fullName(from *Package) string {
 	// Package-level function.
 	// Prefix with package name for cross-package references only.
 	if from != f.Pkg {
-		return fmt.Sprintf("%s.%s", f.Pkg.Types.Path(), f.name)
+		return fmt.Sprintf("%s.%s", f.Pkg.Object.Path(), f.name)
 	}
 	return f.name
 }

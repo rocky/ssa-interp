@@ -337,7 +337,7 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 //
 func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escaping bool) Value {
 	tx := fn.Pkg.typeOf(e.X)
-	obj, indices, isIndirect := types.LookupFieldOrMethod(tx, fn.Pkg.Types, e.Sel.Name)
+	obj, indices, isIndirect := types.LookupFieldOrMethod(tx, fn.Pkg.Object, e.Sel.Name)
 	if obj == nil {
 		panic("field not found: " + e.Sel.Name)
 	}
@@ -679,7 +679,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		// Call to "intrinsic" built-ins, e.g. new, make, panic.
 		if id, ok := e.Fun.(*ast.Ident); ok {
 			obj := fn.Pkg.objectOf(id)
-			if _, ok := fn.Prog.Builtins[obj]; ok {
+			if _, ok := fn.Prog.builtins[obj]; ok {
 				if v := b.builtin(fn, id.Name, e.Args, typ, e.Lparen); v != nil {
 					return v
 				}
@@ -755,7 +755,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		obj := fn.Pkg.objectOf(e)
 		// Universal built-in?
 		if obj.Pkg() == nil {
-			return fn.Prog.Builtins[obj]
+			return fn.Prog.builtins[obj]
 		}
 		// Package-level func or var?
 		if v := b.lookup(fn.Pkg, obj); v != nil {
@@ -773,7 +773,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			return b.expr(fn, e.Sel)
 		}
 
-		id := MakeId(e.Sel.Name, fn.Pkg.Types)
+		id := MakeId(e.Sel.Name, fn.Pkg.Object)
 
 		// (*T).f or T.f, the method f from the method-set of type T.
 		if fn.Pkg.info.IsType(e.X) {
@@ -931,7 +931,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		return
 	}
 
-	id := MakeId(sel.Sel.Name, fn.Pkg.Types)
+	id := MakeId(sel.Sel.Name, fn.Pkg.Object)
 
 	// Let X be the type of x.
 
@@ -1817,7 +1817,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	} else {
 		// length = len(x).
 		var c Call
-		c.Call.Func = fn.Prog.Builtins[types.Universe.Lookup(nil, "len")]
+		c.Call.Func = fn.Prog.builtins[types.Universe.Lookup(nil, "len")]
 		c.Call.Args = []Value{x}
 		c.setType(tInt)
 		length = fn.emit(&c)
@@ -2298,8 +2298,7 @@ func (b *builder) buildFunction(fn *Function) {
 	}
 	fset := fn.Prog.Fset
 	if fn.Prog.mode&LogSource != 0 {
-		defer logStack("build function %s @ %s",
-			fn.FullName(), fset.Position(fn.pos))()
+		defer logStack("build function %s @ %s", fn, fset.Position(fn.pos))()
 	}
 	pkg := fn.Pkg
 	pkg.locs = append(pkg.locs, LocInst{Pos: fn.pos, Trace: nil, Fn: fn})
@@ -2387,7 +2386,7 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 //
 func (prog *Program) BuildAll() {
 	var wg sync.WaitGroup
-	for _, p := range prog.Packages {
+	for _, p := range prog.PackagesByPath {
 		if prog.mode&BuildSerially != 0 {
 			p.Build()
 		} else {
