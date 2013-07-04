@@ -395,7 +395,7 @@ func newMethod(pkg *ssa2.Package, recvType types.Type, name string) *ssa2.Functi
 	// now, we'll set it to always be false since we're only
 	// concerned with rtype.  Encapsulate this better.
 	sig := types.NewSignature(types.NewVar(token.NoPos, nil, "recv", recvType), nil, nil, false)
-	fn := ssa2.NewFunction(name, sig)
+	fn := ssa2.NewFunction(name, sig, "fake reflect method")
 	fn.Pkg = pkg
 	fn.Prog = pkg.Prog
 	return fn

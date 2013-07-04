@@ -654,6 +654,6 @@ func (f *Function) PositionRange() string {
 //
 // TODO(adonovan): think harder about the API here.
 //
-func NewFunction(name string, sig *types.Signature) *Function {
-	return &Function{name: name, Signature: sig}
+func NewFunction(name string, sig *types.Signature, provenance string) *Function {
+	return &Function{name: name, Signature: sig, Synthetic: provenance}
 }
