@@ -196,7 +196,7 @@ func (f *Function) addSpilledParam(obj types.Object) {
 	param := f.addParamObj(obj)
 	spill := &Alloc{
 		name: obj.Name() + "~", // "~" means "spilled"
-		typ:  pointer(obj.Type()),
+		typ:  Pointer(obj.Type()),
 		pos:  obj.Pos(),
 	}
 	f.objects[obj] = spill
@@ -382,7 +382,7 @@ func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 // to function f and returns it.  pos is the optional source location.
 //
 func (f *Function) addLocal(typ types.Type, pos token.Pos) *Alloc {
-	v := &Alloc{typ: pointer(typ), pos: pos}
+	v := &Alloc{typ: Pointer(typ), pos: pos}
 	f.Locals = append(f.Locals, v)
 	f.emit(v)
 	return v

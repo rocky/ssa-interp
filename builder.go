@@ -405,7 +405,7 @@ func (b *builder) fieldAddr(fn *Function, base ast.Expr, path *anonFieldPath, in
 		Field: index,
 	}
 	v.setPos(pos)
-	v.setType(pointer(fieldType))
+	v.setType(Pointer(fieldType))
 	return fn.emit(v)
 }
 
@@ -439,7 +439,7 @@ func (b *builder) fieldExpr(fn *Function, base ast.Expr, path *anonFieldPath, in
 			Field: index,
 		}
 		v.setPos(pos)
-		v.setType(pointer(fieldType))
+		v.setType(Pointer(fieldType))
 		return emitLoad(fn, fn.emit(v))
 	}
 	panic("unreachable")
@@ -510,13 +510,13 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		switch t := fn.Pkg.typeOf(e.X).Underlying().(type) {
 		case *types.Array:
 			x = b.addr(fn, e.X, escaping).(address).addr
-			et = pointer(t.Elem())
+			et = Pointer(t.Elem())
 		case *types.Pointer: // *array
 			x = b.expr(fn, e.X)
-			et = pointer(t.Elem().Underlying().(*types.Array).Elem())
+			et = Pointer(t.Elem().Underlying().(*types.Array).Elem())
 		case *types.Slice:
 			x = b.expr(fn, e.X)
-			et = pointer(t.Elem())
+			et = Pointer(t.Elem())
 		case *types.Map:
 			return &element{
 				m: b.expr(fn, e.X),
@@ -831,7 +831,7 @@ func (b *builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Val
 	}
 	if !isPointer(typ) {
 		// Consult method-set of *X.
-		if m := fn.Prog.MethodSet(pointer(typ))[id]; m != nil {
+		if m := fn.Prog.MethodSet(Pointer(typ))[id]; m != nil {
 			// A method found only in MS(*X) must have a
 			// pointer formal receiver; but the actual
 			// value is not a pointer.
@@ -979,7 +979,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 					X:     a,
 					Index: intLiteral(int64(i)),
 				}
-				iaddr.setType(pointer(vt))
+				iaddr.setType(Pointer(vt))
 				fn.emit(iaddr)
 				emitStore(fn, iaddr, arg)
 			}
@@ -1263,7 +1263,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 				X:     addr,
 				Field: fieldIndex,
 			}
-			faddr.setType(pointer(sf.Type()))
+			faddr.setType(Pointer(sf.Type()))
 			fn.emit(faddr)
 			b.exprInPlace(fn, address{addr: faddr}, e)
 		}
@@ -1296,7 +1296,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 				X:     array,
 				Index: idx,
 			}
-			iaddr.setType(pointer(at.Elem()))
+			iaddr.setType(Pointer(at.Elem()))
 			fn.emit(iaddr)
 			b.exprInPlace(fn, address{addr: iaddr}, e)
 		}
@@ -1512,7 +1512,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			// same name but a more specific type.
 			y2 := fn.addNamedLocal(fn.Pkg.info.TypeCaseVar(cc))
 			y2.name += "'" // debugging aid
-			y2.typ = pointer(casetype)
+			y2.typ = Pointer(casetype)
 			emitStore(fn, y2, ti)
 		}
 		fn.targets = &targets{
@@ -1810,7 +1810,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 				X:     x,
 				Index: k,
 			}
-			instr.setType(pointer(t.Elem().(*types.Array).Elem()))
+			instr.setType(Pointer(t.Elem().(*types.Array).Elem()))
 			v = emitLoad(fn, fn.emit(instr))
 
 		case *types.Slice:
@@ -1818,7 +1818,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 				X:     x,
 				Index: k,
 			}
-			instr.setType(pointer(t.Elem()))
+			instr.setType(Pointer(t.Elem()))
 			v = emitLoad(fn, fn.emit(instr))
 
 		default:

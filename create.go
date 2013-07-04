@@ -100,7 +100,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		g := &Global{
 			Pkg:  pkg,
 			name: name,
-			typ:  pointer(obj.Type()), // address
+			typ:  Pointer(obj.Type()), // address
 			pos:  obj.Pos(),
 			spec: spec,
 		}
@@ -243,7 +243,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 	initguard := &Global{
 		Pkg:  p,
 		name: "init$guard",
-		typ:  pointer(tBool),
+		typ:  Pointer(tBool),
 	}
 	p.Members[initguard.Name()] = initguard
 

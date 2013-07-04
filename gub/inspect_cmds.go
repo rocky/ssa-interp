@@ -4,8 +4,9 @@ package gub
 
 import (
 	"fmt"
-	"strings"
 	"path"
+	"strings"
+	"sort"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 )
@@ -113,7 +114,28 @@ func WhatisCommand(args []string) {
 		msg("\t%s", fmtPos(myfn, c.Pos()))
 		msg("Value %s", interp.ToString(interp.LiteralValue(c.Value)))
 	} else if t := pkg.Type(name); t != nil {
-		msg("%s is a type", name)
+		mem := pkg.Members[name]
+		msg("Type %s at:", mem.Type())
+		position := pkg.Prog.Fset.Position(mem.Pos())
+		msg("  " + ssa2.PositionRange(position, position))
+		msg("  %s", mem.Type().Underlying())
+
+		// We display only mset(*T) since its keys
+		// are a superset of mset(T)'s keys, though the
+		// methods themselves may differ,
+		// e.g. promotion wrappers.
+		// NB: if mem.Type() is a pointer, mset is empty.
+		mset := pkg.Prog.MethodSet(ssa2.Pointer(mem.Type()))
+		var keys ssa2.Ids
+		for id := range mset {
+			keys = append(keys, id)
+		}
+		sort.Sort(keys)
+		for _, id := range keys {
+			method := mset[id]
+			// TODO(adonovan): show pointerness of receiver of declared method, not the index
+			msg("    method %s %s", id, method.Signature)
+		}
 	} else if p := curFrame.I().Program().PackageByName(name); p != nil {
 		s := fmt.Sprintf("%s is a package", name)
 		if len(p.Members) > 0 {

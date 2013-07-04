@@ -51,7 +51,7 @@ func isPointer(typ types.Type) bool {
 
 // pointer(typ) returns the type that is a pointer to typ.
 // TODO(adonovan): inline and eliminate.
-func pointer(typ types.Type) *types.Pointer {
+func Pointer(typ types.Type) *types.Pointer {
 	return types.NewPointer(typ)
 }
 
@@ -182,10 +182,10 @@ func MakeId(name string, pkg *types.Package) (id Id) {
 	return
 }
 
-type ids []Id // a sortable slice of Id
+type Ids []Id // a sortable slice of Id
 
-func (p ids) Len() int { return len(p) }
-func (p ids) Less(i, j int) bool {
+func (p Ids) Len() int { return len(p) }
+func (p Ids) Less(i, j int) bool {
 	x, y := p[i], p[j]
 	// *Package pointers are canonical so order by them.
 	// Don't use x.Pkg.ImportPath because sometimes it's empty.
@@ -193,7 +193,7 @@ func (p ids) Less(i, j int) bool {
 	return reflect.ValueOf(x.Pkg).Pointer() < reflect.ValueOf(y.Pkg).Pointer() ||
 		x.Pkg == y.Pkg && x.Name < y.Name
 }
-func (p ids) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p Ids) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
 // logStack prints the formatted "start" message to stderr and
 // returns a closure that prints the corresponding "end" message.

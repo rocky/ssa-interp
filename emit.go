@@ -16,7 +16,7 @@ const (
 //
 func emitNew(f *Function, typ types.Type, pos token.Pos) Value {
 	return f.emit(&Alloc{
-		typ:  pointer(typ),
+		typ:  Pointer(typ),
 		Heap: true,
 		pos:  pos,
 	})

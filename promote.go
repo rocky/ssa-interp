@@ -312,7 +312,7 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 			X:     v,
 			Field: p.index,
 		}
-		sel.setType(pointer(p.field.Type()))
+		sel.setType(Pointer(p.field.Type()))
 		v = fn.emit(sel)
 		if isPointer(p.field.Type()) {
 			v = emitLoad(fn, v)

@@ -387,8 +387,8 @@ func (p *Package) DumpTo(w io.Writer) {
 			// methods themselves may differ,
 			// e.g. promotion wrappers.
 			// NB: if mem.Type() is a pointer, mset is empty.
-			mset := p.Prog.MethodSet(pointer(mem.Type()))
-			var keys ids
+			mset := p.Prog.MethodSet(Pointer(mem.Type()))
+			var keys Ids
 			for id := range mset {
 				keys = append(keys, id)
 			}
