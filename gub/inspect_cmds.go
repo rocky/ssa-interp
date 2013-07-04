@@ -9,6 +9,7 @@ import (
 	"sort"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
+	"code.google.com/p/go-columnize"
 )
 
 func LocalsCommand(args []string) {
@@ -96,6 +97,7 @@ func printFuncInfo(fn *ssa2.Function) {
 
 func printPackageInfo(name string, pkg *ssa2.Package) {
 	s := fmt.Sprintf("%s is a package", name)
+	mems := ""
 	if len(pkg.Members) > 0 {
 		different := false
 		filename := ""
@@ -116,8 +118,22 @@ func printPackageInfo(name string, pkg *ssa2.Package) {
 			if different {filename = path.Dir(filename)}
 			s += ": at " + filename
 		}
+		members := make([]string, len(pkg.Members))
+		i := 0
+		for k, _ := range pkg.Members {
+			members[i] = k
+			i++
+		}
+		sort.Strings(members)
+		opts := columnize.DefaultOptions()
+		opts.DisplayWidth = maxwidth
+		mems = columnize.Columnize(members, opts)
 	}
 	msg(s)
+	if len(mems) > 0 {
+		section("Members")
+		msg(mems)
+	}
 }
 
 func printTypeInfo(name string, pkg *ssa2.Package) {
@@ -144,7 +160,6 @@ func printTypeInfo(name string, pkg *ssa2.Package) {
 		msg("    method %s %s", id, method.Signature)
 	}
 }
-
 
 func WhatisCommand(args []string) {
 	if !argCountOK(1, 1, args) { return }
