@@ -45,6 +45,14 @@ func VariableCommand(args []string) {
 
 }
 
+func printConstantInfo(c *ssa2.Constant, name string, pkg *ssa2.Package) {
+	mem := pkg.Members[name]
+	position := pkg.Prog.Fset.Position(mem.Pos())
+	msg("Constant %s is a constant at:", mem.Name())
+	msg("  " + ssa2.PositionRange(position, position))
+	msg("  %s %s", mem.Type(), interp.ToString(interp.LiteralValue(c.Value)))
+}
+
 func printFuncInfo(fn *ssa2.Function) {
 	msg("%s is a function at:", fn.FullName())
 	ps := fn.PositionRange()
@@ -86,6 +94,58 @@ func printFuncInfo(fn *ssa2.Function) {
 	}
 }
 
+func printPackageInfo(name string, pkg *ssa2.Package) {
+	s := fmt.Sprintf("%s is a package", name)
+	if len(pkg.Members) > 0 {
+		different := false
+		filename := ""
+		fset := curFrame.Fset()
+		for _, m := range pkg.Members {
+			pos := m.Pos()
+			if pos.IsValid() {
+				position := fset.Position(pos)
+				if len(filename) == 0 {
+					filename = position.Filename
+				} else if filename != position.Filename {
+					different = true
+					break
+				}
+			}
+		}
+		if len(filename) > 0 {
+			if different {filename = path.Dir(filename)}
+			s += ": at " + filename
+		}
+	}
+	msg(s)
+}
+
+func printTypeInfo(name string, pkg *ssa2.Package) {
+	mem := pkg.Members[name]
+	msg("Type %s at:", mem.Type())
+	position := pkg.Prog.Fset.Position(mem.Pos())
+	msg("  " + ssa2.PositionRange(position, position))
+	msg("  %s", mem.Type().Underlying())
+
+	// We display only mset(*T) since its keys
+	// are a superset of mset(T)'s keys, though the
+	// methods themselves may differ,
+	// e.g. promotion wrappers.
+	// NB: if mem.Type() is a pointer, mset is empty.
+	mset := pkg.Prog.MethodSet(ssa2.Pointer(mem.Type()))
+	var keys ssa2.Ids
+	for id := range mset {
+		keys = append(keys, id)
+	}
+	sort.Sort(keys)
+	for _, id := range keys {
+		method := mset[id]
+		// TODO(adonovan): show pointerness of receiver of declared method, not the index
+		msg("    method %s %s", id, method.Signature)
+	}
+}
+
+
 func WhatisCommand(args []string) {
 	if !argCountOK(1, 1, args) { return }
 	name := args[1]
@@ -110,50 +170,12 @@ func WhatisCommand(args []string) {
 		msg("\t%s", fmtPos(myfn, v.Pos()))
 		// msg("Value %s", interp.ToString(v.Value))
 	} else if c := pkg.Const(name); c != nil {
-		mem := pkg.Members[name]
-		msg("Constant %s is a constant at:", mem.Name())
-		msg("  %s", fmtPos(myfn, c.Pos()))
-		msg("    ", interp.ToString(interp.LiteralValue(c.Value)))
+		printConstantInfo(c, name, pkg)
 	} else if t := pkg.Type(name); t != nil {
-		mem := pkg.Members[name]
-		msg("Type %s at:", mem.Type())
-		position := pkg.Prog.Fset.Position(mem.Pos())
-		msg("  " + ssa2.PositionRange(position, position))
-		msg("  %s", mem.Type().Underlying())
-
-		// We display only mset(*T) since its keys
-		// are a superset of mset(T)'s keys, though the
-		// methods themselves may differ,
-		// e.g. promotion wrappers.
-		// NB: if mem.Type() is a pointer, mset is empty.
-		mset := pkg.Prog.MethodSet(ssa2.Pointer(mem.Type()))
-		var keys ssa2.Ids
-		for id := range mset {
-			keys = append(keys, id)
-		}
-		sort.Sort(keys)
-		for _, id := range keys {
-			method := mset[id]
-			// TODO(adonovan): show pointerness of receiver of declared method, not the index
-			msg("    method %s %s", id, method.Signature)
-		}
-	} else if p := curFrame.I().Program().PackageByName(name); p != nil {
-		s := fmt.Sprintf("%s is a package", name)
-		if len(p.Members) > 0 {
-			fset := curFrame.Fset()
-			for _, m := range p.Members {
-				pos := m.Pos()
-				if pos.IsValid() {
-					position := fset.Position(pos)
-					dir := path.Dir(position.Filename)
-					s += ": at " + dir
-					break
-				}
-			}
-		}
-		msg(s)
-
+		printTypeInfo(name, pkg)
+	} else if pkg := curFrame.I().Program().PackageByName(name); pkg != nil {
+		printPackageInfo(name, pkg)
 	} else {
-		msg("can't find %s", name)
+		errmsg("can't find %s", name)
 	}
 }
