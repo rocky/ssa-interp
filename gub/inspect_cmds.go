@@ -110,9 +110,10 @@ func WhatisCommand(args []string) {
 		msg("\t%s", fmtPos(myfn, v.Pos()))
 		// msg("Value %s", interp.ToString(v.Value))
 	} else if c := pkg.Const(name); c != nil {
-		msg("%s is a constant at:", name)
-		msg("\t%s", fmtPos(myfn, c.Pos()))
-		msg("Value %s", interp.ToString(interp.LiteralValue(c.Value)))
+		mem := pkg.Members[name]
+		msg("Constant %s is a constant at:", mem.Name())
+		msg("  %s", fmtPos(myfn, c.Pos()))
+		msg("    ", interp.ToString(interp.LiteralValue(c.Value)))
 	} else if t := pkg.Type(name); t != nil {
 		mem := pkg.Members[name]
 		msg("Type %s at:", mem.Type())
