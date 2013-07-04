@@ -184,7 +184,9 @@ func WhatisCommand(args []string) {
 		msg("%s is a variable at:", name)
 		msg("  %s", fmtPos(myfn, v.Pos()))
 		msg("  %s", v.Type())
-		// msg("Value %s", interp.ToString(v.Value))
+		if g, ok := curFrame.I().Global(name, pkg); ok {
+			msg("  %s", *g)
+		}
 	} else if c := pkg.Const(name); c != nil {
 		printConstantInfo(c, name, pkg)
 	} else if t := pkg.Type(name); t != nil {

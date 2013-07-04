@@ -539,8 +539,8 @@ func callSSA(i *Interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 	panic("unreachable")
 }
 
-// setGlobal sets the Value of a system-initialized global variable.
-func setGlobal(i *Interpreter, pkg *ssa2.Package, name string, v Value) {
+// SetGlobal sets the Value of a system-initialized global variable.
+func SetGlobal(i *Interpreter, pkg *ssa2.Package, name string, v Value) {
 	if g, ok := i.globals[pkg.Var(name)]; ok {
 		*g = v
 		return
@@ -585,7 +585,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 				envs = append(envs, s)
 			}
 			envs = append(envs, "GOSSAINTERP=1")
-			setGlobal(i, pkg, "envs", envs)
+			SetGlobal(i, pkg, "envs", envs)
 
 		case "runtime":
 			// TODO(gri): expose go/types.sizeof so we can
@@ -593,14 +593,14 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 			// unsafe.Sizeof(memStats) won't work since gc
 			// and go/types have different sizeof
 			// functions.
-			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(3696))
+			SetGlobal(i, pkg, "sizeof_C_MStats", uintptr(3696))
 
 		case "os":
 			Args := []Value{filename}
 			for _, s := range args {
 				Args = append(Args, s)
 			}
-			setGlobal(i, pkg, "Args", Args)
+			SetGlobal(i, pkg, "Args", Args)
 		}
 	}
 
@@ -654,7 +654,12 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	return
 }
 
-// Interpret accessors
+func (i  *Interpreter) Global(name string, pkg *ssa2.Package)  (v *Value, ok bool) {
+	v, ok = i.globals[pkg.Var(name)]
+	return
+}
+
+// Interpreter accessors
 func (i *Interpreter) Program() *ssa2.Program { return i.prog }
 func (i  *Interpreter) Globals() map[ssa2.Value]*Value { return i.globals }
 func (i  *Interpreter) GoTops() []*GoreState { return i.goTops }
