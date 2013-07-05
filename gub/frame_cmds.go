@@ -54,24 +54,35 @@ func FrameCommand(args []string) {
 
 }
 
+func printGoroutine(goNum int, goTops []*interp.GoreState) {
+	fr := goTops[goNum].Fr
+	switch fr.Status() {
+	case interp.StRunning:
+		section("Goroutine %d", goNum)
+		printStack(fr, MAXSTACKSHOW)
+	case interp.StComplete:
+		msg("Goroutine %d completed", goNum)
+	case interp.StPanic:
+		msg("Goroutine %d panic", goNum)
+	}
+}
+
+
 // shows stack of all goroutines
 func GoroutinesCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
-	i := interp.GetInterpreter()
+	goTops := interp.GetInterpreter().GoTops()
 	var goNum int
 	var err error
-	goTops := i.GoTops()
 	if len(args) > 1 {
 		goNum, err = getInt(args[1],
 			"goroutine number", 0, len(goTops)-1)
 		if err != nil { return }
-		section("Goroutine %d", goNum)
-		printStack(goTops[goNum].Fr, MAXSTACKSHOW)
+		printGoroutine(goNum, goTops)
 		return
 	}
-	for j, gore := range goTops {
-		section("Goroutine %d", j)
-		printStack(gore.Fr, MAXSTACKSHOW)
+	for goNum := range goTops {
+		printGoroutine(goNum, goTops)
 	}
 }
 

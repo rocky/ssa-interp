@@ -33,4 +33,5 @@ func main() {
 		go Filter(ch, ch1, prime)
 		ch = ch1
 	}
+	fmt.Println("done")
 }
