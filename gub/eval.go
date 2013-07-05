@@ -1,5 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
-// Lookup and Evaluation routines
+// Lookup and evaluation of Go objects
 package gub
 
 import (
@@ -7,7 +7,7 @@ import (
 	"github.com/rocky/ssa-interp"
 )
 
-// Put this in interp?
+// Could something like this go into interp-ssa?
 func GetFunction(name string) *ssa2.Function {
 	pkg := curFrame.Fn().Pkg
 	ids := strings.Split(name, ".")
