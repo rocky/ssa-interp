@@ -56,6 +56,10 @@ func FrameCommand(args []string) {
 
 func printGoroutine(goNum int, goTops []*interp.GoreState) {
 	fr := goTops[goNum].Fr
+	if fr == nil {
+		msg("Goroutine %d exited", goNum)
+		return
+	}
 	switch fr.Status() {
 	case interp.StRunning:
 		section("Goroutine %d", goNum)
