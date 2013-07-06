@@ -24,7 +24,10 @@ gub: interp
 test: check
 
 #: Run all tests (quick and interpreter)
-check: check-quick check-interp check-gub
+check:
+	go test -i && go test
+	(cd interp && go test -i && go test)
+	(cd gub && go test -i && go test)
 
 #: Run quick tests
 check-quick:
