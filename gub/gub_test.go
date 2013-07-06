@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"testing"
-	"code.google.com/p/go.tools/importer"
-	"github.com/rocky/ssa-interp"
-	"github.com/rocky/ssa-interp/interp"
-	"github.com/rocky/ssa-interp/gub"
 )
 
 const slash = string(os.PathSeparator)
@@ -16,43 +13,43 @@ const slash = string(os.PathSeparator)
 // These are files in ssa-interp/gub/testdata/.
 type testDatum struct {
 	gofile  string
-	cmdfile string
+	baseName string
 }
 var testData = []testDatum {
-	{gofile: "gcd", cmdfile: "stepping"},
+	{gofile: "gcd", baseName: "stepping"},
 }
 
-// Runs compiles, and runs go program. Then compares output.
+// Runs debugger on go program with baseName. Then compares output.
 func run(t *testing.T, test testDatum) bool {
-	fmt.Printf("Input: %s on %s.go\n", test.cmdfile, test.gofile)
+	fmt.Printf("Input: %s on %s.go\n", test.baseName, test.gofile)
 
-	// Consider moving out of this routine
-	impctx := importer.Context{Loader: importer.MakeGoBuildLoader(nil)}
+	goFile    := fmt.Sprintf("testdata%s%s.go",  slash, test.gofile)
+	rightName := fmt.Sprintf("testdata%s%s.right",  slash, test.baseName)
+	gubOpt    := fmt.Sprintf("-gub=-cmdfile=testdata%s%s.cmd", slash, test.baseName)
+	got, err  := exec.Command("../tortoise", "-run", "-interp=S", gubOpt, goFile).Output()
 
-	gofile  := fmt.Sprintf("testdata%s%s.go",  slash, test.gofile)
-
-	var inputs []string
-	inputs = append(inputs, gofile)
-
-	// Load, parse and type-check the program.
-	imp := importer.New(&impctx)
-
-	info, args, err := importer.CreatePackageFromArgs(imp, inputs)
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Printf("%s", got)
+		log.Fatal(err)
 	}
 
-	// Create and build SSA-form program representation.
-	prog := ssa2.NewProgram(imp.Fset, ssa2.NaiveForm)
-	prog.CreatePackages(imp)
-	prog.BuildAll()
+	var rightFile *os.File
+	rightFile, err = os.Open(rightName) // For read access.
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// Run the interpreter.
-	gubFlag := fmt.Sprintf("-cmdfile testdata%s%s.cmd", slash, test.cmdfile)
-	gub.Install(&gubFlag)
-
-	interp.Interpret(prog.Package(info.Pkg), 0,
-		interp.EnableStmtTracing, info.Pkg.Path(), args)
+	data := make([]byte, 1000)
+	count, err := rightFile.Read(data)
+	if err != nil {
+		log.Fatal(err)
+	}
+	want := string(data[0:count])
+	if string(got) != want {
+		t.Errorf("%s failed:", test.baseName)
+		fmt.Println("got:\n", string(got))
+		fmt.Println("want:\n", want)
+	}
 
 	// Print a helpful hint if we don't make it to the end.
 	hint := "Run manually"
@@ -76,7 +73,7 @@ func TestInterp(t *testing.T) {
 
 	for _, test := range testData {
 		if !run(t, test) {
-			failures = append(failures, test.cmdfile)
+			failures = append(failures, test.baseName)
 		}
 	}
 

@@ -71,7 +71,7 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	}
 	s := Event2Icon[event] + " "
 	if len(fr.Fn().Name()) > 0 {
-		s += fr.Fn().Name() + "() "
+		s += fr.Fn().Name() + "()"
 	}
 	fmt.Println(s)
 	switch event {

@@ -22,22 +22,5 @@ func gcd(a int, b int) int {
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Println("usage: %s <int1> <int2>", os.Args[0])
-		os.Exit(1)
-	}
-
-	var err error
-	var a, b int
-	if a, err = strconv.Atoi(os.Args[1]); err != nil {
-		fmt.Println(err)
-		os.Exit(2)
-}
-
-	if b, err = strconv.Atoi(os.Args[2]); err != nil {
-		fmt.Println(err)
-		os.Exit(2)
-	}
-
-	fmt.Printf("The GCD of %d and %d is %d\n", a, b, gcd(a, b))
+	fmt.Printf("The GCD of %d and %d is %d\n", 3, 5, gcd(3, 5))
 }

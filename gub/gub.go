@@ -49,10 +49,10 @@ func process_options(options *string) {
 		for _, s := range strings.Split(*options, " ") {
 			args = append(args, s)
 		}
+		// fmt.Println("Args are ", args)
 		os.Args = args
 		flag.Parse()
 		if inputFilename != nil && len(*inputFilename) > 0 {
-			fmt.Printf("input file name '%s'\n", *inputFilename)
 			var err error
 			if inputFile, err = os.Open(*inputFilename); err != nil {
 				fmt.Println("Error opening debugger command file ",
