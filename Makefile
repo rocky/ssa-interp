@@ -3,8 +3,10 @@
 
 .PHONY: all builder interp check test check-quick check-interp check-interp-quick test-quick
 
+#: Same as tortoise
 all: tortoise
 
+#: The front-end to the builder, interpreter, and debugger
 tortoise: interp builder gub tortoise.go
 	go build tortoise.go
 
