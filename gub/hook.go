@@ -63,7 +63,15 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	line := ""
 	var err error
 	for inCmdLoop := true; err == nil && inCmdLoop; cmdCount++ {
-		line, err = gnureadline.Readline(computePrompt(), true)
+		if inputReader != nil {
+			line, err = inputReader.ReadString('\n')
+		} else {
+			line, err = gnureadline.Readline(computePrompt(), true)
+		}
+        if err != nil {
+            break
+        }
+		line = strings.TrimRight(line, "\n")
 		args  := strings.Split(line, " ")
 		if len(args) == 0 {
 			fmt.Println("Empty line skipped")

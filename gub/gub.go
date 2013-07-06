@@ -3,6 +3,8 @@
 package gub
 
 import (
+	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -14,6 +16,9 @@ import (
 )
 
 var inputFilename = flag.String("cmdinput", "", `cmdinput *commandfile*.`)
+var inputFile *os.File
+var inputReader *bufio.Reader
+var buffer = bytes.NewBuffer(make([]byte, 1024))
 
 const (
 	version string = "0.1"
@@ -46,9 +51,15 @@ func process_options(options *string) {
 		}
 		os.Args = args
 		flag.Parse()
-		if inputFilename != nil {
-			fmt.Println("TODO: read in", *inputFilename)
-			termInit()
+		if inputFilename != nil && len(*inputFilename) > 0 {
+			fmt.Printf("input file name '%s'\n", *inputFilename)
+			var err error
+			if inputFile, err = os.Open(*inputFilename); err != nil {
+				fmt.Println("Error opening debugger command file ",
+					inputFilename)
+				os.Exit(1)
+			}
+			inputReader = bufio.NewReader(inputFile)
 		} else {
 			termInit()
 		}
