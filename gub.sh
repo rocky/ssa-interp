@@ -21,6 +21,23 @@ if (( $? != 0 )); then
     }
 fi
 
+TEMP=$(getopt -o g: --long gub: -- "$@")
+
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$TEMP"
+
+while true ; do
+	case "$1" in
+	    --gub) gub_opt="$2" ; shift ;;
+	    --) shift;  break ;;
+	    *) shift ;;
+	esac
+	shift
+done
+
+
 # Run tortoise setting
-$tortoise -run -interp=S -- $@
+$tortoise -run -gub="$gub_opt" -interp=S -- $@
 exit $?

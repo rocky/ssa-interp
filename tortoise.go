@@ -28,11 +28,14 @@ L	build distinct packages seria[L]ly instead of in parallel.
 
 var runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
 
-var interpFlag = flag.String("interp", "", `Options controlling the SSA test interpreter.
+var interpFlag = flag.String("interp", "", `Options controlling the interpreter.
 The value is a sequence of zero or more more of these letters:
 R	disable [R]ecover() from panic; show interpreter crash instead.
 T	[T]race execution of the program.  Best for single-threaded programs!
 S	[S]atement tracing
+`)
+
+var gubFlag = flag.String("gub", "", `Options passed to the gub debugger.
 `)
 
 const usage = `SSA builder and interpreter.
@@ -121,7 +124,7 @@ func main() {
 	if *runFlag {
 		fmt.Println("Running....")
 		if interpTraceMode & interp.EnableStmtTracing != 0 {
-			gub.Install()
+			gub.Install(gubFlag)
 		}
 		interp.Interpret(prog.Package(info.Pkg), interpMode, interpTraceMode,
 			info.Pkg.Path(), args)

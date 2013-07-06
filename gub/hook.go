@@ -54,6 +54,7 @@ func computePrompt() string {
 func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
     gubLock.Lock()
     defer gubLock.Unlock()
+	if nil == I {I = fr.I()}
 	traceEvent = event
 	if skipEvent(fr, event) { return }
 	frameInit(fr)
