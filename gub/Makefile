@@ -1,6 +1,6 @@
 # Whatever it is you want to do, it should be forwarded to the
 # to top-level irectories
-.PHONY: all check test check-quick
+.PHONY: check check-quick test test-quick all
 
 all:
 	$(MAKE) -C .. tortoise
@@ -15,6 +15,9 @@ check: ../tortoise
 
 #: Same as check
 test:	check
+
+#: Same as check-quick
+test-quick: check-quick
 
 %:
 	$(MAKE) -C .. $@
