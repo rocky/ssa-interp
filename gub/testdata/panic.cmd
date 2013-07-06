@@ -1,0 +1,4 @@
+next
+next
+bt
+quit

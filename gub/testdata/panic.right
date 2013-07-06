@@ -1,0 +1,13 @@
+Running....
+Gub version 0.1
+Type 'h' for help
+->  main()
+testdata/panic.go:3:6
+Step over...
+--- main()
+testdata/panic.go:4:2-21
+Step over...
+oX  main()
+testdata/panic.go:4:2-21
+=> #0 main()
+gub: That's all folks...

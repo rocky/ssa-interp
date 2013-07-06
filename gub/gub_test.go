@@ -17,6 +17,7 @@ type testDatum struct {
 }
 var testData = []testDatum {
 	{gofile: "gcd", baseName: "stepping"},
+	{gofile: "panic", baseName: "panic"},
 }
 
 // Runs debugger on go program with baseName. Then compares output.
@@ -46,9 +47,9 @@ func run(t *testing.T, test testDatum) bool {
 	}
 	want := string(data[0:count])
 	if string(got) != want {
-		t.Errorf("%s failed:", test.baseName)
 		fmt.Println("got:\n", string(got))
 		fmt.Println("want:\n", want)
+		t.Errorf("%s failed:", test.baseName)
 	}
 
 	// Print a helpful hint if we don't make it to the end.
