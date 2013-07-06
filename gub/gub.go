@@ -15,7 +15,7 @@ import (
 	"github.com/rocky/ssa-interp/interp"
 )
 
-var inputFilename = flag.String("cmdinput", "", `cmdinput *commandfile*.`)
+var inputFilename = flag.String("cmdfile", "", `cmdfile *commandfile*.`)
 var inputFile *os.File
 var inputReader *bufio.Reader
 var buffer = bytes.NewBuffer(make([]byte, 1024))

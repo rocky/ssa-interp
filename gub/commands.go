@@ -165,7 +165,10 @@ func QuitCommand(args []string) {
 		}
 	}
 	msg("gub: That's all folks...")
+
+	// FIXME: determine under which conditions we've used term
 	gnureadline.Rl_reset_terminal(term)
+
 	os.Exit(rc)
 
 }

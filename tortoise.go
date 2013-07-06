@@ -56,8 +56,7 @@ func main() {
 
 	impctx := importer.Context{Loader: importer.MakeGoBuildLoader(nil)}
 
-	var mode ssa2.BuilderMode
-	mode |= ssa2.NaiveForm
+	var mode ssa2.BuilderMode = ssa2.NaiveForm
 
 	for _, c := range *buildFlag {
 		switch c {
