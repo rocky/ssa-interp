@@ -335,6 +335,14 @@ func (f *Function) finishBody() {
 
 	buildReferrers(f)
 
+	if f.Prog.mode&NaiveForm == 0 {
+		// For debugging pre-state of lifting pass:
+		// numberRegisters(f)
+		// f.DumpTo(os.Stderr)
+
+		lift(f)
+	}
+
 	numberRegisters(f)
 
 	if f.Prog.mode&LogFunctions != 0 {
@@ -619,24 +627,6 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 	b.Succs = b.succs2[:0]
 	f.Blocks = append(f.Blocks, b)
 	return b
-}
-
-// Return the starting position of function f or "-" if no position found
-func (f *Function) Position() string {
-	if pos := f.Pos(); pos.IsValid() {
-		return f.Prog.Fset.Position(pos).String()
-	}
-	return "-"
-}
-
-func (f *Function) PositionRange() string {
-	if start := f.pos; start.IsValid() {
-		fset := f.Prog.Fset
-		end  := f.endP
-		if !end.IsValid() { end = start }
-		return PositionRange(fset.Position(start), fset.Position(end))
-	}
-	return "-"
 }
 
 // NewFunction returns a new synthetic Function instance with its name

@@ -58,7 +58,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	traceEvent = event
 	if skipEvent(fr, event) { return }
 	frameInit(fr)
-	printLocInfo(topFrame, event)
+	printLocInfo(topFrame, instr, event)
 
 	line := ""
 	var err error

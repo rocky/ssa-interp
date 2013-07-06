@@ -341,6 +341,7 @@ func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escap
 	if obj == nil {
 		panic("field not found: " + e.Sel.Name)
 	}
+
 	// Be careful!  This code has proven very tricky.
 
 	// NB: The type of the final field is irrelevant to the logic.
@@ -410,6 +411,7 @@ func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escap
 		// May be nil at end of last iteration:
 		st, _ = ft.Deref().Underlying().(*types.Struct)
 	}
+
 	return v
 }
 

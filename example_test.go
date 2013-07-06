@@ -92,7 +92,6 @@ func main() {
 	// 	t1 = fmt.init()                                                      ()
 	// 	jump 2.init.done
 	// .2.init.done:                                                           P:2 S:0
-	// 	rundefers
 	// 	ret
 	//
 	// # Name: main.main
@@ -107,6 +106,5 @@ func main() {
 	// 	t2 = slice a0[:]                                          []interface{}
 	// 	t3 = fmt.Println(t2)                                 (n int, err error)
 	//	trace <Block End> at hello.go:10:2
-	// 	rundefers
 	// 	ret
 }

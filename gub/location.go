@@ -29,6 +29,7 @@ func init() {
 		ssa2.FOR_COND   : "lo?",
 		ssa2.FOR_ITER   : "lo+",
 		ssa2.MAIN       : "m()",
+		ssa2.PANIC      : "oX ",  // My attempt at skull and cross bones
 		ssa2.RANGE_STMT : "...",
 		ssa2.SELECT_TYPE: "sel",
 		ssa2.STMT_IN_LIST: "---",
@@ -63,7 +64,8 @@ func fmtPos(fn *ssa2.Function, start token.Pos) string {
 	return ssa2.PositionRange(startP, startP)
 }
 
-func printLocInfo(fr *interp.Frame, event ssa2.TraceEvent) {
+func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
+	event ssa2.TraceEvent) {
 	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].kind == "Function" {
 		event = ssa2.CALL_ENTER
 	}
@@ -72,12 +74,15 @@ func printLocInfo(fr *interp.Frame, event ssa2.TraceEvent) {
 		s += fr.Fn().Name() + "() "
 	}
 	fmt.Println(s)
-	if (event == ssa2.CALL_RETURN) {
+	switch event {
+	case ssa2.CALL_RETURN:
 		fmt.Printf("return: %s\n", interp.ToString(fr.Result()))
-	} else if (event == ssa2.CALL_ENTER) {
+	case ssa2.CALL_ENTER:
 		for i, p := range fr.Fn().Params {
 			fmt.Println(fr.Fn().Params[i], fr.Env()[p])
 		}
+	case ssa2.PANIC:
+		// fmt.Printf("panic arg: %s\n", fr.Get(instr.X))
 	}
 
 	msg(fr.PositionRange())

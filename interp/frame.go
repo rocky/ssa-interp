@@ -28,7 +28,7 @@ type Frame struct {
 	endP             token.Pos   // End Postion from last trace instr run
 }
 
-func (fr *Frame) get(key ssa2.Value) Value {
+func (fr *Frame) Get(key ssa2.Value) Value {
 	switch key := key.(type) {
 	case nil:
 		// Hack; simplifies handling of optional attributes

@@ -61,5 +61,5 @@ func adjustFrame(frameNum int, absolutePos bool) {
 	if (0 == frameIndex) {
 		event = traceEvent
 	}
-	printLocInfo(curFrame, event)
+	printLocInfo(curFrame, nil, event)
 }

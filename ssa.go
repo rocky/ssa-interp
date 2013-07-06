@@ -19,7 +19,7 @@ import (
 type Program struct {
 	Fset            *token.FileSet              // position information for the files of this Program
 	PackagesByPath  map[string]*Package         // all loaded Packages, keyed by import path
-	packages        map[*types.Package]*Package // all loaded Packages, keyed by object [TODO rename Packages]
+	packages        map[*types.Package]*Package // all loaded Packages, keyed by object
 	builtins        map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
 	concreteMethods map[*types.Func]*Function   // maps named concrete methods to their code
 	mode            BuilderMode                 // set of mode bits for SSA construction
@@ -465,6 +465,7 @@ type Alloc struct {
 	Heap      bool
 	pos       token.Pos
 	referrers []Instruction
+	index     int // dense numbering; for lifting
 }
 
 // The Phi instruction represents an SSA φ-node, which combines values
@@ -1299,13 +1300,6 @@ type CallInstruction interface {
 	Value() *Call        // returns the result value of the call (*Call) or nil (*Go, *Defer)
 }
 
-type LocInst struct {
-	Pos    token.Pos
-	// Fixme: I don't know how to do a C union "Instruction" typecast
-	Trace  *Trace
-	Fn     *Function
-}
-
 func (s *Call) Common() *CallCommon  { return &s.Call }
 func (s *Defer) Common() *CallCommon { return &s.Call }
 func (s *Go) Common() *CallCommon    { return &s.Call }
@@ -1331,14 +1325,11 @@ func (v *Global) Pos() token.Pos          { return v.pos }
 func (*Global) Referrers() *[]Instruction { return nil }
 func (v *Global) Token() token.Token      { return token.VAR }
 
-func (v *Function) Name() string               { return v.name }
-func (v *Function) Type() types.Type           { return v.Signature }
-func (v *Function) Pos() token.Pos             { return v.pos }
-func (v *Function) EndP() token.Pos            { return v.endP }
-func (v *Function) Fset() *token.FileSet       { return v.Prog.Fset }
-func (*Function) Referrers() *[]Instruction    { return nil }
-func (v *Function) Token() token.Token         { return token.FUNC }
-func (v *Function) NamedResults() []*Alloc     { return v.namedResults }
+func (v *Function) Name() string            { return v.name }
+func (v *Function) Type() types.Type        { return v.Signature }
+func (v *Function) Pos() token.Pos          { return v.pos }
+func (*Function) Referrers() *[]Instruction { return nil }
+func (v *Function) Token() token.Token      { return token.FUNC }
 
 func (v *Parameter) Type() types.Type          { return v.typ }
 func (v *Parameter) Name() string              { return v.name }
@@ -1408,10 +1399,6 @@ func (p *Package) Type(name string) (t *Type) {
 	return
 }
 
-func (p *Package) Locs() []LocInst {
-	return p.locs
-}
-
 // Value returns the program-level value corresponding to the
 // specified named object, which may be a universal built-in
 // (*Builtin) or a package-level var (*Global) or func (*Function) of
@@ -1433,10 +1420,6 @@ func (prog *Program) Value(obj types.Object) Value {
 //
 func (prog *Program) Package(pkg *types.Package) *Package {
 	return prog.packages[pkg]
-}
-
-func (prog *Program) PackageByName(name string) *Package {
-	return prog.PackagesByPath[name]
 }
 
 func (v *Call) Pos() token.Pos      { return v.Call.pos }
