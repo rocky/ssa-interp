@@ -12,27 +12,50 @@ import (
 	"code.google.com/p/go-columnize"
 )
 
+func LocalsLookup(fr *interp.Frame, name string) int {
+	return fr.Fn().LocalsByName[name]
+}
+
 func LocalsCommand(args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 2, args) { return }
 	if argc == 0 {
-		i := 0
-		for _, v := range curFrame.Locals() {
-			name := curFrame.Fn().Locals[i].Name()
-			msg("%s: %s", name, interp.ToString(v))
-			i++
+		for i, v := range curFrame.Locals() {
+			varname := curFrame.Fn().Locals[i].Name()
+			msg("%s %s = %s", varname, curFrame.Fn().Locals[i], interp.ToString(v))
 		}
 	} else {
 		varname := args[1]
-		i := 0
-		for _, v := range curFrame.Locals() {
-			if args[1] == curFrame.Fn().Locals[i].Name() {
+		if i := LocalsLookup(curFrame, varname); i != 0 {
+			v := curFrame.Local(i-1)
+			msg("%s %s = %s", varname, curFrame.Fn().Locals[i-1], interp.ToString(v))
+			return
+		}
+		for i, v := range curFrame.Locals() {
+			if varname == curFrame.Fn().Locals[i].Name() {
 				msg("%s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToString(v))
 				break
 			}
-			i++
 		}
 
+	}
+}
+
+func ParametersCommand(args []string) {
+	argc := len(args) - 1
+	if !argCountOK(0, 1, args) { return }
+	if argc == 0 {
+		for i, p := range curFrame.Fn().Params {
+			fmt.Println(curFrame.Fn().Params[i], curFrame.Env()[p])
+		}
+	} else {
+		varname := args[1]
+		for i, p := range curFrame.Fn().Params {
+			if varname == curFrame.Fn().Params[i].Name() {
+				fmt.Println(curFrame.Fn().Params[i], curFrame.Env()[p])
+				break
+			}
+		}
 	}
 }
 

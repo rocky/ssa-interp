@@ -128,6 +128,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			Pkg:        pkg,
 			Prog:       pkg.Prog,
 			Breakpoint: false,
+			LocalsByName: make(map[string]int),
 			syntax:     fs,
 		}
 		if fs != nil && fs.body != nil {
@@ -221,6 +222,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		name:      "init",
 		Signature: new(types.Signature),
 		Synthetic: "package initializer",
+		LocalsByName: make(map[string]int),
 		Pkg:       p,
 		Prog:      prog,
 	}

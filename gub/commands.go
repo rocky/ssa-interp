@@ -131,24 +131,6 @@ func LocsCommand(args []string) {
 	}
 }
 
-func ParametersCommand(args []string) {
-	argc := len(args) - 1
-	if !argCountOK(0, 1, args) { return }
-	if argc == 0 {
-		for i, p := range curFrame.Fn().Params {
-			fmt.Println(curFrame.Fn().Params[i], curFrame.Env()[p])
-		}
-	} else {
-		varname := args[1]
-		for i, p := range curFrame.Fn().Params {
-			if varname == curFrame.Fn().Params[i].Name() {
-				fmt.Println(curFrame.Fn().Params[i], curFrame.Env()[p])
-				break
-			}
-		}
-	}
-}
-
 // quit [exit-code]
 //
 // Terminates program. If an exit code is given, that is the exit code

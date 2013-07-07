@@ -633,6 +633,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			Pkg:        fn.Pkg,
 			Prog:       fn.Prog,
 			Breakpoint: false,
+			LocalsByName: make(map[string]int),
 			syntax: &funcSyntax{
 				paramFields:  e.Type.Params,
 				resultFields: e.Type.Results,

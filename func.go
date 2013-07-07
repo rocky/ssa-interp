@@ -201,6 +201,7 @@ func (f *Function) addSpilledParam(obj types.Object) {
 	}
 	f.objects[obj] = spill
 	f.Locals = append(f.Locals, spill)
+	f.LocalsByName[obj.Name()] = len(f.Locals)
 	f.emit(spill)
 	f.emit(&Store{Addr: spill, Val: param})
 }
@@ -645,5 +646,11 @@ func (f *Function) newBasicBlock(comment string) *BasicBlock {
 // TODO(adonovan): think harder about the API here.
 //
 func NewFunction(name string, sig *types.Signature, provenance string) *Function {
-	return &Function{name: name, Signature: sig, Synthetic: provenance}
+	return &Function{
+		name: name,
+		Signature: sig,
+		Synthetic: provenance,
+		Breakpoint: false,
+		LocalsByName: make(map[string]int),
+	}
 }
