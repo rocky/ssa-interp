@@ -2,9 +2,11 @@ package gub_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -43,12 +45,24 @@ func run(t *testing.T, test testDatum) bool {
 	data := make([]byte, 1000)
 	count, err := rightFile.Read(data)
 	if err != nil {
+		t.Errorf("%s failed to read 'right' data file %s:", test.baseName, rightFile)
 		log.Fatal(err)
 	}
 	want := string(data[0:count])
 	if string(got) != want {
-		fmt.Println("got:\n", string(got))
-		fmt.Println("want:\n", want)
+		gotName := fmt.Sprintf("testdata%s%s.got",  slash, test.baseName)
+		gotLines  := strings.Split(string(got), "\n")
+		wantLines := strings.Split(string(want), "\n")
+		for i, line := range(gotLines) {
+			if line != wantLines[i] {
+				fmt.Println("results differ starting at line", i+1)
+				fmt.Println("got:\n", line)
+				fmt.Println("want:\n", wantLines[i])
+			}
+		}
+		if err := ioutil.WriteFile(gotName, got, 0666); err == nil {
+			fmt.Printf("Full results are in file %s\n", gotName)
+		}
 		t.Errorf("%s failed:", test.baseName)
 	}
 
