@@ -7,7 +7,6 @@ next
 next
 next
 next
-next
 step
 bt
 finish

@@ -22,5 +22,5 @@ func gcd(a int, b int) int {
 }
 
 func main() {
-	fmt.Printf("The GCD of %d and %d is %d\n", 3, 5, gcd(3, 5))
+	fmt.Printf("The GCD of %d and %d is %d\n", 5, 3, gcd(5, 3))
 }

@@ -854,7 +854,13 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 // stmtList emits to fn code for all statements in list.
 func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 	for _, s := range list {
-		emitTrace(fn, STMT_IN_LIST, s.Pos(), s.End())
+		// Don't adding a trace statement in an "if" or "for" because
+		// those statement add a trace themselves.
+		switch s.(type) {
+		case *ast.IfStmt, *ast.ForStmt:
+		default:
+			emitTrace(fn, STMT_IN_LIST, s.Pos(), s.End())
+		}
 		b.stmt(fn, s)
 	}
 }
