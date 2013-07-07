@@ -16,6 +16,17 @@ func LocalsLookup(fr *interp.Frame, name string) int {
 	return fr.Fn().LocalsByName[name]
 }
 
+
+func printLocal(fr *interp.Frame, varname string) bool {
+	if i := LocalsLookup(fr, varname); i != 0 {
+		v := curFrame.Local(i-1)
+		msg("%s %s = %s", varname, fr.Fn().Locals[i-1], interp.ToString(v))
+		return true
+	}
+	return false
+}
+
+
 func LocalsCommand(args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 2, args) { return }
@@ -26,11 +37,8 @@ func LocalsCommand(args []string) {
 		}
 	} else {
 		varname := args[1]
-		if i := LocalsLookup(curFrame, varname); i != 0 {
-			v := curFrame.Local(i-1)
-			msg("%s %s = %s", varname, curFrame.Fn().Locals[i-1], interp.ToString(v))
-			return
-		}
+		if printLocal(curFrame, varname) { return }
+		// FIXME: This really shouldn't be needed.
 		for i, v := range curFrame.Locals() {
 			if varname == curFrame.Fn().Locals[i].Name() {
 				msg("%s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToString(v))
@@ -46,13 +54,13 @@ func ParametersCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
 	if argc == 0 {
 		for i, p := range curFrame.Fn().Params {
-			fmt.Println(curFrame.Fn().Params[i], curFrame.Env()[p])
+			msg("%s %s", curFrame.Fn().Params[i], curFrame.Env()[p])
 		}
 	} else {
 		varname := args[1]
 		for i, p := range curFrame.Fn().Params {
 			if varname == curFrame.Fn().Params[i].Name() {
-				fmt.Println(curFrame.Fn().Params[i], curFrame.Env()[p])
+				msg("%s %s", curFrame.Fn().Params[i], curFrame.Env()[p])
 				break
 			}
 		}
@@ -184,9 +192,7 @@ func printTypeInfo(name string, pkg *ssa2.Package) {
 	}
 }
 
-func WhatisCommand(args []string) {
-	if !argCountOK(1, 1, args) { return }
-	name := args[1]
+func WhatisName(name string) {
 	ids := strings.Split(name, ".")
 	myfn  := curFrame.Fn()
 	pkg := myfn.Pkg
@@ -201,6 +207,7 @@ func WhatisCommand(args []string) {
 		name = ids[1]
 	}
 
+	if printLocal(curFrame, name) {return}
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {
@@ -219,4 +226,10 @@ func WhatisCommand(args []string) {
 	} else {
 		errmsg("can't find %s", name)
 	}
+}
+
+func WhatisCommand(args []string) {
+	if !argCountOK(1, 1, args) { return }
+	name := args[1]
+	WhatisName(name)
 }
