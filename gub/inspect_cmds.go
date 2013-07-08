@@ -41,7 +41,7 @@ func LocalsCommand(args []string) {
 		// FIXME: This really shouldn't be needed.
 		for i, v := range curFrame.Locals() {
 			if varname == curFrame.Fn().Locals[i].Name() {
-				msg("%s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToString(v))
+				msg("fixme %s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToString(v))
 				break
 			}
 		}
@@ -224,7 +224,7 @@ func WhatisName(name string) {
 	} else if pkg := curFrame.I().Program().PackageByName(name); pkg != nil {
 		printPackageInfo(name, pkg)
 	} else {
-		errmsg("can't find %s", name)
+		errmsg("Can't find name: %s", name)
 	}
 }
 
