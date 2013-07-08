@@ -383,6 +383,10 @@ func (f *Function) removeNilBlocks() {
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 	l := f.addLocal(obj.Type(), obj.Pos())
 	l.name = obj.Name()
+	// FIXME: !
+	// if f.LocalsByName[obj.Name()] != 0 {
+	// 	fmt.Println("Warning: already have", obj.Name())
+	// }
 	f.LocalsByName[obj.Name()] = len(f.Locals)
 	f.objects[obj] = l
 	return l

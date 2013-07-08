@@ -53,11 +53,17 @@ func run(t *testing.T, test testDatum) bool {
 		gotName := fmt.Sprintf("testdata%s%s.got",  slash, test.baseName)
 		gotLines  := strings.Split(string(got), "\n")
 		wantLines := strings.Split(string(want), "\n")
+		wantLen   := len(wantLines)
 		for i, line := range(gotLines) {
+			if i == wantLen {
+				fmt.Println("want results are shorter than got results, line", i+1)
+				break
+			}
 			if line != wantLines[i] {
 				fmt.Println("results differ starting at line", i+1)
 				fmt.Println("got:\n", line)
 				fmt.Println("want:\n", wantLines[i])
+				break
 			}
 		}
 		if err := ioutil.WriteFile(gotName, got, 0666); err == nil {

@@ -282,7 +282,12 @@ type Function struct {
 	Params    []*Parameter // function parameters; for methods, includes receiver
 	FreeVars  []*Capture   // free variables whose values must be supplied by closure
 	Locals    []*Alloc
-	LocalsByName map[string]int // Allows lookup by string name, return is index into Locals +1. 0 means not found.
+
+	/* Allows lookup by string name, return is index into Locals +1. 0
+       means not found. FIXME: this is not right. There can be several
+       locals with the same name. We need to disambiguate with some
+       sort of environment setting.  */
+	LocalsByName map[string]int
 
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
 	AnonFuncs []*Function   // anonymous functions directly beneath this one

@@ -3,11 +3,14 @@ Gub version 0.1
 Type 'h' for help
 ->  main()
 testdata/panic.go:3:6
+# Test that debugger handles an interpreter panic()
+# Use with panic.go
 Step over...
 --- main()
 testdata/panic.go:4:2-21
 Step over...
 oX  main()
 testdata/panic.go:4:2-21
+# Should see panic icon now
 => #0 main()
 gub: That's all folks...

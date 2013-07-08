@@ -3,6 +3,8 @@ Gub version 0.1
 Type 'h' for help
 ->  main()
 testdata/gcd.go:24:6
+# Test of "step", "next" and "finish"
+# Use with gcd.go
 Stepping...
 --- main()
 testdata/gcd.go:25:2-61
@@ -11,6 +13,7 @@ Stepping...
 parameter a : int 5
 parameter b : int 3
 testdata/gcd.go:10:6
+# Should now be in gcd(5,3) - the first time
 => #0 gcd(a, b)
    #1 main()
 Step over...
@@ -36,9 +39,11 @@ Stepping...
 parameter a : int 2
 parameter b : int 3
 testdata/gcd.go:10:6
+# Should now be in gcd(2,3) - recursively
 => #0 gcd(a, b)
    #1 gcd(a, b)
    #2 main()
+# Test finish
 Continuing until return...
 <-  gcd()
 return: 1
