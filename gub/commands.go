@@ -43,6 +43,7 @@ Execution running --
 
 Inspecting --
   disasm [*fn*]  : disassemble functon
+  env            : dump frame environment
   locs           : show breakpoint locations
   local [*name*] : show local variable info
   global [*name*]: show global variable info

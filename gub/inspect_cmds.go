@@ -27,6 +27,17 @@ func printLocal(fr *interp.Frame, varname string) bool {
 }
 
 
+func EnvCommand(args []string) {
+	for k, v := range curFrame.Env() {
+		switch v := v.(type) {
+		case *interp.Value:
+			msg("%s: %s", k, interp.ToString(*v))
+		default:
+			msg("%s: %s", k, interp.ToString(v))
+		}
+	}
+}
+
 func LocalsCommand(args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 2, args) { return }
@@ -197,14 +208,20 @@ func WhatisName(name string) {
 	myfn  := curFrame.Fn()
 	pkg := myfn.Pkg
 	if len(ids) > 1 {
-		try_pkg := curFrame.I().Program().PackageByName(ids[0])
-		if try_pkg != nil { pkg = try_pkg }
-		m := pkg.Members[ids[1]]
-		if m == nil {
-			errmsg("%s is not a member of %s", ids[1], pkg)
-			return
+		varname := ids[0]
+		// local lookup needs to take precedence over package lookup
+		if i := LocalsLookup(curFrame, varname); i != 0 {
+			errmsg("Sorry, dotted variable lookup for local %s not supported yet", varname)
+		} else {
+			try_pkg := curFrame.I().Program().PackageByName(varname)
+			if try_pkg != nil { pkg = try_pkg }
+			m := pkg.Members[ids[1]]
+			if m == nil {
+				errmsg("%s is not a member of %s", ids[1], pkg)
+				return
+			}
+			name = ids[1]
 		}
-		name = ids[1]
 	}
 
 	if printLocal(curFrame, name) {return}

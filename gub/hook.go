@@ -105,9 +105,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		case "enable":
 			EnableCommand(args)
 		case "env":
-			for i, p := range topFrame.Env() {
-				fmt.Println(i, p)
-			}
+			EnvCommand(args)
 		case "h", "?", "help":
 			HelpCommand(args)
 		case "c", "continue":
