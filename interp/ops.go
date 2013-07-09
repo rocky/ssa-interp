@@ -31,6 +31,7 @@ func LiteralValue(l *ssa2.Literal) Value {
 	// By destination type:
 	switch t := l.Type().Underlying().(type) {
 	case *types.Basic:
+		// TODO(adonovan): eliminate untyped literals from SSA form.
 		switch t.Kind() {
 		case types.Bool, types.UntypedBool:
 			return exact.BoolVal(l.Value)
@@ -129,6 +130,26 @@ func asInt(x Value) int {
 		return int(x)
 	}
 	panic(fmt.Sprintf("cannot convert %T to int", x))
+}
+
+// asUint64 converts x, which must be an unsigned integer, to a uint64
+// suitable for use as a bitwise shift count.
+func asUint64(x Value) uint64 {
+	switch x := x.(type) {
+	case uint:
+		return uint64(x)
+	case uint8:
+		return uint64(x)
+	case uint16:
+		return uint64(x)
+	case uint32:
+		return uint64(x)
+	case uint64:
+		return x
+	case uintptr:
+		return uint64(x)
+	}
+	panic(fmt.Sprintf("cannot convert %T to uint64", x))
 }
 
 // zero returns a new "zero" value of the specified type.
@@ -544,7 +565,7 @@ func binop(op token.Token, x, y Value) Value {
 		}
 
 	case token.SHL:
-		y := uint64(asInt(y))
+		y := asUint64(y)
 		switch x.(type) {
 		case int:
 			return x.(int) << y
@@ -571,7 +592,7 @@ func binop(op token.Token, x, y Value) Value {
 		}
 
 	case token.SHR:
-		y := uint64(asInt(y))
+		y := asUint64(y)
 		switch x.(type) {
 		case int:
 			return x.(int) >> y
