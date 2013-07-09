@@ -32,6 +32,7 @@ var interpFlag = flag.String("interp", "", `Options controlling the interpreter.
 The value is a sequence of zero or more more of these letters:
 R	disable [R]ecover() from panic; show interpreter crash instead.
 T	[T]race execution of the program.  Best for single-threaded programs!
+I	trace [I]int() functions before main.main()
 S	[S]atement tracing
 `)
 
@@ -81,12 +82,14 @@ func main() {
 	var interpTraceMode interp.TraceMode
 	for _, c := range *interpFlag {
 		switch c {
-		case 'T':
-			interpTraceMode |= interp.EnableTracing
-		case 'S':
-			interpTraceMode |= interp.EnableStmtTracing
+		case 'I':
+			interpTraceMode |= interp.EnableInitTracing
 		case 'R':
 			interpMode |= interp.DisableRecover
+		case 'S':
+			interpTraceMode |= interp.EnableStmtTracing
+		case 'T':
+			interpTraceMode |= interp.EnableTracing
 		default:
 			log.Fatalf("Unknown -interp option: '%c'.", c)
 		}

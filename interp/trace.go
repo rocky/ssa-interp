@@ -22,6 +22,9 @@ const (
 
 	// Print higher-level statement boundary tracing
 	EnableStmtTracing
+
+	// Trace init functions before main.main()
+	EnableInitTracing
 )
 
 type RunStatusType int

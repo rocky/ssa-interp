@@ -563,9 +563,14 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		prog:    mainpkg.Prog,
 		globals: make(map[ssa2.Value]*Value),
 		Mode:    mode,
-		TraceMode: traceMode & ^(EnableStmtTracing|EnableTracing),
+		TraceMode: traceMode,
 	}
 
+	if i.TraceMode & EnableInitTracing == 0 {
+		// clear tracing bits in init() functions that occur before
+		// main.main()
+		i.TraceMode &= ^(EnableStmtTracing|EnableTracing)
+	}
 	i.goTops = append(i.goTops, &GoreState{Fr: nil, state: 0})
 	initReflect(i)
 
@@ -646,6 +651,9 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		//  end   : mainFn.Pos()
 		// }
 		// TraceHook(fr, nil&mainFn.Blocks[0].Instrs[0], ssa2.MAIN)
+
+		// If we didn't set tracing before because EnableInitTracing
+		// was off, we'll set it now.
 		i.TraceMode = traceMode
 		call(i, 0, nil, token.NoPos, mainFn, nil)
 		exitCode = 0
