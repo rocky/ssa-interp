@@ -427,7 +427,7 @@ func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 		fmt.Fprintf(os.Stderr, "\tEntering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
 		suffix := ""
 		if caller != nil {
-			suffix = ", resuming " + caller.fn.FullName() + loc(fset, callpos)
+			suffix = ", resuming " + caller.fn.String() + loc(fset, callpos)
 		}
 		defer fmt.Fprintf(os.Stderr, "\tLeaving %s%s.\n", fn.FullName(), suffix)
 	}
@@ -462,7 +462,6 @@ func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 	} else if caller.tracing == TRACE_STEP_IN {
 		fr.tracing = TRACE_STEP_IN
 	}
-
 	for i, l := range fn.Locals {
 		fr.locals[i] = zero(l.Type().Deref())
 		fr.env[l] = &fr.locals[i]
@@ -535,7 +534,6 @@ func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 				break block
 			}
 		}
-
 	}
 	panic("unreachable")
 }
@@ -662,13 +660,3 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	}
 	return
 }
-
-func (i  *interpreter) Global(name string, pkg *ssa2.Package)  (v *Value, ok bool) {
-	v, ok = i.globals[pkg.Var(name)]
-	return
-}
-
-// interpreter accessors
-func (i *interpreter) Program() *ssa2.Program { return i.prog }
-func (i  *interpreter) Globals() map[ssa2.Value]*Value { return i.globals }
-func (i  *interpreter) GoTops() []*GoreState { return i.goTops }
