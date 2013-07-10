@@ -52,9 +52,8 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/rocky/ssa-interp"
-
 	"code.google.com/p/go.tools/go/types"
+	"github.com/rocky/ssa-interp"
 )
 
 func init() {
@@ -86,7 +85,7 @@ type GoreState struct {
 }
 
 // State shared between all interpreted goroutines.
-type Interpreter struct {
+type interpreter struct {
 	prog           *ssa2.Program         // the SSA program
 	globals        map[ssa2.Value]*Value // addresses of global variables (immutable)
 	Mode           Mode                  // interpreter options
@@ -98,15 +97,15 @@ type Interpreter struct {
 	goTops         []*GoreState
 }
 
-var i *Interpreter
+var i *interpreter
 
-func GetInterpreter() *Interpreter {
+func GetInterpreter() *interpreter {
 	return i
 }
 
 // findMethodSet returns the method set for type typ, which may be one
 // of the interpreter's fake types.
-func findMethodSet(i *Interpreter, typ types.Type) ssa2.MethodSet {
+func findMethodSet(i *interpreter, typ types.Type) ssa2.MethodSet {
 	switch typ {
 	case rtypeType:
 		return i.rtypeMethods
@@ -394,7 +393,7 @@ func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
 // fn with arguments args, returning its result.
 // callpos is the position of the callsite.
 //
-func call(i *Interpreter, goNum int, caller *Frame, callpos token.Pos,
+func call(i *interpreter, goNum int, caller *Frame, callpos token.Pos,
 	fn Value, args []Value) Value {
 	switch fn := fn.(type) {
 	case *ssa2.Function:
@@ -421,7 +420,7 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 // and lexical environment env, returning its result.
 // callpos is the position of the callsite.
 //
-func callSSA(i *Interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ssa2.Function, args []Value, env []Value) Value {
+func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ssa2.Function, args []Value, env []Value) Value {
 	if InstTracing() {
 		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
@@ -542,7 +541,7 @@ func callSSA(i *Interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 }
 
 // SetGlobal sets the Value of a system-initialized global variable.
-func SetGlobal(i *Interpreter, pkg *ssa2.Package, name string, v Value) {
+func SetGlobal(i *interpreter, pkg *ssa2.Package, name string, v Value) {
 	if g, ok := i.globals[pkg.Var(name)]; ok {
 		*g = v
 		return
@@ -559,7 +558,7 @@ func SetGlobal(i *Interpreter, pkg *ssa2.Package, name string, v Value) {
 //
 func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	filename string, args []string) (exitCode int) {
-	i = &Interpreter{
+	i = &interpreter{
 		prog:    mainpkg.Prog,
 		globals: make(map[ssa2.Value]*Value),
 		Mode:    mode,
@@ -664,12 +663,12 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	return
 }
 
-func (i  *Interpreter) Global(name string, pkg *ssa2.Package)  (v *Value, ok bool) {
+func (i  *interpreter) Global(name string, pkg *ssa2.Package)  (v *Value, ok bool) {
 	v, ok = i.globals[pkg.Var(name)]
 	return
 }
 
-// Interpreter accessors
-func (i *Interpreter) Program() *ssa2.Program { return i.prog }
-func (i  *Interpreter) Globals() map[ssa2.Value]*Value { return i.globals }
-func (i  *Interpreter) GoTops() []*GoreState { return i.goTops }
+// interpreter accessors
+func (i *interpreter) Program() *ssa2.Program { return i.prog }
+func (i  *interpreter) Globals() map[ssa2.Value]*Value { return i.globals }
+func (i  *interpreter) GoTops() []*GoreState { return i.goTops }

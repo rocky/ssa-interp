@@ -8,7 +8,7 @@ import (
 )
 
 type Frame struct {
-	i                *Interpreter
+	i                *interpreter
 	caller           *Frame
 	fn               *ssa2.Function
 	block, prevBlock *ssa2.BasicBlock
@@ -90,7 +90,7 @@ func (fr *Frame) EndP()   token.Pos { return fr.endP }
 func (fr *Frame) Env() map[ssa2.Value]Value { return fr.env }
 func (fr *Frame) Fn() *ssa2.Function { return fr.fn }
 func (fr *Frame) GoNum() int { return fr.goNum }
-func (fr *Frame) I() *Interpreter { return fr.i }
+func (fr *Frame) I() *interpreter { return fr.i }
 func (fr *Frame) Local(i int) Value { return fr.locals[i] }
 func (fr *Frame) Locals() []Value { return fr.locals }
 func (fr *Frame) PC() int { return fr.pc }

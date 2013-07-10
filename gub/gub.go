@@ -26,7 +26,6 @@ const (
 
 var term string
 var maxwidth int
-var I *interp.Interpreter
 
 func termInit() {
 	term = os.Getenv("TERM")

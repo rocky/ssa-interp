@@ -401,7 +401,7 @@ func newMethod(pkg *ssa2.Package, recvType types.Type, name string) *ssa2.Functi
 	return fn
 }
 
-func initReflect(i *Interpreter) {
+func initReflect(i *interpreter) {
 	i.reflectPackage = &ssa2.Package{
 		Prog:    i.prog,
 		Object:  reflectTypesPackage,

@@ -832,7 +832,7 @@ func unop(instr *ssa2.UnOp, x Value) Value {
 // It returns the extracted value on success, and panics on failure,
 // unless instr.CommaOk, in which case it always returns a "value,ok" tuple.
 //
-func typeAssert(i *Interpreter, instr *ssa2.TypeAssert, itf iface) Value {
+func typeAssert(i *interpreter, instr *ssa2.TypeAssert, itf iface) Value {
 	var v Value
 	err := ""
 	if idst, ok := instr.AssertedType.Underlying().(*types.Interface); ok {
@@ -1320,7 +1320,7 @@ func conv(t_dst, t_src types.Type, x Value) Value {
 // interface itype.
 // On success it returns "", on failure, an error message.
 //
-func checkInterface(i *Interpreter, itype *types.Interface, x iface) string {
+func checkInterface(i *interpreter, itype *types.Interface, x iface) string {
 	mset := findMethodSet(i, x.t)
 	it := itype.Underlying().(*types.Interface)
 	for i, n := 0, it.NumMethods(); i < n; i++ {
