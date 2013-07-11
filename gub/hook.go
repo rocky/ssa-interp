@@ -82,6 +82,14 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 
 		cmd := args[0]
 
+		if cmds[cmd] != nil {
+			cmds[cmd].fn(args)
+			continue
+		} else if unalias := aliases[cmd]; unalias != "" {
+			cmds[unalias].fn(args)
+			continue
+		}
+
 		switch cmd {
 		case "+":
 			fmt.Println("Setting Instruction Trace")
@@ -95,8 +103,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			BreakpointCommand(args)
 		case "delete":
 			DeleteCommand(args)
-		case "disassemble", "disasm":
-			DisassembleCommand(args)
 		case "disable":
 			DisableCommand(args)
 		case "down":
@@ -121,8 +127,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			GoroutinesCommand(args)
 		case "gl", "global", "globals":
 			GlobalsCommand(args)
-		case "locs":
-			LocsCommand(args)
 		case "lo", "local", "locals":
 			LocalsCommand(args)
 		case "param", "parameters":
@@ -131,8 +135,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
  			NextCommand(args)
 			inCmdLoop = false
 			break
-		case "q", "quit", "exit":
-			QuitCommand(args)
 		case "s", "step":
 			StepCommand(args)
 			inCmdLoop = false

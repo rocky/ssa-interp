@@ -17,6 +17,28 @@ import (
 	"code.google.com/p/go-gnureadline"
 )
 
+type CmdFunc func([]string)
+
+type CmdInfo struct {
+	help string
+	min_args int
+	max_args int
+	fn CmdFunc
+}
+
+var cmds map[string]*CmdInfo  = make(map[string]*CmdInfo)
+var	aliases map[string]string = make(map[string]string)
+
+func init() {
+	cmds["disassemble"] = &CmdInfo{
+		fn: DisassembleCommand,
+		help: "disasm [*fn*]  : disassemble functon",
+		min_args: 0,
+		max_args: 1,
+	}
+	aliases["disasm"] = "disassemble"
+}
+
 func DisassembleCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
 	myfn := curFrame.Fn()
@@ -79,6 +101,18 @@ Other:
 `)
 }
 
+func init() {
+	cmds["globals"] = &CmdInfo{
+		fn: GlobalsCommand,
+		help: "global [*name*]: show global variable info",
+		min_args: 0,
+		max_args: 1,
+	}
+	// Down the line we'll have abbrevs
+	aliases["global"] = "globals"
+	aliases["gl"] = "globals"
+}
+
 func GlobalsCommand(args []string) {
 	argc := len(args) - 1
 	if argc == 0 {
@@ -123,6 +157,17 @@ func GlobalsCommand(args []string) {
 	}
 }
 
+func init() {
+	cmds["locations"] = &CmdInfo{
+		fn: LocsCommand,
+		help: "global [*name*]: show global variable info",
+		min_args: 0,
+		max_args: 1,
+	}
+	// Down the line we'll have abbrevs
+	aliases["locs"] = "locations"
+}
+
 func LocsCommand(args []string) {
 	fn  := curFrame.Fn()
 	pkg := fn.Pkg
@@ -137,6 +182,24 @@ func LocsCommand(args []string) {
 // Terminates program. If an exit code is given, that is the exit code
 // for the program. Zero (normal termination) is used if no
 // termintation code.
+
+func init() {
+	cmds["quit"] = &CmdInfo{
+		fn: QuitCommand,
+		help: `quit [exit-code]
+
+Terminates program. If an exit code is given, that is the exit code
+for the program. Zero (normal termination) is used if no
+termintation code.
+`,
+		min_args: 0,
+		max_args: 1,
+	}
+	aliases["exit"] = "quit"
+	// Down the line we'll have abbrevs
+	aliases["q"] = "quit"
+}
+
 func QuitCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
 	rc := 0
