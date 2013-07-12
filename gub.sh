@@ -21,7 +21,7 @@ if (( $? != 0 )); then
     }
 fi
 
-TEMP=$(getopt -o i:g: --long gub:,interp: -- "$@")
+TEMP=$(getopt -o hi:g: --long gub:,interp:,help -- "$@")
 
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 
@@ -34,6 +34,18 @@ while true ; do
 	case "$1" in
 	    --gub) gub_opt="$2" ; shift ;;
 	    --interp) interp_opt="S$2" ; shift ;;
+	    --help|h) cat <<EOF
+Usage: $0 *gub-opts* [--] *go-program* [*program options]
+
+Runs SSA interpreter on *go-program* and gub debugger
+
+opts are:
+
+  --gub="--options to gub"
+  --interp="options to tortoise interpeter"
+  --help|-h  this help
+EOF
+		exit 100 ;;
 	    --) shift;  break ;;
 	    *) shift ;;
 	esac
