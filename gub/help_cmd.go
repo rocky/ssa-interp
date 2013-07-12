@@ -4,6 +4,7 @@ package gub
 
 import (
 	"sort"
+	"strings"
 	"code.google.com/p/go-columnize"
 )
 
@@ -78,16 +79,22 @@ func HelpCommand(args []string) {
 			sort.Strings(names)
 			opts := columnize.DefaultOptions()
 			opts.DisplayWidth = maxwidth
-			mems := columnize.Columnize(names, opts)
+			mems := strings.TrimRight(columnize.Columnize(names, opts),
+				"\n")
 			msg(mems)
 		} else if info := cmds[cmd]; info != nil {
 			msg(info.help)
+			if len(info.aliases) > 0 {
+				msg("Aliases: %s",
+					strings.Join(info.aliases, ", "))
+			}
 		} else if cmds := categories[what]; len(cmds) > 0 {
-			section("Commands in class %s", what)
+			section("Commands in class: %s", what)
 			sort.Strings(cmds)
 			opts := columnize.DefaultOptions()
 			opts.DisplayWidth = maxwidth
-			mems := columnize.Columnize(cmds, opts)
+			mems := strings.TrimRight(columnize.Columnize(cmds, opts),
+				"\n")
 			msg(mems)
 		} else {
 			errmsg("Can't find help for %s", what)

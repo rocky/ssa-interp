@@ -15,7 +15,12 @@ import (
 var cmdCount int = 0
 var traceEvent ssa2.TraceEvent
 
+
 var gubLock  sync.Mutex
+
+// Commands set inCmdLoop to "false" break out of debugger's read
+// command loop.
+var inCmdLoop bool
 
 // if we are stopped by breakpoint, this is the breakpoint number.
 // Otherwise this is < 0.
@@ -61,7 +66,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 
 	line := ""
 	var err error
-	for inCmdLoop := true; err == nil && inCmdLoop; cmdCount++ {
+	for inCmdLoop = true; err == nil && inCmdLoop; cmdCount++ {
 		if inputReader != nil {
 			line, err = inputReader.ReadString('\n')
 		} else {
@@ -106,14 +111,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			DownCommand(args)
 		case "env":
 			EnvCommand(args)
-		case "c", "continue":
-			Continue(args)
-			inCmdLoop = false
-			break
-		case "finish", "fin":
- 			FinishCommand(args)
-			inCmdLoop = false
-			break
 		case "frame":
 			FrameCommand(args)
 		case "gor", "gore", "goroutine", "goroutines":
@@ -124,14 +121,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			LocalsCommand(args)
 		case "param", "parameters":
 			ParametersCommand(args)
-		case "next", "n":
- 			NextCommand(args)
-			inCmdLoop = false
-			break
-		case "s", "step":
-			StepCommand(args)
-			inCmdLoop = false
-			break
 		case "up":
 			UpCommand(args)
 		case "v":

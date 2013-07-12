@@ -108,14 +108,16 @@ func GlobalsCommand(args []string) {
 }
 
 func init() {
-	cmds["locations"] = &CmdInfo{
+	name := "locations"
+	cmds[name] = &CmdInfo{
 		fn: LocsCommand,
-		help: "global [*name*]: show global variable info",
+		help: "show possible breakpoint locations",
 		min_args: 0,
 		max_args: 1,
 	}
+	AddToCategory("status", name)
 	// Down the line we'll have abbrevs
-	AddAlias("locs", "locations")
+	AddAlias("locs", name)
 }
 
 func LocsCommand(args []string) {
