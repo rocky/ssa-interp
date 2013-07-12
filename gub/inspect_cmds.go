@@ -245,6 +245,20 @@ func WhatisName(name string) {
 	}
 }
 
+func init() {
+	name := "whatis"
+	cmds[name] = &CmdInfo{
+		fn: WhatisCommand,
+		help: `whatis name
+
+print information about *name* which can include a dotted variable name.
+`,
+		min_args: 1,
+		max_args: 1,
+	}
+	AddToCategory("inspecting", name)
+}
+
 func WhatisCommand(args []string) {
 	if !argCountOK(1, 1, args) { return }
 	name := args[1]

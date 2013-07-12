@@ -4,8 +4,6 @@ package gub
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 
 	"go/token"
 	"code.google.com/p/go.tools/go/exact"
@@ -14,91 +12,43 @@ import (
 
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"code.google.com/p/go-gnureadline"
 )
 
 type CmdFunc func([]string)
 
 type CmdInfo struct {
 	help string
+	category string
 	min_args int
 	max_args int
 	fn CmdFunc
+	aliases []string
 }
 
 var cmds map[string]*CmdInfo  = make(map[string]*CmdInfo)
 var	aliases map[string]string = make(map[string]string)
+var	categories map[string] []string = make(map[string] []string)
 
-func init() {
-	cmds["disassemble"] = &CmdInfo{
-		fn: DisassembleCommand,
-		help: "disasm [*fn*]  : disassemble functon",
-		min_args: 0,
-		max_args: 1,
+func AddAlias(alias string, cmdname string) bool {
+	if unalias := aliases[alias]; unalias != "" {
+		return false
 	}
-	aliases["disasm"] = "disassemble"
+	aliases[alias] = cmdname
+	cmds[cmdname].aliases = append(cmds[cmdname].aliases, alias)
+	return true
 }
 
-func DisassembleCommand(args []string) {
-	if !argCountOK(0, 1, args) { return }
-	myfn := curFrame.Fn()
-	if len(args) > 1 {
-		name := args[1]
-		pkg  := myfn.Pkg
-		if fn := pkg.Func(name); fn != nil {
-			myfn = fn
-		} else {
-			errmsg("Can't find function %s", name)
-			return
-		}
-	}
-	myfn.DumpTo(os.Stderr)
+func AddToCategory(category string, cmdname string) {
+	categories[category] = append(categories[category], cmdname)
+	// cmds[cmdname].category = category
 }
 
-func HelpCommand(args []string) {
-	fmt.Println(`List of commands:
-Execution running --
-  s: step in
-  n: next or step over
-  fin: finish or step out
-  c: continue
 
-Inspecting --
-  disasm [*fn*]  : disassemble functon
-  env            : dump frame environment
-  locs           : show breakpoint locations
-  local [*name*] : show local variable info
-  global [*name*]: show global variable info
-  param [*name*] : show function parameter info
-  whatis *name*  : show information about name
-  locs           : show all stopping locations
-
-Breakpoints --
-
-  break : list breakpoints
-  break line [column] : break at this line (and column)
-                      : run locs for a list
-  break function      : break at function
-
-  enable bpnum [bpnum..]    : enable breakpoint
-  disable bpnum [bpnum...]  : disable breakpoint
-  delete bpnum              : delete breakpoint
-
-Tracing --
-  +: add instruction tracing
-  -: remove instruction tracing
-
-Stack:
-  bt [*max*]  : print a backtrace (at most max entries)
-  frame *num* : switch stack frame
-  gor [*num*] : show goroutine stack (for num)
-  up *num*    : switch to a newer frame
-  down *num*  : switch to a older frame
-
-Other:
-  ?: this help
-  q: quit
-`)
+func lookupCmd(cmd string) (string) {
+	if cmds[cmd] == nil {
+		cmd = aliases[cmd];
+	}
+	return cmd
 }
 
 func init() {
@@ -165,7 +115,7 @@ func init() {
 		max_args: 1,
 	}
 	// Down the line we'll have abbrevs
-	aliases["locs"] = "locations"
+	AddAlias("locs", "locations")
 }
 
 func LocsCommand(args []string) {
@@ -175,46 +125,4 @@ func LocsCommand(args []string) {
 		// FIXME: ? turn into true range
 		msg("\t%s", fmtPos(fn, l.Pos))
 	}
-}
-
-// quit [exit-code]
-//
-// Terminates program. If an exit code is given, that is the exit code
-// for the program. Zero (normal termination) is used if no
-// termintation code.
-
-func init() {
-	cmds["quit"] = &CmdInfo{
-		fn: QuitCommand,
-		help: `quit [exit-code]
-
-Terminates program. If an exit code is given, that is the exit code
-for the program. Zero (normal termination) is used if no
-termintation code.
-`,
-		min_args: 0,
-		max_args: 1,
-	}
-	aliases["exit"] = "quit"
-	// Down the line we'll have abbrevs
-	aliases["q"] = "quit"
-}
-
-func QuitCommand(args []string) {
-	if !argCountOK(0, 1, args) { return }
-	rc := 0
-	if len(args) == 2 {
-		new_rc, ok := strconv.Atoi(args[1])
-		if ok == nil { rc = new_rc } else {
-			errmsg("Expecting integer return code; got %s. Ignoring",
-				args[1])
-		}
-	}
-	msg("gub: That's all folks...")
-
-	// FIXME: determine under which conditions we've used term
-	gnureadline.Rl_reset_terminal(term)
-
-	os.Exit(rc)
-
 }

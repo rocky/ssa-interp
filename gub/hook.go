@@ -80,17 +80,20 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			continue
 		}
 
-		cmd := args[0]
+		name := args[0]
+		if newname := lookupCmd(name); newname != "" {
+			name = newname
+		}
+		cmd := cmds[name];
 
-		if cmds[cmd] != nil {
-			cmds[cmd].fn(args)
-			continue
-		} else if unalias := aliases[cmd]; unalias != "" {
-			cmds[unalias].fn(args)
+		if cmd != nil {
+			if argCountOK(cmd.min_args, cmd.max_args, args) {
+				cmds[name].fn(args)
+			}
 			continue
 		}
 
-		switch cmd {
+		switch name {
 		case "+":
 			fmt.Println("Setting Instruction Trace")
 			interp.SetInstTracing()
@@ -143,8 +146,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			UpCommand(args)
 		case "v":
 			VariableCommand(args)
-		case "whatis":
-			WhatisCommand(args)
 		default:
 			if len(args) > 0 {
 				WhatisName(args[0])
