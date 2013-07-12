@@ -66,8 +66,26 @@ func BreakpointList() {
 	}
 }
 
+func init() {
+	name := "breakpoint"
+	cmds[name] = &CmdInfo{
+		fn: BreakpointCommand,
+		help: `breakpoint [*fn* | line [column]]
+
+Set a breakpoint. The target can either be a function name as fn pkg.fn
+or a line and and optional column number. Specifying a column number
+may be useful if there is more than one statement on a line or if you
+want to distinguish parts of a compound statement`,
+
+		min_args: 0,
+		max_args: 2,
+	}
+	AddToCategory("breakpoints", name)
+	AddAlias("break", name)
+	AddAlias("b", name)
+}
+
 func BreakpointCommand(args []string) {
-	if !argCountOK(0, 2, args) { return }
 	if len(args) == 1 {
 		BreakpointList()
 		return
@@ -152,6 +170,22 @@ func BreakpointCommand(args []string) {
 	}
 }
 
+func init() {
+	name := "delete"
+	cmds[name] = &CmdInfo{
+		fn: DeleteCommand,
+		help: `Delete [bpnum1 ...]
+
+Delete a breakpoint by the number assigned to it.`,
+
+		min_args: 0,
+		max_args: 1000,
+	}
+	AddToCategory("breakpoints", name)
+	// Down the line we'll have abbrevs
+	AddAlias("del", name)
+}
+
 func DeleteCommand(args []string) {
 	if !argCountOK(1, 1000, args) { return }
 	for i:=1; i<len(args); i++ {
@@ -170,6 +204,20 @@ func DeleteCommand(args []string) {
 			errmsg("Breakpoint %d doesn't exist", bpnum)
 		}
 	}
+}
+
+func init() {
+	name := "disable"
+	cmds[name] = &CmdInfo{
+		fn: DisableCommand,
+		help: `Disable [bpnum1 ...]
+
+Disable a breakpoint by the number assigned to it.`,
+
+		min_args: 0,
+		max_args: 1000,
+	}
+	AddToCategory("breakpoints", name)
 }
 
 // FIXME: DRY the next two commands.
@@ -195,6 +243,20 @@ func DisableCommand(args []string) {
 			errmsg("Breakpoint %d doesn't exist", bpnum)
 		}
 	}
+}
+
+func init() {
+	name := "enable"
+	cmds[name] = &CmdInfo{
+		fn: EnableCommand,
+		help: `enable [bpnum1 ...]
+
+Enable a breakpoint by the number assigned to it.`,
+
+		min_args: 0,
+		max_args: 1000,
+	}
+	AddToCategory("breakpoints", name)
 }
 
 func EnableCommand(args []string) {

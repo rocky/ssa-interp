@@ -69,7 +69,18 @@ func HelpCommand(args []string) {
 	} else {
 		what := args[1]
 		cmd := lookupCmd(what)
-		if info := cmds[cmd]; info != nil {
+		if what == "*" {
+			var names []string
+			for k, _ := range cmds {
+				names = append(names, k)
+			}
+			section("All command names:")
+			sort.Strings(names)
+			opts := columnize.DefaultOptions()
+			opts.DisplayWidth = maxwidth
+			mems := columnize.Columnize(names, opts)
+			msg(mems)
+		} else if info := cmds[cmd]; info != nil {
 			msg(info.help)
 		} else if cmds := categories[what]; len(cmds) > 0 {
 			section("Commands in class %s", what)
