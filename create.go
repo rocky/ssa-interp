@@ -86,23 +86,23 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	name := obj.Name()
 	switch obj := obj.(type) {
 	case *types.TypeName:
-		pkg.Members[name] = &Type{Object: obj}
+		pkg.Members[name] = &Type{object: obj}
 
 	case *types.Const:
 		pkg.Members[name] = &Constant{
-			name:  name,
-			Value: NewLiteral(obj.Val(), obj.Type(), obj.Pos(), obj.Pos()),
-			pos:   obj.Pos(),
+			object: obj,
+			Value:  NewLiteral(obj.Val(), obj.Type(), obj.Pos(), obj.Pos()),
 		}
 
 	case *types.Var:
 		spec, _ := syntax.(*ast.ValueSpec)
 		g := &Global{
-			Pkg:  pkg,
-			name: name,
-			typ:  Pointer(obj.Type()), // address
-			pos:  obj.Pos(),
-			spec: spec,
+			Pkg:    pkg,
+			name:   name,
+			object: obj,
+			typ:    Pointer(obj.Type()), // address
+			pos:    obj.Pos(),
+			spec:   spec,
 		}
 		pkg.values[obj] = g
 		pkg.Members[name] = g
@@ -122,6 +122,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		sig := obj.Type().(*types.Signature)
 		fn := &Function{
 			name:       name,
+			object:     obj,
 			Signature:  sig,
 			Synthetic:  synthetic,
 			pos:        obj.Pos(), // (iff syntax)
@@ -272,4 +273,8 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 
 	prog.PackagesByPath[importPath] = p
 	prog.packages[p.Object] = p
+
+	if prog.mode&SanityCheckFunctions != 0 {
+		sanityCheckPackage(p)
+	}
 }

@@ -351,7 +351,7 @@ func (f *Function) finishBody() {
 	}
 
 	if f.Prog.mode&SanityCheckFunctions != 0 {
-		MustSanityCheck(f, nil)
+		mustSanityCheck(f, nil)
 	}
 }
 
