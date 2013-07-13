@@ -18,8 +18,27 @@ func printStack(fr *interp.Frame, count int) {
 	}
 }
 
+func init() {
+	name := "backtrace"
+	cmds[name] = &CmdInfo{
+		fn: BacktraceCommand,
+		help: `backtrace [*count*]
+
+Print a stack trace, with the most recent frame at the top.
+
+With a positive number, print at most many entries.`,
+
+		min_args: 0,
+		max_args: 1,
+	}
+	AddToCategory("stack", name)
+	aliases["where"] = name
+	aliases["T"] = name  // for perl5db hackers
+	// Down the line we'll have abbrevs
+	aliases["bt"] = name
+}
+
 func BacktraceCommand(args []string) {
-	if !argCountOK(0, 1, args) { return }
 	count := MAXSTACKSHOW
 	var err error
 	if len(args) > 1 {
@@ -30,8 +49,24 @@ func BacktraceCommand(args []string) {
 	printStack(topFrame, count)
 }
 
+func init() {
+	name := "down"
+	cmds[name] = &CmdInfo{
+		fn: DownCommand,
+		help: `down [*count*]
+
+Move the current frame down in the stack trace (to a newer frame). 0
+is the most recent frame. If no count is given, move down 1.
+
+See also 'up' and 'frame'.
+`,
+		min_args: 0,
+		max_args: 1,
+	}
+	AddToCategory("stack", name)
+}
+
 func DownCommand(args []string) {
-	if !argCountOK(0, 1, args) { return }
 	var count int
 	var err error
 	if len(args) == 1 {
@@ -43,6 +78,22 @@ func DownCommand(args []string) {
 	}
 	adjustFrame(-count, false)
 
+}
+
+func init() {
+	name := "frame"
+	cmds[name] = &CmdInfo{
+		fn: FrameCommand,
+		help: `frame *num*
+
+Change the current frame to frame *num*
+
+See also 'up' and 'down'.
+`,
+		min_args: 1,
+		max_args: 1,
+	}
+	AddToCategory("stack", name)
 }
 
 func FrameCommand(args []string) {
@@ -72,9 +123,23 @@ func printGoroutine(goNum int, goTops []*interp.GoreState) {
 }
 
 
+func init() {
+	name := "goroutines"
+	cmds[name] = &CmdInfo{
+		fn: GoroutinesCommand,
+		help: "global [*name*]: show global variable info",
+		min_args: 0,
+		max_args: 1,
+	}
+	AddToCategory("stack", name)
+	aliases["gore"] = name
+	// Down the line we'll have abbrevs
+	aliases["gor"] = name
+	aliases["goroutine"] = name
+}
+
 // shows stack of all goroutines
 func GoroutinesCommand(args []string) {
-	if !argCountOK(0, 1, args) { return }
 	goTops := interp.GetInterpreter().GoTops()
 	var goNum int
 	var err error
@@ -88,6 +153,23 @@ func GoroutinesCommand(args []string) {
 	for goNum := range goTops {
 		printGoroutine(goNum, goTops)
 	}
+}
+
+func init() {
+	name := "up"
+	cmds[name] = &CmdInfo{
+		fn: UpCommand,
+		help: `up [*count*]
+
+Move the current frame up in the stack trace (to a older frame). 0
+is the most-recent frame. If no count is given, move down 1.
+
+See also 'down' and 'frame'.
+`,
+		min_args: 0,
+		max_args: 1,
+	}
+	AddToCategory("stack", name)
 }
 
 func UpCommand(args []string) {

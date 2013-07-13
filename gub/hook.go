@@ -105,24 +105,12 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		case "-":
 			fmt.Println("Clearing Instruction Trace")
 			interp.ClearInstTracing()
-		case "bt", "T", "backtrace", "where":
-			BacktraceCommand(args)
-		case "down":
-			DownCommand(args)
 		case "env":
 			EnvCommand(args)
-		case "frame":
-			FrameCommand(args)
-		case "gor", "gore", "goroutine", "goroutines":
-			GoroutinesCommand(args)
-		case "gl", "global", "globals":
-			GlobalsCommand(args)
 		case "lo", "local", "locals":
 			LocalsCommand(args)
 		case "param", "parameters":
 			ParametersCommand(args)
-		case "up":
-			UpCommand(args)
 		case "v":
 			VariableCommand(args)
 		default:
