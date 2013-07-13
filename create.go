@@ -217,7 +217,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		locs:    make([] LocInst, 0),
 	}
 
-	// Add init() function (but not to Members since it can't be referenced).
+	// Add init() function.
 	p.Init = &Function{
 		name:      "init",
 		Signature: new(types.Signature),
@@ -226,6 +226,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		Pkg:       p,
 		Prog:      prog,
 	}
+	p.Members[p.Init.name] = p.Init
 
 	// CREATE phase.
 	// Allocate all package members: vars, funcs and consts and types.

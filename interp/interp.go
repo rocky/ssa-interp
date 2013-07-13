@@ -636,7 +636,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	}()
 
 	// Run!
-	call(i, 0, nil, token.NoPos, mainpkg.Init, nil)
+	call(i, nil, token.NoPos, mainpkg.Func("init"), nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
 		// fr := &Frame{
 		// 	i: i,

@@ -73,7 +73,7 @@ type builder struct {
 // Intra-package references are edges in the initialization dependency
 // graph.  If the result v is a Function or Global belonging to
 // 'from', the package on whose behalf this lookup occurs, then lookup
-// emits initialization code into from.Init if not already done.
+// emits initialization code into from.init if not already done.
 //
 func (b *builder) lookup(from *Package, obj types.Object) Value {
 	v := from.Prog.Value(obj)
@@ -1071,7 +1071,7 @@ func (b *builder) assignOp(fn *Function, loc lvalue, incr Value, op token.Token)
 	loc.store(fn, emitArith(fn, op, oldv, emitConv(fn, incr, oldv.Type()), loc.typ(), token.NoPos))
 }
 
-// buildGlobal emits code to the g.Pkg.Init function for the variable
+// buildGlobal emits code to the g.Pkg.init function for the variable
 // definition(s) of g.  Effects occur out of lexical order; see
 // explanation at globalValueSpec.
 // Precondition: g == g.Prog.Value(obj)

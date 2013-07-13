@@ -109,10 +109,6 @@ type Type struct {
 // NB: a Constant is not a Value; it contains a literal Value, which
 // it augments with the name and position of its 'const' declaration.
 //
-// TODO(adonovan): if we decide to add a token.Pos to literal, we
-// should then add a name too, and merge Constant and Literal.
-// Experiment.
-//
 type Constant struct {
 	name  string
 	Value *Literal
