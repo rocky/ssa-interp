@@ -28,7 +28,13 @@ Print information about instruction
 func derefValue(v interp.Value) string {
 	switch v := v.(type) {
 	case *interp.Value:
-		return interp.ToString(*v)
+		s := interp.ToString(*v)
+		y := *v
+		switch y.(type) {
+		case string:
+			s = "\"" + s + "\""
+		}
+		return s
 	default:
 		return interp.ToString(v)
 	}
@@ -53,13 +59,26 @@ func InstructCommand(args []string) {
 		// 		return
 		// 	}
 	}
+	DisasmInst(fr.Fn(), fr.Block().Index, ic)
 	genericInstr := fr.Block().Instrs[ic]
 	switch instr := genericInstr.(type) {
+	case *ssa2.ChangeType:
+		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+	case *ssa2.Convert:
+		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+	case  *ssa2.MakeInterface:
+		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+	case  *ssa2.ChangeInterface:
+		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+	case  *ssa2.Range:
+		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
 	case *ssa2.UnOp:
-		msg("operand: %s (%s)", derefValue(fr.Get(instr.X)), instr.X.Type())
+		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+	case *ssa2.Field:
+		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
 	case *ssa2.BinOp:
-		msg("operand1: %s", derefValue(fr.Get(instr.X)))
-		msg("operand2: %s", derefValue(fr.Get(instr.Y)))
+		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.Y)))
 	default:
 		msg("Don't know how to deal with %s yet", instr)
 	}

@@ -5,7 +5,6 @@ package gub
 
 import (
 	"os"
-	"strconv"
 	"github.com/rocky/ssa-interp"
 )
 
@@ -28,19 +27,19 @@ If "." is given we disassemble the current block only.
 }
 
 
-func DisasmInst(f *ssa2.Function, i int, inst int) {
-	if i < 0 || i >= len(f.Blocks) {
+func DisasmInst(f *ssa2.Function, bnum int, inst int) {
+	if bnum < 0 || bnum >= len(f.Blocks) {
 		errmsg("Block number %d is out of range. Should be between 0..%d",
-			i, len(f.Blocks)-1)
+			bnum, len(f.Blocks)-1)
 		return
 	}
-	b := f.Blocks[i]
+	b := f.Blocks[bnum]
 	if b == nil {
 		// Corrupt CFG.
 		msg(".nil:")
 		return
 	}
-	msg("%3d: %s",  i, ssa2.DisasmInst(b.Instrs[i], maxwidth))
+	msg("%3d: %s",  inst, ssa2.DisasmInst(b.Instrs[inst], maxwidth))
 }
 
 func DisasmBlock(f *ssa2.Function, i int) {
@@ -70,15 +69,25 @@ func DisassembleCommand(args []string) {
 			DisasmBlock(myfn, curFrame.Block().Index)
 			return
 		}
-		if i, ok := strconv.Atoi(what); ok == nil {
-			DisasmBlock(myfn, i)
-			return
-		}
 		pkg  := myfn.Pkg
 		if fn := pkg.Func(what); fn != nil {
 			myfn = fn
 		} else {
-			errmsg("Can't find function %s", what)
+			bnum, err := getInt(args[1],
+				"block number", 0, len(myfn.Blocks)-1)
+			if err == nil {
+				if len(args) == 3 {
+					ic, err := getInt(args[1],
+						"instruction number", 0, len(myfn.Blocks)-1)
+					if err == nil {
+						DisasmInst(myfn, bnum, ic)
+					}
+				} else {
+					DisasmBlock(myfn, bnum)
+				}
+			} else {
+				errmsg("Can't find function %s", what)
+			}
 			return
 		}
 	}

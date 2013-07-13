@@ -83,7 +83,7 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 		fmt.Printf("return: %s\n", interp.ToString(fr.Result()))
 	case ssa2.CALL_ENTER:
 		for i, p := range fr.Fn().Params {
-			fmt.Println(fr.Fn().Params[i], fr.Env()[p])
+			msg("%s %s", fr.Fn().Params[i], fr.Env()[p])
 		}
 	case ssa2.PANIC:
 		// fmt.Printf("panic arg: %s\n", fr.Get(instr.X))

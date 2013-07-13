@@ -173,7 +173,6 @@ See also 'down' and 'frame'.
 }
 
 func UpCommand(args []string) {
-	if !argCountOK(0, 1, args) { return }
 	var count int
 	var err error
 	if len(args) == 1 {
