@@ -12,49 +12,18 @@ func init() {
 	name := "help"
 	cmds[name] = &CmdInfo{
 		fn: HelpCommand,
-		help: `List of commands:
-Execution running --
-  s: step in
-  n: next or step over
-  fin: finish or step out
-  c: continue
+		help: `help [command | * | category]
 
-Inspecting --
-  disasm [*fn*]  : disassemble function
-  env            : dump frame environment
-  locs           : show breakpoint locations
-  local [*name*] : show local variable info
-  global [*name*]: show global variable info
-  param [*name*] : show function parameter info
-  whatis *name*  : show information about name
-  locs           : show all stopping locations
+Without argument, print the list of available debugger commands.
 
-Breakpoints --
+When an argument is given, if it is '*' a list of debugger commands
+is shown. Otherwise the argument is checked to see if it is command
+name. For example 'help up' gives help on the 'up' debugger command.
 
-  break : list breakpoints
-  break line [column] : break at this line (and column)
-                      : run locs for a list
-  break function      : break at function
-
-  enable bpnum [bpnum..]    : enable breakpoint
-  disable bpnum [bpnum...]  : disable breakpoint
-  delete bpnum              : delete breakpoint
-
-Tracing --
-  +: add instruction tracing
-  -: remove instruction tracing
-
-Stack:
-  bt [*max*]  : print a backtrace (at most max entries)
-  frame *num* : switch stack frame
-  gor [*num*] : show goroutine stack (for num)
-  up *num*    : switch to a newer frame
-  down *num*  : switch to a older frame
-
-Other:
-  ?: this help
-  q: quit
+If a category name is given, a list of commands in that category is
+shown.
 `,
+
 		min_args: 0,
 		max_args: 1,
 	}

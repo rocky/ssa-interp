@@ -53,6 +53,8 @@ EOF
 done
 
 
+cmd="$tortoise -run -gub="$gub_opt" -interp="S$interp_opt" -- $@"
+export GUB_RESTART_CMD="$cmd"
 # Run tortoise setting
-$tortoise -run -gub="$gub_opt" -interp="S$interp_opt" -- $@
+$cmd
 exit $?

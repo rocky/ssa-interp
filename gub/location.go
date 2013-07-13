@@ -85,11 +85,11 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 			msg("return void")
 		} else {
 			msg("return type: %s", fn.Signature.Results())
-			msg("return value: %s", fr.Result())
+			msg("return value: %s", interp.ToString(fr.Result()))
 		}
 	case ssa2.CALL_ENTER:
 		for i, p := range fr.Fn().Params {
-			s := fr.Env()[p]
+			s := interp.ToString(fr.Env()[p])
 			if p.Type().String() == "string" {
 				msg("%s \"%s\"", fr.Fn().Params[i], s)
 			} else {

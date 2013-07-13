@@ -27,6 +27,8 @@ const (
 
 var term string
 var maxwidth int
+var initial_cwd string
+var GUB_RESTART_CMD string
 
 func termInit() {
 	term = os.Getenv("TERM")
@@ -35,6 +37,8 @@ func termInit() {
 
 func init() {
 	widthstr := os.Getenv("COLS")
+	initial_cwd, _ = os.Getwd()
+	GUB_RESTART_CMD = os.Getenv("GUB_RESTART_CMD")
 	if len(widthstr) == 0 {
 		maxwidth = 80
 	} else if i, err := strconv.Atoi(widthstr); err == nil {
