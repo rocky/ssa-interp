@@ -42,19 +42,6 @@ func printIfLocal(fr *interp.Frame, varname string) bool {
 	return false
 }
 
-
-
-func EnvCommand(args []string) {
-	for k, v := range curFrame.Env() {
-		switch v := v.(type) {
-		case *interp.Value:
-			msg("*%s %s = %s", k.Name(), k, interp.ToString(*v))
-		default:
-			msg("%s %s = %s", k.Name(), k, interp.ToString(v))
-		}
-	}
-}
-
 func LocalsCommand(args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 2, args) { return }
@@ -242,6 +229,11 @@ func WhatisName(name string) {
 		}
 	}
 
+	if k := EnvLookup(curFrame, name); k != nil {
+		msg("%s is in the environment", name)
+		msg("\t%s = %s", k, derefValue(curFrame.Env()[k]))
+		return
+	}
 	if printIfLocal(curFrame, name) {return}
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
@@ -261,24 +253,4 @@ func WhatisName(name string) {
 	} else {
 		errmsg("Can't find name: %s", name)
 	}
-}
-
-func init() {
-	name := "whatis"
-	cmds[name] = &CmdInfo{
-		fn: WhatisCommand,
-		help: `whatis name
-
-print information about *name* which can include a dotted variable name.
-`,
-		min_args: 1,
-		max_args: 1,
-	}
-	AddToCategory("inspecting", name)
-}
-
-func WhatisCommand(args []string) {
-	if !argCountOK(1, 1, args) { return }
-	name := args[1]
-	WhatisName(name)
 }

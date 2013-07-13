@@ -108,8 +108,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		case "-":
 			fmt.Println("Clearing Instruction Trace")
 			interp.ClearInstTracing()
-		case "env":
-			EnvCommand(args)
 		case "lo", "local", "locals":
 			LocalsCommand(args)
 		case "param", "parameters":

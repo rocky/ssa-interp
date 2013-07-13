@@ -51,6 +51,7 @@ func init() {
 		RANGE_STMT: "range statement",
 		SELECT_TYPE: "SELECT type",
 		STMT_IN_LIST: "STATEMENT in list",
+		SWITCH_COND: "SWITCH condition",
 	}
 }
 

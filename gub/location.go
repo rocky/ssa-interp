@@ -80,10 +80,21 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	}
 	switch event {
 	case ssa2.CALL_RETURN:
-		fmt.Printf("return: %s\n", interp.ToString(fr.Result()))
+		fn := fr.Fn()
+		if fn.Signature.Results() == nil {
+			msg("return void")
+		} else {
+			msg("return type: %s", fn.Signature.Results())
+			msg("return value: %s", fr.Result())
+		}
 	case ssa2.CALL_ENTER:
 		for i, p := range fr.Fn().Params {
-			msg("%s %s", fr.Fn().Params[i], fr.Env()[p])
+			s := fr.Env()[p]
+			if p.Type().String() == "string" {
+				msg("%s \"%s\"", fr.Fn().Params[i], s)
+			} else {
+				msg("%s %s", fr.Fn().Params[i], s)
+			}
 		}
 	case ssa2.PANIC:
 		// fmt.Printf("panic arg: %s\n", fr.Get(instr.X))

@@ -50,6 +50,8 @@ Sometimes this is called 'step out'.
 		max_args: 0,
 	}
 	AddToCategory("running", name)
+	// Down the line we'll have abbrevs
+	AddAlias("fin", name)
 }
 
 func FinishCommand(args []string) {
