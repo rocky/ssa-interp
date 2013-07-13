@@ -219,7 +219,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 			// local
 			addr = fr.env[instr].(*Value)
 		}
-		*addr = zero(instr.Type().Deref())
+		*addr = zero(deref(instr.Type()))
 
 	case *ssa2.MakeSlice:
 		slice := make([]Value, asInt(fr.Get(instr.Cap)))
@@ -463,7 +463,7 @@ func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 		fr.tracing = TRACE_STEP_IN
 	}
 	for i, l := range fn.Locals {
-		fr.locals[i] = zero(l.Type().Deref())
+		fr.locals[i] = zero(deref(l.Type()))
 		fr.env[l] = &fr.locals[i]
 	}
 	for i, p := range fn.Params {
@@ -576,7 +576,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		for _, m := range pkg.Members {
 			switch v := m.(type) {
 			case *ssa2.Global:
-				cell := zero(v.Type().Deref())
+				cell := zero(deref(v.Type()))
 				i.globals[v] = &cell
 			}
 		}
@@ -659,4 +659,13 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		exitCode = 1
 	}
 	return
+}
+
+// deref returns a pointer's element type; otherwise it returns typ.
+// TODO(adonovan): Import from ssa?
+func deref(typ types.Type) types.Type {
+	if p, ok := typ.Underlying().(*types.Pointer); ok {
+		return p.Elem()
+	}
+	return typ
 }

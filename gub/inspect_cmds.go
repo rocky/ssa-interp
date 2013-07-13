@@ -9,8 +9,19 @@ import (
 	"sort"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
+	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go-columnize"
 )
+
+// deref returns a pointer's element type; otherwise it returns typ.
+// FIXME: this is from ssa-interp/util.go. DRY
+func deref(typ types.Type) types.Type {
+	if p, ok := typ.Underlying().(*types.Pointer); ok {
+		return p.Elem()
+	}
+	return typ
+}
+
 
 func LocalsLookup(fr *interp.Frame, name string) int {
 	return fr.Fn().LocalsByName[name]
@@ -20,7 +31,7 @@ func LocalsLookup(fr *interp.Frame, name string) int {
 func printLocal(fr *interp.Frame, i int) {
 	v := fr.Local(i)
 	l := fr.Fn().Locals[i]
-	msg("%3d: %s %s = %s", i, l.Name(), l.Type().Deref(), interp.ToString(v))
+	msg("%3d:\t%s %s = %s", i, l.Name(), deref(l.Type()), interp.ToString(v))
 }
 
 func printIfLocal(fr *interp.Frame, varname string) bool {
@@ -133,7 +144,7 @@ func printFuncInfo(fn *ssa2.Function) {
 	if len(fn.Locals) > 0 {
 		section("Locals:")
 		for i, l := range fn.Locals {
-			msg("% 3d:\t%s %s", i, l.Name(), l.Type().Deref())
+			msg(" %3d:\t%s %s", i, l.Name(), deref(l.Type()))
 		}
 	}
 
