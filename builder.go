@@ -1404,6 +1404,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 	}
 	var tag Value = vTrue
 	if s.Tag != nil {
+		emitTrace(fn, SWITCH_COND, s.Tag.Pos(), s.Tag.End())
 		tag = b.expr(fn, s.Tag)
 	}
 	done := fn.newBasicBlock("switch.done")
@@ -1448,6 +1449,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 			// instead of BinOp(EQL, tag, b.expr(cond))
 			// followed by If.  Don't forget conversions
 			// though.
+			emitTrace(fn, SWITCH_COND, cond.Pos(), cond.End())
 			cond := emitCompare(fn, token.EQL, tag, b.expr(fn, cond), token.NoPos)
 			emitIf(fn, cond, body, nextCond)
 			fn.currentBlock = nextCond

@@ -109,7 +109,7 @@ func BreakpointCommand(args []string) {
 			enabled: true,
 		}
 		bpnum := BreakpointAdd(bp)
-		msg("Breakpoint %d set in function %s at %s", bpnum, name,
+		msg(" Breakpoint %d set in function %s at %s", bpnum, name,
 			fmtPos(fn, fn.Pos()))
 		return
 	}
@@ -196,7 +196,7 @@ func DeleteCommand(args []string) {
 		}
 		if BreakpointExists(bpnum) {
 			if BreakpointDelete(bpnum) {
-				msg("Deleted breakpoint %d", bpnum)
+				msg(" Deleted breakpoint %d", bpnum)
 			} else {
 				errmsg("Trouble deleting breakpoint %d", bpnum)
 			}

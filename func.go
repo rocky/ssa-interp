@@ -541,6 +541,34 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 	}
 }
 
+func DisasmInst(instr Instruction, width int) string {
+
+	s := "\t"
+	switch v := instr.(type) {
+	case Value:
+		l := width
+		// Left-align the instruction.
+		if name := v.Name(); name != "" {
+			lhs := name + " = "
+			l -= len(lhs)
+			s += lhs
+		}
+		rhs := instr.String()
+		s += rhs
+		l -= len(rhs)
+		// Right-align the type.
+		if t := v.Type(); t != nil {
+			s += fmt.Sprintf(" %*s", l-10, t)
+		}
+	case nil:
+		// Be robust against bad transforms.
+		s += "<deleted>"
+	default:
+		s += instr.String()
+	}
+	return s
+}
+
 // DumpTo prints to w a human readable "disassembly" of the SSA code of
 // all basic blocks of function f.
 //
@@ -593,28 +621,7 @@ func (f *Function) DumpTo(w io.Writer) {
 			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", b.Preds, b, b.Succs)
 		}
 		for _, instr := range b.Instrs {
-			io.WriteString(w, "\t")
-			switch v := instr.(type) {
-			case Value:
-				l := punchcard
-				// Left-align the instruction.
-				if name := v.Name(); name != "" {
-					n, _ := fmt.Fprintf(w, "%s = ", name)
-					l -= n
-				}
-				n, _ := io.WriteString(w, instr.String())
-				l -= n
-				// Right-align the type.
-				if t := v.Type(); t != nil {
-					fmt.Fprintf(w, " %*s", l-10, t)
-				}
-			case nil:
-				// Be robust against bad transforms.
-				io.WriteString(w, "<deleted>")
-			default:
-				io.WriteString(w, instr.String())
-			}
-			io.WriteString(w, "\n")
+			io.WriteString(w, DisasmInst(instr, punchcard) + "\n")
 		}
 	}
 	fmt.Fprintf(w, "\n")

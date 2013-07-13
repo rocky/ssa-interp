@@ -73,7 +73,11 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	if len(fr.Fn().Name()) > 0 {
 		s += fr.Fn().Name() + "()"
 	}
-	fmt.Println(s)
+	if *terse {
+		msg(s)
+	} else {
+		msg("%s block %d insn %d", s, fr.Block().Index, fr.PC())
+	}
 	switch event {
 	case ssa2.CALL_RETURN:
 		fmt.Printf("return: %s\n", interp.ToString(fr.Result()))

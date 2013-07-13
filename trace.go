@@ -26,6 +26,7 @@ const (
 	MAIN
 	SELECT_TYPE
 	STMT_IN_LIST
+	SWITCH_COND
 )
 
 

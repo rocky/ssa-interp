@@ -15,6 +15,7 @@ import (
 	"github.com/rocky/ssa-interp/interp"
 )
 
+var terse = flag.Bool("terse", true, `abbreviated output`)
 var inputFilename = flag.String("cmdfile", "", `cmdfile *commandfile*.`)
 var inputFile *os.File
 var inputReader *bufio.Reader

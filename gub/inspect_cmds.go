@@ -17,23 +17,29 @@ func LocalsLookup(fr *interp.Frame, name string) int {
 }
 
 
-func printLocal(fr *interp.Frame, varname string) bool {
-	if i := LocalsLookup(fr, varname); i != 0 {
-		v := curFrame.Local(i-1)
-		msg("%s %s = %s", varname, fr.Fn().Locals[i-1], interp.ToString(v))
+func printLocal(fr *interp.Frame, i int) {
+	v := fr.Local(i)
+	l := fr.Fn().Locals[i]
+	msg("%3d: %s %s = %s", i, l.Name(), l.Type().Deref(), interp.ToString(v))
+}
+
+func printIfLocal(fr *interp.Frame, varname string) bool {
+	if i := LocalsLookup(curFrame, varname); i != 0 {
+		printLocal(curFrame, i-1)
 		return true
 	}
 	return false
 }
 
 
+
 func EnvCommand(args []string) {
 	for k, v := range curFrame.Env() {
 		switch v := v.(type) {
 		case *interp.Value:
-			msg("%s: %s", k, interp.ToString(*v))
+			msg("*%s %s = %s", k.Name(), k, interp.ToString(*v))
 		default:
-			msg("%s: %s", k, interp.ToString(v))
+			msg("%s %s = %s", k.Name(), k, interp.ToString(v))
 		}
 	}
 }
@@ -42,13 +48,14 @@ func LocalsCommand(args []string) {
 	argc := len(args) - 1
 	if !argCountOK(0, 2, args) { return }
 	if argc == 0 {
-		for i, v := range curFrame.Locals() {
-			varname := curFrame.Fn().Locals[i].Name()
-			msg("%s %s = %s", varname, curFrame.Fn().Locals[i], interp.ToString(v))
+		for i, _ := range curFrame.Locals() {
+			printLocal(curFrame, i)
 		}
 	} else {
 		varname := args[1]
-		if printLocal(curFrame, varname) { return }
+		if printIfLocal(curFrame, varname) {
+			return
+		}
 		// FIXME: This really shouldn't be needed.
 		for i, v := range curFrame.Locals() {
 			if varname == curFrame.Fn().Locals[i].Name() {
@@ -224,7 +231,7 @@ func WhatisName(name string) {
 		}
 	}
 
-	if printLocal(curFrame, name) {return}
+	if printIfLocal(curFrame, name) {return}
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {
