@@ -46,6 +46,7 @@ testdata/gcd.go:10:6
 # Test finish
 Continuing until return...
 <-  gcd()
-return: 1
+return type: (int)
+return value: 1
 testdata/gcd.go:21:3
 gub: That's all folks...

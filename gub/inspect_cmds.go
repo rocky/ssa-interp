@@ -70,13 +70,13 @@ func ParametersCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
 	if argc == 0 {
 		for i, p := range curFrame.Fn().Params {
-			msg("%s %s", curFrame.Fn().Params[i], curFrame.Env()[p])
+			msg("%s %s", curFrame.Fn().Params[i], interp.ToString(curFrame.Env()[p]))
 		}
 	} else {
 		varname := args[1]
 		for i, p := range curFrame.Fn().Params {
 			if varname == curFrame.Fn().Params[i].Name() {
-				msg("%s %s", curFrame.Fn().Params[i], curFrame.Env()[p])
+				msg("%s %s", curFrame.Fn().Params[i], interp.ToString(curFrame.Env()[p]))
 				break
 			}
 		}

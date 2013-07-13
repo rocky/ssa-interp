@@ -5,7 +5,7 @@ func init() {
 	name := "whatis"
 	cmds[name] = &CmdInfo{
 		fn: WhatisCommand,
-		help: `whatis name
+		help: `whatis *name*
 
 print information about *name* which can include a dotted variable name.
 `,

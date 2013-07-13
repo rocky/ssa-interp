@@ -12,7 +12,7 @@ func init() {
 	name := "help"
 	cmds[name] = &CmdInfo{
 		fn: HelpCommand,
-		help: `help [command | * | category]
+		help: `help [*command* | *category* | categories | * ]
 
 Without argument, print the list of available debugger commands.
 
@@ -21,7 +21,7 @@ is shown. Otherwise the argument is checked to see if it is command
 name. For example 'help up' gives help on the 'up' debugger command.
 
 If a category name is given, a list of commands in that category is
-shown.
+shown. For a list of categories, enter "help categories".
 `,
 
 		min_args: 0,
@@ -51,6 +51,11 @@ func HelpCommand(args []string) {
 			mems := strings.TrimRight(columnize.Columnize(names, opts),
 				"\n")
 			msg(mems)
+		} else if what == "categories" {
+			section("Categories")
+			for k, _ := range categories {
+				msg("\t %s", k)
+			}
 		} else if info := cmds[cmd]; info != nil {
 			msg(info.help)
 			if len(info.aliases) > 0 {
