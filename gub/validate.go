@@ -33,12 +33,12 @@ func getInt(arg string, what string, min int, max int) (int, error) {
 		return 0, err
 	}
 	if i < min {
-		errmsg("Expecting integer value to be at least %d; got %d.",
-			min, i)
+		errmsg("Expecting integer value %s to be at least %d; got %d.",
+			what, min, i)
         return 0, genericError
 	} else if i > max {
-        errmsg("Expecting integer value to be at most %d; got %d.",
-			max, i)
+        errmsg("Expecting integer value %s to be at most %d; got %d.",
+			what, max, i)
         return 0, genericError
 	}
 	return i, nil

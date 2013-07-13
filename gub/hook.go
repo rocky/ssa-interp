@@ -56,12 +56,15 @@ func computePrompt() string {
 
 
 // Call-back hook from interpreter. Contains top-level statement breakout
+// FIXME: remove instr
 func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
     gubLock.Lock()
     defer gubLock.Unlock()
 	traceEvent = event
 	if skipEvent(fr, event) { return }
 	frameInit(fr)
+	// FIXME: use
+	// genericInstr = fr.Block().Instrs[ic]
 	printLocInfo(topFrame, instr, event)
 
 	line := ""

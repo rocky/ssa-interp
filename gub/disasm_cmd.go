@@ -21,12 +21,27 @@ If a number is given that is the block number of the current frame.
 If "." is given we disassemble the current block only.
 `,
 		min_args: 0,
-		max_args: 1,
+		max_args: 2,
 	}
 	AddToCategory("inspecting", name)
 	AddAlias("disasm", name)
 }
 
+
+func DisasmInst(f *ssa2.Function, i int, inst int) {
+	if i < 0 || i >= len(f.Blocks) {
+		errmsg("Block number %d is out of range. Should be between 0..%d",
+			i, len(f.Blocks)-1)
+		return
+	}
+	b := f.Blocks[i]
+	if b == nil {
+		// Corrupt CFG.
+		msg(".nil:")
+		return
+	}
+	msg("%3d: %s",  i, ssa2.DisasmInst(b.Instrs[i], maxwidth))
+}
 
 func DisasmBlock(f *ssa2.Function, i int) {
 	if i < 0 || i >= len(f.Blocks) {
