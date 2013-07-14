@@ -127,7 +127,11 @@ func init() {
 	name := "goroutines"
 	cmds[name] = &CmdInfo{
 		fn: GoroutinesCommand,
-		help: "global [*name*]: show global variable info",
+		help: `goroutines [*id*]
+
+Without a parameter, list stack traces for each active goroutine. If an id
+is given only that goroutine stack trace is shown. The main (first) goroutine is 0.
+`,
 		min_args: 0,
 		max_args: 1,
 	}
