@@ -215,7 +215,7 @@ func ext۰reflect۰Value۰Kind(fn *Frame, args []Value) Value {
 
 func ext۰reflect۰Value۰String(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) string
-	return ToString(rV2V(args[0]))
+	return toString(rV2V(args[0]))
 }
 
 func ext۰reflect۰Value۰Type(fn *Frame, args []Value) Value {

@@ -32,6 +32,7 @@ func init() {
 		ssa2.PANIC      : "oX ",  // My attempt at skull and cross bones
 		ssa2.RANGE_STMT : "...",
 		ssa2.SELECT_TYPE: "sel",
+		ssa2.SWITCH_COND: "sw?",
 		ssa2.STMT_IN_LIST: "---",
 	}
 }

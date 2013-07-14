@@ -14,7 +14,18 @@ func (i  *interpreter) Global(name string, pkg *ssa2.Package)  (v *Value, ok boo
 	return
 }
 
+var i *interpreter
+
+func GetInterpreter() *interpreter {
+	return i
+}
+
 // interpreter accessors
+func (fr *Frame) Get(key ssa2.Value) Value { return fr.get(key) }
+func SetGlobal(i *interpreter, pkg *ssa2.Package, name string, v Value) {
+	setGlobal(i, pkg, name, v)
+}
+
 func (i *interpreter) Program() *ssa2.Program { return i.prog }
 func (i  *interpreter) Globals() map[ssa2.Value]*Value { return i.globals }
 func (i  *interpreter) GoTops() []*GoreState { return i.goTops }

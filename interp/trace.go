@@ -3,18 +3,27 @@ package interp
 import (
 	"fmt"
 	"github.com/rocky/ssa-interp"
+	"sync"
 )
 
-// Mode is a bitmask of options influencing the interpreter.
-type Mode uint
-
-// Mode is a bitmask of options influencing the tracing.
+// TraceMode is a bitmask of options influencing the tracing.
 type TraceMode uint
 
+type traceType int
+
 const (
-	// Disable recover() in target programs; show interpreter crash instead.
-	DisableRecover Mode = 1 << iota
+	TRACE_STEP_NONE = iota
+	TRACE_STEP_IN
+	TRACE_STEP_OVER
+	TRACE_STEP_OUT
 )
+
+var gocall sync.Mutex
+
+type GoreState struct {
+	Fr     *Frame
+	state  int  // running, finished, etc. Fill this in later
+}
 
 const (
 	// Print a trace of all instructions as they are interpreted.

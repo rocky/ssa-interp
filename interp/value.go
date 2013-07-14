@@ -434,7 +434,7 @@ func toWriter(w io.Writer, v Value) {
 }
 
 // Implements printing of Go Values in the style of built-in println.
-func ToString(v Value) string {
+func toString(v Value) string {
 	var b bytes.Buffer
 	toWriter(&b, v)
 	return b.String()

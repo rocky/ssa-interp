@@ -900,13 +900,13 @@ func callBuiltin(caller *Frame, callpos token.Pos, fn *ssa2.Builtin, args []Valu
 
 	case "print", "println": // print(anytype, ...interface{})
 		ln := fn.Name() == "println"
-		fmt.Print(ToString(args[0]))
+		fmt.Print(toString(args[0]))
 		if len(args) == 2 {
 			for _, arg := range args[1].([]Value) {
 				if ln {
 					fmt.Print(" ")
 				}
-				fmt.Print(ToString(arg))
+				fmt.Print(toString(arg))
 			}
 		}
 		if ln {
