@@ -508,9 +508,9 @@ func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.block)
 		}
 	block:
-		// rocky: may eventually want to change this
-		// if I want to allow a "skip" or "jump" command
-		for fr.pc, instr = range fr.block.Instrs {
+		// rocky: changed to allow for debugger "jump" command
+		for fr.pc = 0; fr.pc < len(fr.block.Instrs); fr.pc++ {
+			instr = fr.block.Instrs[fr.pc]
 			if InstTracing() {
 				fmt.Fprint(os.Stderr, fr.block.Index, fr.pc, "\t")
 				if v, ok := instr.(ssa2.Value); ok {

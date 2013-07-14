@@ -62,11 +62,12 @@ func DisasmBlock(f *ssa2.Function, i int) {
 
 
 func DisassembleCommand(args []string) {
-	myfn := curFrame.Fn()
+	fr := curFrame
+	myfn := fr.Fn()
 	if len(args) > 1 {
 		what := args[1]
 		if what == "." {
-			DisasmBlock(myfn, curFrame.Block().Index)
+			DisasmBlock(myfn, fr.Block().Index)
 			return
 		}
 		pkg  := myfn.Pkg
@@ -76,9 +77,10 @@ func DisassembleCommand(args []string) {
 			bnum, err := getInt(args[1],
 				"block number", 0, len(myfn.Blocks)-1)
 			if err == nil {
+				b := myfn.Blocks[bnum]
 				if len(args) == 3 {
-					ic, err := getInt(args[1],
-						"instruction number", 0, len(myfn.Blocks)-1)
+					ic, err := getInt(args[2],
+						"instruction number", 0, len(b.Instrs)-1)
 					if err == nil {
 						DisasmInst(myfn, bnum, ic)
 					}

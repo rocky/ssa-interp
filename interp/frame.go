@@ -96,5 +96,6 @@ func (fr *Frame) Locals() []Value { return fr.locals }
 func (fr *Frame) PC() int { return fr.pc }
 func (fr *Frame) PrevBlock() *ssa2.BasicBlock { return fr.prevBlock }
 func (fr *Frame) Result() Value { return fr.result }
+func (fr *Frame) SetPC(newpc int) { fr.pc = newpc }
 func (fr *Frame) StartP() token.Pos { return fr.startP }
 func (fr *Frame) Status() RunStatusType { return fr.status }

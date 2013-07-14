@@ -42,7 +42,7 @@ func BacktraceCommand(args []string) {
 	count := MAXSTACKSHOW
 	var err error
 	if len(args) > 1 {
-		count, err = getInt(args[1], "max count",
+		count, err = getInt(args[1], "maximum count",
 			0, MAXSTACKSHOW)
 		if err != nil { return }
 	}
