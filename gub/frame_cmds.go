@@ -67,11 +67,9 @@ See also 'up' and 'frame'.
 }
 
 func DownCommand(args []string) {
-	var count int
-	var err error
-	if len(args) == 1 {
-		frameIndex = 1
-	} else {
+	count := 1
+	if len(args) == 2 {
+		var err error
 		count, err = getInt(args[1],
 			"count", -MAXSTACKSHOW, MAXSTACKSHOW)
 		if err != nil { return }
@@ -177,11 +175,9 @@ See also 'down' and 'frame'.
 }
 
 func UpCommand(args []string) {
-	var count int
-	var err error
-	if len(args) == 1 {
-		frameIndex = 1
-	} else {
+	count := 1
+	if len(args) == 2 {
+		var err error
 		count, err = getInt(args[1],
 			"count", -MAXSTACKSHOW, MAXSTACKSHOW)
 		if err != nil { return }

@@ -1,0 +1,43 @@
+Running....
+Gub version 0.1
+Type 'h' for help
+->  main()
+testdata/gcd.go:24:6
+# Test of frame motion
+# Use with gcd.go
+# frame 0
+->  main()
+testdata/gcd.go:24:6
+# frame 10
+** Frame number 10 too large. Max is 0.
+# frame -1
+->  main()
+testdata/gcd.go:24:6
+# up
+** Adjusting would put us beyond the oldest frame.
+# down
+** Adjusting would put us beyond the newest frame.
+# break gcd
+ Breakpoint 0 set in function gcd at testdata/gcd.go:10:6
+Continuing...
+->  gcd()
+parameter a : int 5
+parameter b : int 3
+testdata/gcd.go:10:6
+Stepping...
+if? gcd()
+testdata/gcd.go:12:6-11
+if? gcd()
+testdata/gcd.go:12:6-11
+->  main()
+testdata/gcd.go:25:2-61
+->  main()
+testdata/gcd.go:25:2-61
+if? gcd()
+testdata/gcd.go:12:6-11
+** Adjusting would put us beyond the newest frame.
+if? gcd()
+testdata/gcd.go:12:6-11
+if? gcd()
+testdata/gcd.go:12:6-11
+gub: That's all folks...
