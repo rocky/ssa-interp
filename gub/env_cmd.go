@@ -2,20 +2,6 @@
 
 package gub
 
-import (
-	"github.com/rocky/ssa-interp"
-	"github.com/rocky/ssa-interp/interp"
-)
-
-func EnvLookup(fr *interp.Frame, name string) ssa2.Value {
-	for k := range curFrame.Env() {
-		if name == k.Name() {
-			return k
-		}
-	}
-	return nil
-}
-
 func init() {
 	name := "environment"
 	cmds[name] = &CmdInfo{
@@ -37,8 +23,8 @@ If *name* is supplied, only show that name.
 func EnvironmentCommand(args []string) {
 	if len(args) == 2 {
 		name := args[1]
-		if k := EnvLookup(curFrame, name); k != nil {
-			msg("%s: %s = %s", name, k, derefValue(curFrame.Env()[k]))
+		if k, v := EnvLookup(curFrame, name); k != nil {
+			msg("%s: %s = %s", name, k, v)
 		} else {
 			errmsg("Name %s not found in environment", name)
 		}

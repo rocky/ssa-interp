@@ -179,7 +179,7 @@ func init() {
 Delete a breakpoint by the number assigned to it.`,
 
 		min_args: 0,
-		max_args: 1000,
+		max_args: -1,
 	}
 	AddToCategory("breakpoints", name)
 	// Down the line we'll have abbrevs
@@ -215,7 +215,7 @@ func init() {
 Disable a breakpoint by the number assigned to it.`,
 
 		min_args: 0,
-		max_args: 1000,
+		max_args: -1,
 	}
 	AddToCategory("breakpoints", name)
 }
@@ -254,7 +254,7 @@ func init() {
 Enable a breakpoint by the number assigned to it.`,
 
 		min_args: 0,
-		max_args: 1000,
+		max_args: -1,
 	}
 	AddToCategory("breakpoints", name)
 }

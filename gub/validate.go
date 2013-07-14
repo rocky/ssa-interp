@@ -6,10 +6,10 @@ import "strconv"
 
 func argCountOK(min int, max int, args [] string) bool {
 	l := len(args)-1 // strip command name from count
-	if (l < min) {
+	if l < min {
 		errmsg("Too few args; need at least %d, got %d", min, l)
 		return false
-	} else if (l > max) {
+	} else if max > 0 && l > max {
 		errmsg("Too many args; need at most %d, got %d", max, l)
 		return false
 	}
@@ -36,7 +36,7 @@ func getInt(arg string, what string, min int, max int) (int, error) {
 		errmsg("Expecting integer value %s to be at least %d; got %d.",
 			what, min, i)
         return 0, genericError
-	} else if i > max {
+	} else if max > 0 && i > max {
         errmsg("Expecting integer value %s to be at most %d; got %d.",
 			what, max, i)
         return 0, genericError

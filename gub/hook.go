@@ -15,12 +15,14 @@ import (
 var cmdCount int = 0
 var traceEvent ssa2.TraceEvent
 
-
 var gubLock  sync.Mutex
 
 // Commands set inCmdLoop to "false" break out of debugger's read
 // command loop.
 var inCmdLoop bool
+
+// Some commands like "eval" next the exact text after the command
+var cmdArgstr string
 
 // if we are stopped by breakpoint, this is the breakpoint number.
 // Otherwise this is < 0.
@@ -89,6 +91,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		}
 
 		name := args[0]
+		cmdArgstr = strings.TrimLeft(line[len(name):], " ")
 		if newname := lookupCmd(name); newname != "" {
 			name = newname
 		}

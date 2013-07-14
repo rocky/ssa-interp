@@ -18,8 +18,9 @@ type testDatum struct {
 	baseName string
 }
 var testData = []testDatum {
-	{gofile: "gcd", baseName: "stepping"},
+	{gofile: "gcd",   baseName: "stepping"},
 	{gofile: "panic", baseName: "panic"},
+	{gofile: "expr",  baseName: "eval"},
 }
 
 // Runs debugger on go program with baseName. Then compares output.
@@ -29,6 +30,14 @@ func run(t *testing.T, test testDatum) bool {
 	goFile    := fmt.Sprintf("testdata%s%s.go",  slash, test.gofile)
 	rightName := fmt.Sprintf("testdata%s%s.right",  slash, test.baseName)
 	gubOpt    := fmt.Sprintf("-gub=-cmdfile=testdata%s%s.cmd", slash, test.baseName)
+
+	file, err := os.Open(goFile) // For read access.
+	file.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// fmt.Println("+++1", "../tortoise", "-run", "-interp=S", gubOpt, goFile)
 	got, err  := exec.Command("../tortoise", "-run", "-interp=S", gubOpt, goFile).Output()
 
 	if err != nil {

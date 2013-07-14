@@ -1,28 +1,18 @@
-// Copyright 2013 Rocky Bernstein.
-// evaluation support
-package gub
+package main
 
 import (
 	"fmt"
 	"strings"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"code.google.com/p/go.tools/go/exact"
-	"github.com/rocky/ssa-interp"
-	"github.com/rocky/ssa-interp/interp"
 )
 
-func EnvLookup(fr *interp.Frame, name string) (ssa2.Value, string) {
-	for k, v := range fr.Env() {
-		if name == k.Name() {
-			v := derefValue(v)
-			return k, v
-		}
-	}
-	return nil, ""
-}
+// ----------------------------------------------------------------------------
+// Support functions
 
-func Val(lit string) exact.Value {
+func val(lit string) exact.Value {
 	if len(lit) == 0 {
 		return exact.MakeUnknown()
 	}
@@ -52,16 +42,16 @@ func Val(lit string) exact.Value {
 	return exact.MakeFromLiteral(lit, tok)
 }
 
-func evalExpr(n ast.Node) exact.Value {
+func evalAction(n ast.Node) exact.Value {
 		switch e := n.(type) {
 		case *ast.BasicLit:
-			return Val(e.Value)
+			return val(e.Value)
 		case *ast.BinaryExpr:
-			x := evalExpr(e.X)
+			x := evalAction(e.X)
 			if x == nil {
 				return nil
 			}
-			y := evalExpr(e.Y)
+			y := evalAction(e.Y)
 			if y == nil {
 				return nil
 			}
@@ -75,18 +65,15 @@ func evalExpr(n ast.Node) exact.Value {
 				return exact.BinaryOp(x, e.Op, y)
 			}
 		case *ast.UnaryExpr:
-			return exact.UnaryOp(e.Op, evalExpr(e.X), -1)
+			return exact.UnaryOp(e.Op, evalAction(e.X), -1)
 		case *ast.CallExpr:
-			errmsg("Can't handle call (%s) yet at pos %d", e.Fun, e.Pos())
+			fmt.Printf("Can't handle call (%s) yet at pos %d\n", e.Fun, e.Pos())
 			return nil
 		case *ast.Ident:
-			if k, val := EnvLookup(curFrame, e.Name); k != nil {
-				return Val(val)
-			}
-			errmsg("Can't find value for id '%s' here at pos %d", e.Name, e.Pos())
+			fmt.Printf("Can't handle Ident %s here at pos %d\n", e.Name, e.Pos())
 			return nil
 		case *ast.ParenExpr:
-			return evalExpr(e.X)
+			return evalAction(e.X)
 		default:
 			fmt.Println("Can't handle")
 			fmt.Printf("n: %s, e: %s\n", n, e)
@@ -94,19 +81,34 @@ func evalExpr(n ast.Node) exact.Value {
 		}
 	}
 
-// Could something like this go into interp-ssa?
-func GetFunction(name string) *ssa2.Function {
-	pkg := curFrame.Fn().Pkg
-	ids := strings.Split(name, ".")
-	if len(ids) > 1 {
-		try_pkg := curFrame.I().Program().PackageByName(ids[0])
-		if try_pkg != nil { pkg = try_pkg }
-		m := pkg.Members[ids[1]]
-		if m == nil { return nil }
-		name = ids[1]
+func main() {
+	// src is the input for which we want to inspect the AST.
+	exprs := []string {
+		"f(3.14)*2 + c",
+		"-2  ",  // trailing spaces to be devius
+		" 5 == 6",
+		"5\t< 6", // that's a tab in there
+		"1+2",
+		"(1+2)*3",
+		"1 << n",
+		"1 << 8",
+		"y(",
 	}
-	if fn := pkg.Func(name); fn != nil {
-		return fn
+
+	for _, expr := range exprs {
+		// Create the AST by parsing expr.
+		f, err := parser.ParseExpr(expr)
+		if err != nil {
+			fmt.Printf("Error parsing %s: %s", expr, err.Error())
+			continue
+		}
+
+		// Inspect the AST and print all identifiers and literals.
+		if v := evalAction(f); v != nil {
+			fmt.Printf("Eval: '%s' ok; value: %s\n", expr, v)
+		} else {
+			fmt.Printf("Eval '%s' no good\n", expr)
+		}
+		fmt.Println("--------------")
 	}
-	return nil
 }

@@ -229,9 +229,9 @@ func WhatisName(name string) {
 		}
 	}
 
-	if k := EnvLookup(curFrame, name); k != nil {
+	if k, v := EnvLookup(curFrame, name); k != nil {
 		msg("%s is in the environment", name)
-		msg("\t%s = %s", k, derefValue(curFrame.Env()[k]))
+		msg("\t%s = %s", k, v)
 		return
 	}
 	if printIfLocal(curFrame, name) {return}
