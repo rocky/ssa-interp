@@ -86,12 +86,15 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 			msg("return void")
 		} else {
 			msg("return type: %s", fn.Signature.Results())
-			msg("return value: %s", interp.ToInspect(fr.Result()))
+			msg("return value: %s", deref2Str(fr.Result()))
 		}
 	case ssa2.CALL_ENTER:
 		for i, p := range fr.Fn().Params {
-			s := interp.ToInspect(fr.Env()[p])
-			msg("%s %s", fr.Fn().Params[i], s)
+			if val := fr.Env()[p]; val != nil {
+				msg("%s %s", fr.Fn().Params[i], deref2Str(val))
+			} else {
+				msg("%s nil", fr.Fn().Params[i])
+			}
 		}
 	case ssa2.PANIC:
 		// fmt.Printf("panic arg: %s\n", fr.Get(instr.X))

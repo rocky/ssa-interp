@@ -28,6 +28,7 @@ Print information about instruction
 func derefValue(v interp.Value) interp.Value {
 	switch v := v.(type) {
 	case *interp.Value:
+		if v == nil { return nil }
 		return *v
 	default:
 		return v
