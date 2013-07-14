@@ -31,7 +31,7 @@ func LocalsLookup(fr *interp.Frame, name string) int {
 func printLocal(fr *interp.Frame, i int) {
 	v := fr.Local(i)
 	l := fr.Fn().Locals[i]
-	msg("%3d:\t%s %s = %s", i, l.Name(), deref(l.Type()), interp.ToString(v))
+	msg("%3d:\t%s %s = %s", i, l.Name(), deref(l.Type()), interp.ToInspect(v))
 }
 
 func printIfLocal(fr *interp.Frame, varname string) bool {
@@ -57,7 +57,7 @@ func LocalsCommand(args []string) {
 		// FIXME: This really shouldn't be needed.
 		for i, v := range curFrame.Locals() {
 			if varname == curFrame.Fn().Locals[i].Name() {
-				msg("fixme %s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToString(v))
+				msg("fixme %s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToInspect(v))
 				break
 			}
 		}
@@ -70,13 +70,13 @@ func ParametersCommand(args []string) {
 	if !argCountOK(0, 1, args) { return }
 	if argc == 0 {
 		for i, p := range curFrame.Fn().Params {
-			msg("%s %s", curFrame.Fn().Params[i], interp.ToString(curFrame.Env()[p]))
+			msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))
 		}
 	} else {
 		varname := args[1]
 		for i, p := range curFrame.Fn().Params {
 			if varname == curFrame.Fn().Params[i].Name() {
-				msg("%s %s", curFrame.Fn().Params[i], interp.ToString(curFrame.Env()[p]))
+				msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))
 				break
 			}
 		}
@@ -98,7 +98,7 @@ func printConstantInfo(c *ssa2.Constant, name string, pkg *ssa2.Package) {
 	position := pkg.Prog.Fset.Position(mem.Pos())
 	msg("Constant %s is a constant at:", mem.Name())
 	msg("  " + ssa2.PositionRange(position, position))
-	msg("  %s %s", mem.Type(), interp.ToString(interp.LiteralValue(c.Value)))
+	msg("  %s %s", mem.Type(), interp.ToInspect(interp.LiteralValue(c.Value)))
 }
 
 func printFuncInfo(fn *ssa2.Function) {

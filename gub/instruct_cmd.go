@@ -28,15 +28,9 @@ Print information about instruction
 func derefValue(v interp.Value) string {
 	switch v := v.(type) {
 	case *interp.Value:
-		s := interp.ToString(*v)
-		y := *v
-		switch y.(type) {
-		case string:
-			s = "\"" + s + "\""
-		}
-		return s
+		return interp.ToInspect(*v)
 	default:
-		return interp.ToString(v)
+		return interp.ToInspect(v)
 	}
 }
 
@@ -79,6 +73,7 @@ func InstructCommand(args []string) {
 	case *ssa2.BinOp:
 		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
 		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.Y)))
+	case *ssa2.Trace:
 	default:
 		msg("Don't know how to deal with %s yet", instr)
 	}

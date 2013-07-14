@@ -39,7 +39,7 @@ func GlobalsCommand(args []string) {
 				if fmt.Sprintf("%s", k) == "reflect.lookupCache" {
 					continue
 				}
-				msg("%s: %s", k, interp.ToString(*v))
+				msg("%s: %s", k, interp.ToInspect(*v))
 			}
 		}
 	} else {
@@ -47,10 +47,10 @@ func GlobalsCommand(args []string) {
 		for i:=1; i<=argc; i++ {
 			vv := ssa2.NewLiteral(exact.MakeString(args[i]),
 				types.Typ[types.String], token.NoPos, token.NoPos)
-			// fmt.Println(vv, "vs", interp.ToString(vv))
+			// fmt.Println(vv, "vs", interp.ToInspect(vv))
 			v, ok := curFrame.I().Globals()[vv]
 			if ok {
-				msg("%s: %s", vv, interp.ToString(*v))
+				msg("%s: %s", vv, interp.ToInspect(*v))
 			}
 		}
 
@@ -65,7 +65,7 @@ func GlobalsCommand(args []string) {
 			vv := args[i]
 			v, ok := globals[vv]
 			if ok {
-				msg("%s: %s", vv, interp.ToString(*v))
+				msg("%s: %s", vv, interp.ToInspect(*v))
 			}
 		}
 	}
