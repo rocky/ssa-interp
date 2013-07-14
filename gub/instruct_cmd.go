@@ -25,13 +25,17 @@ Print information about instruction
 	aliases["instruct"] = name
 }
 
-func derefValue(v interp.Value) string {
+func derefValue(v interp.Value) interp.Value {
 	switch v := v.(type) {
 	case *interp.Value:
-		return interp.ToInspect(*v)
+		return *v
 	default:
-		return interp.ToInspect(v)
+		return v
 	}
+}
+
+func deref2Str(v interp.Value) string {
+	return interp.ToInspect(derefValue(v))
 }
 
 func InstructCommand(args []string) {
@@ -57,22 +61,22 @@ func InstructCommand(args []string) {
 	genericInstr := fr.Block().Instrs[ic]
 	switch instr := genericInstr.(type) {
 	case *ssa2.ChangeType:
-		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+		msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
 	case *ssa2.Convert:
-		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+		msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
 	case  *ssa2.MakeInterface:
-		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+		msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
 	case  *ssa2.ChangeInterface:
-		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+		msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
 	case  *ssa2.Range:
-		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+		msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
 	case *ssa2.UnOp:
-		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+		msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
 	case *ssa2.Field:
-		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
+		msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
 	case *ssa2.BinOp:
-		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.X)))
-		msg("%s: %s", instr.X.Name(), derefValue(fr.Get(instr.Y)))
+		msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
+		msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.Y)))
 	case *ssa2.Trace:
 	default:
 		msg("Don't know how to deal with %s yet", instr)

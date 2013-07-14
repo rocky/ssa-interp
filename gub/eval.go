@@ -15,7 +15,7 @@ import (
 func EnvLookup(fr *interp.Frame, name string) (ssa2.Value, string) {
 	for k, v := range fr.Env() {
 		if name == k.Name() {
-			v := derefValue(v)
+			v := deref2Str(v)
 			return k, v
 		}
 	}
@@ -58,13 +58,9 @@ func evalExpr(n ast.Node) exact.Value {
 			return Val(e.Value)
 		case *ast.BinaryExpr:
 			x := evalExpr(e.X)
-			if x == nil {
-				return nil
-			}
+			if x == nil { return nil }
 			y := evalExpr(e.Y)
-			if y == nil {
-				return nil
-			}
+			if y == nil { return nil }
 			switch e.Op {
 			case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
 				return exact.MakeBool(exact.Compare(x, e.Op, y))
@@ -87,6 +83,38 @@ func evalExpr(n ast.Node) exact.Value {
 			return nil
 		case *ast.ParenExpr:
 			return evalExpr(e.X)
+		case *ast.IndexExpr:
+			// FIXME: clean up this mess and put in a function
+			val := evalExpr(e.Index)
+			if val == nil { return nil }
+			if val.Kind() != exact.Int {
+				errmsg("Index at pos %d must be an unsigned integer",
+					e.Index.Pos())
+				return nil
+			}
+			var index uint64
+			var ok bool
+			if index, ok = exact.Uint64Val(val); !ok {
+				errmsg("Index at pos %d must be an unsigned integer",
+					e.Index.Pos())
+				return nil
+			}
+			switch id := e.X.(type) {
+			case *ast.Ident:
+				if k, _ := EnvLookup(curFrame, id.Name); k != nil {
+					val := derefValue(curFrame.Get(k))
+					ary := val.([]interp.Value)
+					if index < 0 || index >= uint64(len(ary)) {
+						errmsg("index %d out of bounds (0..%d)",
+							index, len(ary))
+						return nil
+					}
+					return Val(interp.ToInspect(ary[index]))
+				}
+			default:
+					errmsg("Can't handle index without a simple id before [] at pos %d", id.Pos())
+			}
+			return nil
 		default:
 			fmt.Println("Can't handle")
 			fmt.Printf("n: %s, e: %s\n", n, e)

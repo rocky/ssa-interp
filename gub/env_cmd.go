@@ -31,6 +31,6 @@ func EnvironmentCommand(args []string) {
 		return
 	}
 	for k, v := range curFrame.Env() {
-		msg("%s: %s = %s", k.Name(), k, derefValue(v))
+		msg("%s: %s = %s", k.Name(), k, deref2Str(v))
 	}
 }

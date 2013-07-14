@@ -8,6 +8,9 @@ import (
 	"github.com/rocky/ssa-interp"
 )
 
+// Shadows array type
+type Array []Value
+
 // Prints in the style of built-in println.
 // (More or less; in gc println is actually a compiler intrinsic and
 // can distinguish println(1) from println(interface{}(1)).)
