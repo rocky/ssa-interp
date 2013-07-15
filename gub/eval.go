@@ -52,6 +52,42 @@ func Val(lit string) exact.Value {
 	return exact.MakeFromLiteral(lit, tok)
 }
 
+func IndexExpr(e *ast.IndexExpr) exact.Value {
+	// FIXME: clean up this mess
+	val := evalExpr(e.Index)
+	if val == nil { return nil }
+	if val.Kind() != exact.Int {
+		errmsg("Index at pos %d must be an unsigned integer",
+			e.Index.Pos())
+		return nil
+	}
+	var index uint64
+	var ok bool
+	if index, ok = exact.Uint64Val(val); !ok {
+		errmsg("Index at pos %d must be an unsigned integer",
+			e.Index.Pos())
+		return nil
+	}
+	switch id := e.X.(type) {
+	case *ast.Ident:
+		if k, _ := EnvLookup(curFrame, id.Name); k != nil {
+			val := derefValue(curFrame.Get(k))
+			ary := val.([]interp.Value)
+			if index < 0 || index >= uint64(len(ary)) {
+				errmsg("index %d out of bounds (0..%d)",
+					index, len(ary))
+				return nil
+			}
+			return Val(interp.ToInspect(ary[index]))
+		}
+	default:
+		errmsg("Can't handle index without a simple id before [] at pos %d", id.Pos())
+	}
+	return nil
+}
+
+// FIXME: returning exact.Value down the line is probably not going to
+// cut it
 func evalExpr(n ast.Node) exact.Value {
 		switch e := n.(type) {
 		case *ast.BasicLit:
@@ -84,37 +120,7 @@ func evalExpr(n ast.Node) exact.Value {
 		case *ast.ParenExpr:
 			return evalExpr(e.X)
 		case *ast.IndexExpr:
-			// FIXME: clean up this mess and put in a function
-			val := evalExpr(e.Index)
-			if val == nil { return nil }
-			if val.Kind() != exact.Int {
-				errmsg("Index at pos %d must be an unsigned integer",
-					e.Index.Pos())
-				return nil
-			}
-			var index uint64
-			var ok bool
-			if index, ok = exact.Uint64Val(val); !ok {
-				errmsg("Index at pos %d must be an unsigned integer",
-					e.Index.Pos())
-				return nil
-			}
-			switch id := e.X.(type) {
-			case *ast.Ident:
-				if k, _ := EnvLookup(curFrame, id.Name); k != nil {
-					val := derefValue(curFrame.Get(k))
-					ary := val.([]interp.Value)
-					if index < 0 || index >= uint64(len(ary)) {
-						errmsg("index %d out of bounds (0..%d)",
-							index, len(ary))
-						return nil
-					}
-					return Val(interp.ToInspect(ary[index]))
-				}
-			default:
-					errmsg("Can't handle index without a simple id before [] at pos %d", id.Pos())
-			}
-			return nil
+			return IndexExpr(e)
 		default:
 			fmt.Println("Can't handle")
 			fmt.Printf("n: %s, e: %s\n", n, e)
