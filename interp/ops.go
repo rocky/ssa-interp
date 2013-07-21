@@ -23,7 +23,7 @@ type exitPanic int
 
 // literalValue returns the value of the literal with the
 // dynamic type tag appropriate for l.Type().
-func LiteralValue(l *ssa2.Literal) Value {
+func LiteralValue(l *ssa2.Const) Value {
 	if l.IsNil() {
 		return zero(l.Type()) // typed nil
 	}
@@ -1321,14 +1321,13 @@ func conv(t_dst, t_src types.Type, x Value) Value {
 // On success it returns "", on failure, an error message.
 //
 func checkInterface(i *interpreter, itype *types.Interface, x iface) string {
-	mset := findMethodSet(i, x.t)
-	it := itype.Underlying().(*types.Interface)
-	for i, n := 0, it.NumMethods(); i < n; i++ {
-		m := it.Method(i)
-		id := ssa2.MakeId(m.Name(), m.Pkg())
-		if mset[id] == nil {
-			return fmt.Sprintf("interface conversion: %v is not %v: missing method %v", x.t, itype, id)
+	if meth, wrongType := types.MissingMethod(x.t, itype); meth != nil {
+		reason := "is missing"
+		if wrongType {
+			reason = "has wrong type"
 		}
+		return fmt.Sprintf("interface conversion: %v is not %v: method %s %s",
+			x.t, itype, meth.Name(), reason)
 	}
 	return "" // ok
 }

@@ -11,6 +11,7 @@ import (
 
 	"code.google.com/p/go.tools/go/exact"
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/go/types/typemap"
 	"code.google.com/p/go.tools/importer"
 )
 
@@ -25,7 +26,7 @@ type Program struct {
 	mode            BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
-	methodSets          map[types.Type]MethodSet  // concrete method set each type [TODO(adonovan): de-dup]
+	methodSets          typemap.M                 // maps type to its concrete MethodSet
 	indirectionWrappers map[*Function]*Function   // func(*T) wrappers for T-methods
 	boundMethodWrappers map[*Function]*Function   // wrappers for curried x.Method closures
 	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
@@ -51,7 +52,7 @@ type Package struct {
 	locs   []LocInst            // slice of start source-code positions
 }
 
-// A Member is a member of a Go package, implemented by *Constant,
+// A Member is a member of a Go package, implemented by *NamedConst,
 // *Global, *Function, or *Type; they are created by package-level
 // const, var, func and type declarations respectively.
 //
@@ -101,18 +102,18 @@ type Type struct {
 	object *types.TypeName
 }
 
-// A Constant is a Member of Package representing a package-level
-// constant value.
+// A NamedConst is a Member of Package representing a package-level
+// named constant value.
 //
 // Pos() returns the position of the declaring ast.ValueSpec.Names[*]
 // identifier.
 //
-// NB: a Constant is not a Value; it contains a literal Value, which
+// NB: a NamedConst is not a Value; it contains a constant Value, which
 // it augments with the name and position of its 'const' declaration.
 //
-type Constant struct {
+type NamedConst struct {
 	object *types.Const
-	Value  *Literal
+	Value  *Const
 	pos    token.Pos
 }
 
@@ -124,7 +125,7 @@ type Value interface {
 	//
 	// This is the same as the source name for Parameters,
 	// Builtins, Functions, Captures, Globals and some Allocs.
-	// For literals, it is a representation of the literal's value
+	// For constants, it is a representation of the constant's value
 	// and type.  For all other Values this is the name of the
 	// virtual register defined by the instruction.
 	//
@@ -152,7 +153,7 @@ type Value interface {
 	//
 	// Referrers is currently only defined for the function-local
 	// values Capture, Parameter and all value-defining instructions.
-	// It returns nil for Function, Builtin, Literal and Global.
+	// It returns nil for Function, Builtin, Const and Global.
 	//
 	// Instruction.Operands contains the inverse of this relation.
 	Referrers() *[]Instruction
@@ -362,40 +363,40 @@ type Capture struct {
 //
 type Parameter struct {
 	name      string
+	object    types.Object // a *types.Var; nil for non-source locals
 	typ       types.Type
 	pos       token.Pos
 	parent    *Function
 	referrers []Instruction
 }
 
-// A Literal represents the value of a constant expression.
+// A Const represents the value of a constant expression.
 //
 // It may have a nil, boolean, string or numeric (integer, fraction or
 // complex) value, or a []byte or []rune conversion of a string
-// literal.
+// constant.
 //
-// Literals may be of named types.  A literal's underlying type can be
+// Consts may be of named types.  A constant's underlying type can be
 // a basic type, possibly one of the "untyped" types, or a slice type
-// whose elements' underlying type is byte or rune.  A nil literal can
+// whose elements' underlying type is byte or rune.  A nil constant can
 // have any reference type: interface, map, channel, pointer, slice,
 // or function---but not "untyped nil".
 //
-// All source-level constant expressions are represented by a Literal
+// All source-level constant expressions are represented by a Const
 // of equal type and value.
 //
-// Value holds the exact value of the literal, independent of its
+// Value holds the exact value of the constant, independent of its
 // Type(), using the same representation as package go/exact uses for
 // constants.
 //
-// Pos() returns the canonical position (see CanonicalPos) of the
-// originating constant expression, if explicit in the source.
+// Pos() returns token.NoPos.
 //
 // Example printed form:
 // 	42:int
 //	"hello":untyped string
 //	3+4i:MyComplex
 //
-type Literal struct {
+type Const struct {
 	typ   types.Type
 	Value exact.Value
 	pos   token.Pos
@@ -424,13 +425,14 @@ type Global struct {
 // A Builtin represents a built-in function, e.g. len.
 //
 // Builtins are immutable values.  Builtins do not have addresses.
+// Builtins can only appear in CallCommon.Func.
 //
 // Type() returns a *types.Builtin.
 // Built-in functions may have polymorphic or variadic types that are
 // not expressible in Go's type system.
 //
 type Builtin struct {
-	Object *types.Func // canonical types.Universe object for this built-in
+	object *types.Func // canonical types.Universe object for this built-in
 }
 
 // Value-defining instructions  ----------------------------------------
@@ -631,7 +633,7 @@ type ChangeInterface struct {
 // Use Program.MethodSet(X.Type()) to find the method-set of X.
 //
 // To construct the zero value of an interface type T, use:
-// 	NewLiteral(exact.MakeNil(), T, pos, end)
+// 	NewConst(exact.MakeNil(), T, pos)
 //
 // Pos() returns the ast.CallExpr.Lparen, if the instruction arose
 // from an explicit conversion in the source.
@@ -1148,12 +1150,34 @@ type MapUpdate struct {
 	pos   token.Pos
 }
 
+// A DebugRef instruction provides the position information for a
+// specific source-level reference that denotes the SSA value X.
+//
+// DebugRef is a pseudo-instruction: it has no dynamic effect.
+//
+// Pos() returns the ast.Ident or ast.Selector.Sel of the source-level
+// reference.
+//
+// Object() returns the source-level (var/const) object denoted by
+// that reference.
+//
+// (By representing these as instructions, rather than out-of-band,
+// consistency is maintained during transformation passes by the
+// ordinary SSA renaming machinery.)
+//
+type DebugRef struct {
+	anInstruction
+	X      Value        // the value whose position we're declaring
+	pos    token.Pos    // location of the reference
+	object types.Object // the identity of the source var/const
+}
+
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
 
 // Register is a mix-in embedded by all SSA values that are also
 // instructions, i.e. virtual registers, and provides implementations
 // of the Value interface's Name() and Type() methods: the name is
-// simply a numbered register (e.g. "t0") and the type is the Type_
+// simply a numbered register (e.g. "t0") and the type is the typ
 // field.
 //
 // Temporary names are automatically assigned to each Register on
@@ -1276,7 +1300,7 @@ func (c *CallCommon) StaticCallee() *Function {
 // have "invoke" mode.
 func (c *CallCommon) MethodId() Id {
 	m := c.Recv.Type().Underlying().(*types.Interface).Method(c.Method)
-	return MakeId(m.Name(), m.Pkg())
+	return makeId(m.Name(), m.Pkg())
 }
 
 // Description returns a description of the mode of this call suitable
@@ -1314,10 +1338,11 @@ func (s *Call) Value() *Call  { return s }
 func (s *Defer) Value() *Call { return nil }
 func (s *Go) Value() *Call    { return nil }
 
-func (v *Builtin) Type() types.Type        { return v.Object.Type() }
-func (v *Builtin) Name() string            { return v.Object.Name() }
+func (v *Builtin) Type() types.Type        { return v.object.Type() }
+func (v *Builtin) Name() string            { return v.object.Name() }
 func (*Builtin) Referrers() *[]Instruction { return nil }
 func (v *Builtin) Pos() token.Pos          { return token.NoPos }
+func (v *Builtin) Object() types.Object    { return v.object }
 
 func (v *Capture) Type() types.Type          { return v.typ }
 func (v *Capture) Name() string              { return v.name }
@@ -1341,6 +1366,7 @@ func (v *Function) Object() types.Object    { return v.object }
 
 func (v *Parameter) Type() types.Type          { return v.typ }
 func (v *Parameter) Name() string              { return v.name }
+func (v *Parameter) Object() types.Object      { return v.object }
 func (v *Parameter) Referrers() *[]Instruction { return &v.referrers }
 func (v *Parameter) Pos() token.Pos            { return v.pos }
 func (v *Parameter) Parent() *Function         { return v.parent }
@@ -1372,14 +1398,14 @@ func (t *Type) String() string {
 	return fmt.Sprintf("%s.%s", t.object.Pkg().Path(), t.object.Name())
 }
 
-func (c *Constant) Name() string   { return c.object.Name() }
-func (c *Constant) Pos() token.Pos { return c.object.Pos() }
-func (c *Constant) String() string {
+func (c *NamedConst) Name() string   { return c.object.Name() }
+func (c *NamedConst) Pos() token.Pos { return c.object.Pos() }
+func (c *NamedConst) String() string {
 	return fmt.Sprintf("%s.%s", c.object.Pkg().Path(), c.object.Name())
 }
-func (c *Constant) Type() types.Type     { return c.object.Type() }
-func (c *Constant) Token() token.Token   { return token.CONST }
-func (c *Constant) Object() types.Object { return c.object }
+func (c *NamedConst) Type() types.Type     { return c.object.Type() }
+func (c *NamedConst) Token() token.Token   { return token.CONST }
+func (c *NamedConst) Object() types.Object { return c.object }
 
 // Func returns the package-level function of the specified name,
 // or nil if not found.
@@ -1400,8 +1426,8 @@ func (p *Package) Var(name string) (g *Global) {
 // Const returns the package-level constant of the specified name,
 // or nil if not found.
 //
-func (p *Package) Const(name string) (c *Constant) {
-	c, _ = p.Members[name].(*Constant)
+func (p *Package) Const(name string) (c *NamedConst) {
+	c, _ = p.Members[name].(*NamedConst)
 	return
 }
 
@@ -1411,29 +1437,6 @@ func (p *Package) Const(name string) (c *Constant) {
 func (p *Package) Type(name string) (t *Type) {
 	t, _ = p.Members[name].(*Type)
 	return
-}
-
-// Value returns the program-level value corresponding to the
-// specified named object, which may be a universal built-in
-// (*Builtin) or a package-level var (*Global) or func (*Function) of
-// some package in prog.  It returns nil if the object is not found.
-//
-func (prog *Program) Value(obj types.Object) Value {
-	if p := obj.Pkg(); p != nil {
-		if pkg, ok := prog.packages[p]; ok {
-			return pkg.values[obj]
-		}
-		return nil
-	}
-	return prog.builtins[obj]
-}
-
-// Package returns the SSA package corresponding to the specified
-// type-checker package object.
-// It returns nil if no such SSA package has been created.
-//
-func (prog *Program) Package(pkg *types.Package) *Package {
-	return prog.packages[pkg]
 }
 
 func (v *Call) Pos() token.Pos      { return v.Call.pos }
@@ -1447,6 +1450,7 @@ func (s *Store) Pos() token.Pos     { return s.pos }
 func (s *If) Pos() token.Pos        { return token.NoPos }
 func (s *Jump) Pos() token.Pos      { return token.NoPos }
 func (s *RunDefers) Pos() token.Pos { return token.NoPos }
+func (s *DebugRef) Pos() token.Pos  { return s.pos }
 
 // Operands.
 
@@ -1488,6 +1492,10 @@ func (v *ChangeType) Operands(rands []*Value) []*Value {
 
 func (v *Convert) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
+}
+
+func (s *DebugRef) Operands(rands []*Value) []*Value {
+	return append(rands, &s.X)
 }
 
 func (v *Extract) Operands(rands []*Value) []*Value {

@@ -23,6 +23,7 @@ const (
 	SanityCheckFunctions                         // Perform sanity checking of function bodies
 	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
 	BuildSerially                                // Build packages serially, not in parallel.
+	DebugInfo                                    // Include DebugRef instructions [TODO(adonovan): finer grain?]
 )
 
 // NewProgram returns a new SSA Program initially containing no
@@ -39,7 +40,6 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 		PackagesByPath:      make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
 		builtins:            make(map[types.Object]*Builtin),
-		methodSets:          make(map[types.Type]MethodSet),
 		concreteMethods:     make(map[*types.Func]*Function),
 		indirectionWrappers: make(map[*Function]*Function),
 		boundMethodWrappers: make(map[*Function]*Function),
@@ -57,24 +57,6 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	return prog
 }
 
-// CreatePackages creates an SSA Package for each type-checker package
-// held by imp.  All such packages must be error-free.
-//
-// The created packages may be accessed via the Program.Packages field.
-//
-// A package in the 'created' state has its Members mapping populated,
-// but a subsequent call to Package.Build() or Program.BuildAll() is
-// required to build SSA code for the bodies of its functions.
-//
-func (prog *Program) CreatePackages(imp *importer.Importer) {
-	// TODO(adonovan): make this idempotent, so that a second call
-	// to CreatePackages creates only the packages that appeared
-	// in imp since the first.
-	for path, info := range imp.Packages {
-		createPackage(prog, path, info)
-	}
-}
-
 // memberFromObject populates package pkg with a member for the
 // typechecker object obj.
 //
@@ -89,10 +71,12 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		pkg.Members[name] = &Type{object: obj}
 
 	case *types.Const:
-		pkg.Members[name] = &Constant{
+		c := &NamedConst{
 			object: obj,
-			Value:  NewLiteral(obj.Val(), obj.Type(), obj.Pos(), obj.Pos()),
+			Value:  NewConst(obj.Val(), obj.Type(), token.NoPos, token.NoPos),
 		}
+		pkg.values[obj] = c.Value
+		pkg.Members[name] = c
 
 	case *types.Var:
 		spec, _ := syntax.(*ast.ValueSpec)
@@ -100,7 +84,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			Pkg:    pkg,
 			name:   name,
 			object: obj,
-			typ:    Pointer(obj.Type()), // address
+			typ:    types.NewPointer(obj.Type()), // address
 			pos:    obj.Pos(),
 			spec:   spec,
 		}
@@ -113,10 +97,9 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		if decl, ok := syntax.(*ast.FuncDecl); ok {
 			synthetic = ""
 			fs = &funcSyntax{
-				recvField:    decl.Recv,
-				paramFields:  decl.Type.Params,
-				resultFields: decl.Type.Results,
-				body:         decl.Body,
+				functype:  decl.Type,
+				recvField: decl.Recv,
+				body:      decl.Body,
 			}
 		}
 		sig := obj.Type().(*types.Signature)
@@ -143,7 +126,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			// Method declaration.
 			_, method := namedTypeMethodIndex(
 				deref(recv.Type()).(*types.Named),
-				MakeId(name, pkg.Object))
+				makeId(name, pkg.Object))
 			pkg.Prog.concreteMethods[method] = fn
 		}
 
@@ -202,13 +185,23 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 	}
 }
 
-// createPackage constructs an SSA Package from an error-free
-// package described by info, and populates its Members mapping.
+// CreatePackage constructs and returns an SSA Package from an
+// error-free package described by info, and populates its Members
+// mapping.
+//
+// Repeated calls with the same info returns the same Package.
 //
 // The real work of building SSA form for each function is not done
 // until a subsequent call to Package.Build().
 //
-func createPackage(prog *Program, importPath string, info *importer.PackageInfo) {
+func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
+	if info.Err != nil {
+		panic(fmt.Sprintf("package %s has errors: %s", info, info.Err))
+	}
+	if p := prog.packages[info.Pkg]; p != nil {
+		return p // already loaded
+	}
+
 	p := &Package{
 		Prog:    prog,
 		Members: make(map[string]Member),
@@ -248,11 +241,11 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 			if obj, ok := obj.(*types.TypeName); ok {
 				mset := types.NewMethodSet(obj.Type())
 				for i, n := 0, mset.Len(); i < n; i++ {
-					memberFromObject(p, mset.At(i), nil)
+					memberFromObject(p, mset.At(i).Func, nil)
 				}
 				mset = types.NewMethodSet(types.NewPointer(obj.Type()))
 				for i, n := 0, mset.Len(); i < n; i++ {
-					memberFromObject(p, mset.At(i), nil)
+					memberFromObject(p, mset.At(i).Func, nil)
 				}
 			}
 			memberFromObject(p, obj, nil)
@@ -263,7 +256,7 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 	initguard := &Global{
 		Pkg:  p,
 		name: "init$guard",
-		typ:  Pointer(tBool),
+		typ:  types.NewPointer(tBool),
 	}
 	p.Members[initguard.Name()] = initguard
 
@@ -271,10 +264,12 @@ func createPackage(prog *Program, importPath string, info *importer.PackageInfo)
 		p.DumpTo(os.Stderr)
 	}
 
-	prog.PackagesByPath[importPath] = p
+	prog.PackagesByPath[info.Pkg.Path()] = p
 	prog.packages[p.Object] = p
 
 	if prog.mode&SanityCheckFunctions != 0 {
 		sanityCheckPackage(p)
 	}
+
+	return p
 }

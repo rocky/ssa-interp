@@ -1,5 +1,7 @@
 package ssa2
 
+import "fmt"
+
 /*
 
 This file contains definitions beyond func.go need for the gub
@@ -26,4 +28,32 @@ func (f *Function) PositionRange() string {
 		return PositionRange(fset.Position(start), fset.Position(end))
 	}
 	return "-"
+}
+
+func DisasmInst(instr Instruction, width int) string {
+
+	s := "\t"
+	switch v := instr.(type) {
+	case Value:
+		l := width
+		// Left-align the instruction.
+		if name := v.Name(); name != "" {
+			lhs := name + " = "
+			l -= len(lhs)
+			s += lhs
+		}
+		rhs := instr.String()
+		s += rhs
+		l -= len(rhs)
+		// Right-align the type.
+		if t := v.Type(); t != nil {
+			s += fmt.Sprintf(" %*s", l-10, t)
+		}
+	case nil:
+		// Be robust against bad transforms.
+		s += "<deleted>"
+	default:
+		s += instr.String()
+	}
+	return s
 }

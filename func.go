@@ -145,10 +145,9 @@ type lblock struct {
 
 // funcSyntax holds the syntax tree for the function declaration and body.
 type funcSyntax struct {
-	recvField    *ast.FieldList
-	paramFields  *ast.FieldList
-	resultFields *ast.FieldList
-	body         *ast.BlockStmt
+	recvField *ast.FieldList
+	body      *ast.BlockStmt
+	functype  *ast.FuncType
 }
 
 // labelledBlock returns the branch target associated with the
@@ -185,7 +184,9 @@ func (f *Function) addParamObj(obj types.Object) *Parameter {
 	if name == "" {
 		name = fmt.Sprintf("arg%d", len(f.Params))
 	}
-	return f.addParam(name, obj.Type(), obj.Pos())
+	param := f.addParam(name, obj.Type(), obj.Pos())
+	param.object = obj
+	return param
 }
 
 // addSpilledParam declares a parameter that is pre-spilled to the
@@ -196,7 +197,7 @@ func (f *Function) addSpilledParam(obj types.Object) {
 	param := f.addParamObj(obj)
 	spill := &Alloc{
 		name: obj.Name() + "~", // "~" means "spilled"
-		typ:  Pointer(obj.Type()),
+		typ:  types.NewPointer(obj.Type()),
 		pos:  obj.Pos(),
 	}
 	f.objects[obj] = spill
@@ -239,9 +240,9 @@ func (f *Function) createSyntacticParams() {
 	}
 
 	// Parameters.
-	if f.syntax.paramFields != nil {
+	if f.syntax.functype.Params != nil {
 		n := len(f.Params) // 1 if has recv, 0 otherwise
-		for _, field := range f.syntax.paramFields.List {
+		for _, field := range f.syntax.functype.Params.List {
 			for _, n := range field.Names {
 				f.addSpilledParam(f.Pkg.objectOf(n))
 			}
@@ -253,8 +254,8 @@ func (f *Function) createSyntacticParams() {
 	}
 
 	// Named results.
-	if f.syntax.resultFields != nil {
-		for _, field := range f.syntax.resultFields.List {
+	if f.syntax.functype.Results != nil {
+		for _, field := range f.syntax.functype.Results.List {
 			// Implicit "var" decl of locals for named results.
 			for _, n := range field.Names {
 				f.namedResults = append(f.namedResults, f.addLocalForIdent(n))
@@ -374,6 +375,12 @@ func (f *Function) removeNilBlocks() {
 	f.Blocks = f.Blocks[:j]
 }
 
+// debugInfo reports whether debug info is wanted for this function.
+func (f *Function) debugInfo() bool {
+	// TODO(adonovan): make the policy finer grained.
+	return f.Prog.mode&DebugInfo != 0
+}
+
 // addNamedLocal creates a local variable, adds it to function f and
 // returns it.  Its name and type are taken from obj.  Subsequent
 // calls to f.lookup(obj) will return the same local.
@@ -400,7 +407,7 @@ func (f *Function) addLocalForIdent(id *ast.Ident) *Alloc {
 // to function f and returns it.  pos is the optional source location.
 //
 func (f *Function) addLocal(typ types.Type, pos token.Pos) *Alloc {
-	v := &Alloc{typ: Pointer(typ), pos: pos}
+	v := &Alloc{typ: types.NewPointer(typ), pos: pos}
 	f.Locals = append(f.Locals, v)
 	f.emit(v)
 	return v
@@ -458,11 +465,7 @@ func (f *Function) emit(instr Instruction) Value {
 //      "func@5.32"                 // an anonymous function
 //      "bound$(*T).f"              // a bound method wrapper
 //
-func (f *Function) FullName() string {
-	return f.fullName(nil)
-}
-
-// Like FullName, but if from==f.Pkg, suppress package qualification.
+// If from==f.Pkg, suppress package qualification.
 func (f *Function) fullName(from *Package) string {
 	// TODO(adonovan): expose less fragile case discrimination.
 
@@ -541,44 +544,16 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
 	}
 }
 
-func DisasmInst(instr Instruction, width int) string {
-
-	s := "\t"
-	switch v := instr.(type) {
-	case Value:
-		l := width
-		// Left-align the instruction.
-		if name := v.Name(); name != "" {
-			lhs := name + " = "
-			l -= len(lhs)
-			s += lhs
-		}
-		rhs := instr.String()
-		s += rhs
-		l -= len(rhs)
-		// Right-align the type.
-		if t := v.Type(); t != nil {
-			s += fmt.Sprintf(" %*s", l-10, t)
-		}
-	case nil:
-		// Be robust against bad transforms.
-		s += "<deleted>"
-	default:
-		s += instr.String()
-	}
-	return s
-}
-
 // DumpTo prints to w a human readable "disassembly" of the SSA code of
 // all basic blocks of function f.
 //
 func (f *Function) DumpTo(w io.Writer) {
-	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
-	ps := f.PositionRange()
-	if ps != "-" {
-		fmt.Fprintf(w, "# Located at %s\n", ps)
-	} else {
-		fmt.Fprintln(w, "# Synthetic")
+	fmt.Fprintf(w, "# Name: %s\n", f.String())
+	if syn := f.Synthetic; syn != "" {
+		fmt.Fprintln(w, "# Synthetic:", syn)
+	}
+	if pos := f.Pos(); pos.IsValid() {
+		fmt.Fprintf(w, "# Located at %s\n", f.PositionRange())
 	}
 
 	if f.Enclosing != nil {

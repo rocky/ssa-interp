@@ -47,7 +47,7 @@ func relName(v Value, i Instruction) string {
 // This method is provided only for debugging.
 // It never appears in disassembly, which uses Value.Name().
 
-func (v *Literal) String() string {
+func (v *Const) String() string {
 	return v.Name()
 }
 
@@ -68,7 +68,7 @@ func (v *Builtin) String() string {
 }
 
 func (v *Function) String() string {
-	return v.FullName()
+	return v.fullName(nil)
 }
 
 // FullName returns g's package-qualified name.
@@ -355,6 +355,11 @@ func (s *MapUpdate) String() string {
 	return fmt.Sprintf("%s[%s] = %s", relName(s.Map, s), relName(s.Key, s), relName(s.Value, s))
 }
 
+func (s *DebugRef) String() string {
+	p := s.Parent().Prog.Fset.Position(s.pos)
+	return fmt.Sprintf("; %s is %s @ %d:%d", s.X.Name(), s.object, p.Line, p.Column)
+}
+
 func (p *Package) String() string {
 	return "package " + p.Object.Path()
 }
@@ -374,7 +379,7 @@ func (p *Package) DumpTo(w io.Writer) {
 	sort.Strings(names)
 	for _, name := range names {
 		switch mem := p.Members[name].(type) {
-		case *Constant:
+		case *NamedConst:
 			fmt.Fprintf(w, "  const %-*s %s = %s\n", maxname, name, mem.Name(), mem.Value.Name())
 
 		case *Function:
@@ -387,8 +392,8 @@ func (p *Package) DumpTo(w io.Writer) {
 			// methods themselves may differ,
 			// e.g. promotion wrappers.
 			// NB: if mem.Type() is a pointer, mset is empty.
-			mset := p.Prog.MethodSet(Pointer(mem.Type()))
-			var keys Ids
+			mset := p.Prog.MethodSet(types.NewPointer(mem.Type()))
+			var keys ids
 			for id := range mset {
 				keys = append(keys, id)
 			}

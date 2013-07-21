@@ -105,6 +105,9 @@ func findMethodSet(i *interpreter, typ types.Type) ssa2.MethodSet {
 // read the next instruction from.
 func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 	switch instr := genericInstr.(type) {
+	case *ssa2.DebugRef:
+		// no-op
+
 	case *ssa2.UnOp:
 		fr.env[instr] = unop(instr, fr.get(instr.X))
 
@@ -409,12 +412,12 @@ func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 	if InstTracing() {
 		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
-		fmt.Fprintf(os.Stderr, "\tEntering %s%s.\n", fn.FullName(), loc(fset, fn.Pos()))
+		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn, loc(fset, fn.Pos()))
 		suffix := ""
 		if caller != nil {
 			suffix = ", resuming " + caller.fn.String() + loc(fset, callpos)
 		}
-		defer fmt.Fprintf(os.Stderr, "\tLeaving %s%s.\n", fn.FullName(), suffix)
+		defer fmt.Fprintf(os.Stderr, "Leaving %s%s.\n", fn, suffix)
 	}
 	if fn.Enclosing == nil {
 		name := fn.String()
@@ -498,9 +501,9 @@ func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 			if InstTracing() {
 				fmt.Fprint(os.Stderr, fr.block.Index, fr.pc, "\t")
 				if v, ok := instr.(ssa2.Value); ok {
-					fmt.Fprintln(os.Stderr, v.Name(), "=", instr)
+					fmt.Fprintln(os.Stderr, "\t", v.Name(), "=", instr)
 				} else {
-					fmt.Fprintln(os.Stderr, instr)
+					fmt.Fprintln(os.Stderr, "\t", instr)
 				}
 			}
 			switch visitInstr(fr, instr) {

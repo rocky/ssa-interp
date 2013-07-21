@@ -3,8 +3,10 @@ package ssa2
 // Helpers for emitting SSA instructions.
 
 import (
-	"go/token"
 	"fmt"
+	"go/ast"
+	"go/token"
+
 	"code.google.com/p/go.tools/go/types"
 )
 
@@ -16,7 +18,7 @@ const (
 //
 func emitNew(f *Function, typ types.Type, pos token.Pos) Value {
 	return f.emit(&Alloc{
-		typ:  Pointer(typ),
+		typ:  types.NewPointer(typ),
 		Heap: true,
 		pos:  pos,
 	})
@@ -30,6 +32,27 @@ func emitLoad(f *Function, addr Value) *UnOp {
 	v.setType(deref(addr.Type()))
 	f.emit(v)
 	return v
+}
+
+// emitDebugRef emits to f a DebugRef pseudo-instruction associating
+// reference id with local var/const value v.
+//
+func emitDebugRef(f *Function, id *ast.Ident, v Value) {
+	if !f.debugInfo() {
+		return // debugging not enabled
+	}
+	if isBlankIdent(id) {
+		return
+	}
+	obj := f.Pkg.objectOf(id)
+	if obj.Parent() == types.Universe {
+		return // skip nil/true/false
+	}
+	f.emit(&DebugRef{
+		X:      v,
+		pos:    id.Pos(),
+		object: obj,
+	})
 }
 
 // emitArith emits to f code to compute the binary operation op(x, y)
@@ -91,9 +114,9 @@ func emitCompare(f *Function, op token.Token, x, y Value, pos token.Pos) Value {
 		y = emitConv(f, y, x.Type())
 	} else if _, ok := yt.(*types.Interface); ok {
 		x = emitConv(f, x, y.Type())
-	} else if _, ok := x.(*Literal); ok {
+	} else if _, ok := x.(*Const); ok {
 		x = emitConv(f, x, y.Type())
-	} else if _, ok := y.(*Literal); ok {
+	} else if _, ok := y.(*Const); ok {
 		y = emitConv(f, y, x.Type())
 	} else {
 		// other cases, e.g. channels.  No-op.
@@ -169,13 +192,12 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 			return emitTypeAssert(f, val, typ, token.NoPos)
 		}
 
-		// Untyped nil literal?  Return interface-typed nil literal.
+		// Untyped nil constant?  Return interface-typed nil constant.
 		if ut_src == tUntypedNil {
-			return nilLiteral(typ)
+			return nilConst(typ)
 		}
 
 		// Convert (non-nil) "untyped" literals to their default type.
-		// TODO(gri): expose types.isUntyped().
 		if t, ok := ut_src.(*types.Basic); ok && t.Info()&types.IsUntyped != 0 {
 			val = emitConv(f, val, DefaultType(ut_src))
 		}
@@ -185,13 +207,13 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 		return f.emit(mi)
 	}
 
-	// Conversion of a literal to a non-interface type results in
-	// a new literal of the destination type and (initially) the
+	// Conversion of a constant to a non-interface type results in
+	// a new constant of the destination type and (initially) the
 	// same abstract value.  We don't compute the representation
 	// change yet; this defers the point at which the number of
 	// possible representations explodes.
-	if l, ok := val.(*Literal); ok {
-		return NewLiteral(l.Value, typ, l.Pos(), l.Pos())
+	if c, ok := val.(*Const); ok {
+		return NewConst(c.Value, typ, c.pos, c.end)
 	}
 
 	// A representation-changing conversion.

@@ -45,7 +45,7 @@ func GlobalsCommand(args []string) {
 	} else {
 		// This doesn't work and I don't know how to fix it.
 		for i:=1; i<=argc; i++ {
-			vv := ssa2.NewLiteral(exact.MakeString(args[i]),
+			vv := ssa2.NewConst(exact.MakeString(args[i]),
 				types.Typ[types.String], token.NoPos, token.NoPos)
 			// fmt.Println(vv, "vs", interp.ToInspect(vv))
 			v, ok := curFrame.I().Globals()[vv]

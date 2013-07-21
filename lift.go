@@ -426,7 +426,7 @@ func replaceAll(x, y Value) {
 func renamed(renaming []Value, alloc *Alloc) Value {
 	v := renaming[alloc.index]
 	if v == nil {
-		v = zeroLiteral(deref(alloc.Type()))
+		v = zeroConst(deref(alloc.Type()))
 		renaming[alloc.index] = v
 	}
 	return v

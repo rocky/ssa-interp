@@ -19,6 +19,7 @@ import (
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
 The value is a sequence of zero or more of these letters:
 C	perform sanity [C]hecking of the SSA form.
+D	include debug info for every function.
 P	log [P]ackage inventory.
 F	log [F]unction SSA code.
 S	log [S]ource locations as SSA builder progresses.
@@ -61,6 +62,8 @@ func main() {
 
 	for _, c := range *buildFlag {
 		switch c {
+		case 'D':
+			mode |= ssa2.DebugInfo
 		case 'P':
 			mode |= ssa2.LogPackages | ssa2.BuildSerially
 		case 'F':
@@ -119,7 +122,9 @@ func main() {
 
 	// Create and build SSA-form program representation.
 	prog := ssa2.NewProgram(imp.Fset, mode)
-	prog.CreatePackages(imp)
+	for _, info := range imp.Packages {
+		prog.CreatePackage(info)
+	}
 	prog.BuildAll()
 
 	// Run the interpreter.

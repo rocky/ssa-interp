@@ -2,8 +2,8 @@ package ssa2_test
 
 import (
 	"code.google.com/p/go.tools/importer"
-	"fmt"
 	"github.com/rocky/ssa-interp"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"os"
@@ -47,16 +47,18 @@ func main() {
 	}
 
 	// Create a "main" package containing one file.
-	info, err := imp.CreateSourcePackage("main", []*ast.File{file})
-	if err != nil {
-		fmt.Printf(err.Error()) // type error
+	info := imp.CreateSourcePackage("main", []*ast.File{file})
+	if info.Err != nil {
+		fmt.Printf(info.Err.Error()) // type error
 		return
 	}
 
 	// Create SSA-form program representation.
 	var mode ssa2.BuilderMode
 	prog := ssa2.NewProgram(imp.Fset, mode)
-	prog.CreatePackages(imp)
+	for _, info := range imp.Packages {
+		prog.CreatePackage(info)
+	}
 	mainPkg := prog.Package(info.Pkg)
 
 	// Print out the package.
@@ -79,7 +81,7 @@ func main() {
 	//   const message    message = "Hello, World!":untyped string
 	//
 	// # Name: main.init
-	// # Synthetic
+	// # Synthetic: package initializer
 	// func init():
 	// .0.entry:                                                               P:0 S:2
 	// 	t0 = *init$guard                                                   bool

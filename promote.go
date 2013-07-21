@@ -9,7 +9,7 @@ package ssa2
 // - bound method wrappers, for uncalled obj.Method closures.
 // - indirection wrappers, for calls to T-methods on a *T receiver.
 
-// TODO(adonovan): rename to methods.go.
+// TODO(adonovan): rename to wrappers.go when promotion logic has evaporated.
 
 import (
 	"code.google.com/p/go.tools/go/types"
@@ -80,14 +80,13 @@ type candidate struct {
 	path   *anonFieldPath // desugared selector path
 }
 
-// For debugging.
 func (c candidate) String() string {
 	s := ""
 	// Inefficient!
 	for p := c.path; p != nil; p = p.tail {
 		s = "." + p.field.Name() + s
 	}
-	return "@" + s + "." + c.method.Name()
+	return s + "." + c.method.Name()
 }
 
 func (c candidate) isConcrete() bool {
@@ -117,19 +116,18 @@ func (p *Program) MethodSet(typ types.Type) MethodSet {
 	p.methodsMu.Lock()
 	defer p.methodsMu.Unlock()
 
-	// TODO(adonovan): Using Types as map keys doesn't properly
-	// de-dup.  e.g. *Named are canonical but *Struct and
-	// others are not.  Need to de-dup using typemap.T.
-	mset := p.methodSets[typ]
+	mset := p.methodSets.At(typ)
 	if mset == nil {
 		mset = buildMethodSet(p, typ)
-		p.methodSets[typ] = mset
+		p.methodSets.Set(typ, mset)
 	}
-	return mset
+	return mset.(MethodSet)
 }
 
 // buildMethodSet computes the concrete method set for type typ.
 // It is the implementation of Program.MethodSet.
+//
+// TODO(adonovan): use go/types.MethodSet(typ) when it's ready.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(meth.Prog.methodsMu)
 //
@@ -178,7 +176,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 			case *types.Struct:
 				for i, n := 0, t.NumFields(); i < n; i++ {
 					f := t.Field(i)
-					nextcands[MakeId(f.Name(), f.Pkg())] = nil // a field: block id
+					nextcands[makeId(f.Name(), f.Pkg())] = nil // a field: block id
 					// Queue up anonymous fields for next iteration.
 					// Break cycles to ensure termination.
 					if f.Anonymous() && !node.contains(f) {
@@ -246,7 +244,7 @@ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
 // If a map entry already exists (whether nil or not), its value is set to nil.
 //
 func addCandidate(m map[Id]*candidate, method *types.Func, node *anonFieldPath) {
-	id := MakeId(method.Name(), method.Pkg())
+	id := makeId(method.Name(), method.Pkg())
 	prev, found := m[id]
 	switch {
 	case prev != nil:
@@ -287,13 +285,13 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 	// TODO(adonovan): consult memoization cache keyed by (typ, cand).
 	// Needs typemap.  Also needs hash/eq functions for 'candidate'.
 	if prog.mode&LogSource != 0 {
-		defer logStack("promotionWrapper %s, %s, type %s", typ, cand, sig)()
+		defer logStack("promotionWrapper (%s)%s, type %s", typ, cand, sig)()
 	}
 	// TODO(adonovan): is there a *types.Func for this function?
 	fn := &Function{
 		name:      cand.method.Name(),
 		Signature: sig,
-		Synthetic: "promotion wrapper for " + cand.String(),
+		Synthetic: fmt.Sprintf("promotion wrapper for (%s)%s", typ, cand),
 		Breakpoint: false,
 		LocalsByName: make(map[string]int),
 		Prog:      prog,
@@ -322,7 +320,7 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 			X:     v,
 			Field: p.index,
 		}
-		sel.setType(Pointer(p.field.Type()))
+		sel.setType(types.NewPointer(p.field.Type()))
 		v = fn.emit(sel)
 		if isPointer(p.field.Type()) {
 			v = emitLoad(fn, v)
@@ -338,7 +336,7 @@ func promotionWrapper(prog *Program, typ types.Type, cand *candidate) *Function 
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
 		iface := v.Type().Underlying().(*types.Interface)
-		id := MakeId(cand.method.Name(), cand.method.Pkg())
+		id := makeId(cand.method.Name(), cand.method.Pkg())
 		c.Call.Method, _ = interfaceMethodIndex(iface, id)
 		c.Call.Recv = v
 	}
@@ -458,7 +456,7 @@ func boundMethodWrapper(meth *Function) *Function {
 		}
 		s := meth.Signature
 		fn = &Function{
-			name:      "bound$" + meth.FullName(),
+			name:      "bound$" + meth.String(),
 			Signature: types.NewSignature(nil, s.Params(), s.Results(), s.IsVariadic()), // drop recv
 			Synthetic: "bound method wrapper for " + meth.String(),
 			Prog:      prog,

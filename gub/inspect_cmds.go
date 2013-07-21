@@ -93,16 +93,16 @@ func VariableCommand(args []string) {
 
 }
 
-func printConstantInfo(c *ssa2.Constant, name string, pkg *ssa2.Package) {
+func printConstantInfo(c *ssa2.NamedConst, name string, pkg *ssa2.Package) {
 	mem := pkg.Members[name]
 	position := pkg.Prog.Fset.Position(mem.Pos())
 	msg("Constant %s is a constant at:", mem.Name())
 	msg("  " + ssa2.PositionRange(position, position))
-	msg("  %s %s", mem.Type(), interp.ToInspect(interp.LiteralValue(c.Value)))
+	msg("  %s %s", mem.Type(), interp.ToInspect(c.Value))
 }
 
 func printFuncInfo(fn *ssa2.Function) {
-	msg("%s is a function at:", fn.FullName())
+	msg("%s is a function at:", fn.String())
 	ps := fn.PositionRange()
 	if ps == "-" {
 		msg("\tsynthetic function (no position)")
@@ -195,7 +195,7 @@ func printTypeInfo(name string, pkg *ssa2.Package) {
 	// methods themselves may differ,
 	// e.g. promotion wrappers.
 	// NB: if mem.Type() is a pointer, mset is empty.
-	mset := pkg.Prog.MethodSet(ssa2.Pointer(mem.Type()))
+	mset := pkg.Prog.MethodSet(types.NewPointer(mem.Type()))
 	var keys ssa2.Ids
 	for id := range mset {
 		keys = append(keys, id)

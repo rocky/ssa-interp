@@ -42,14 +42,16 @@ func main() {
 		return
 	}
 
-	info, err := imp.CreateSourcePackage("main", []*ast.File{f})
-	if err != nil {
-		t.Error(err.Error())
+	info := imp.CreateSourcePackage("main", []*ast.File{f})
+	if info.Err != nil {
+		t.Error(info.Err.Error())
 		return
 	}
 
 	prog := ssa2.NewProgram(imp.Fset, ssa2.SanityCheckFunctions)
-	prog.CreatePackages(imp)
+	for _, info := range imp.Packages {
+		prog.CreatePackage(info)
+	}
 	mainPkg := prog.Package(info.Pkg)
 	mainPkg.Build()
 
@@ -69,9 +71,9 @@ func main() {
 		isExt := pkg != mainPkg
 
 		// init()
-		if isExt && !isEmpty(pkg.Init) {
+		if isExt && !isEmpty(pkg.Func("init")) {
 			t.Errorf("external package %s has non-empty init", pkg)
-		} else if !isExt && isEmpty(pkg.Init) {
+		} else if !isExt && isEmpty(pkg.Func("init")) {
 			t.Errorf("main package %s has empty init", pkg)
 		}
 
