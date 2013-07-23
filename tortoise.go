@@ -91,6 +91,7 @@ func main() {
 			interpMode |= interp.DisableRecover
 		case 'S':
 			interpTraceMode |= interp.EnableStmtTracing
+			mode |= ssa2.DebugInfo
 		case 'T':
 			interpTraceMode |= interp.EnableTracing
 		default:
