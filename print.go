@@ -13,13 +13,6 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-func (id Id) String() string {
-	if id.Pkg == nil {
-		return id.Name
-	}
-	return fmt.Sprintf("%s/%s", id.Pkg.Path(), id.Name)
-}
-
 // relName returns the name of v relative to i.
 // In most cases, this is identical to v.Name(), but for references to
 // Functions (including methods) and Globals, the FullName is used
@@ -392,12 +385,16 @@ func (p *Package) DumpTo(w io.Writer) {
 			// methods themselves may differ,
 			// e.g. promotion wrappers.
 			// NB: if mem.Type() is a pointer, mset is empty.
+			//
+			// TODO(adonovan): opt: avoid constructing the
+			// entire ssa2.MethodSet by using the
+			// types.MethodSet if possible.
 			mset := p.Prog.MethodSet(types.NewPointer(mem.Type()))
-			var keys ids
+			var keys []string
 			for id := range mset {
 				keys = append(keys, id)
 			}
-			sort.Sort(keys)
+			sort.Strings(keys)
 			for _, id := range keys {
 				method := mset[id]
 				// TODO(adonovan): show pointerness of receiver of declared method, not the index

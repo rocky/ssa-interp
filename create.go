@@ -48,8 +48,8 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	}
 
 	// Create Values for built-in functions.
-	for i, n := 0, types.Universe.NumEntries(); i < n; i++ {
-		if obj, ok := types.Universe.At(i).(*types.Func); ok {
+	for _, name := range types.Universe.Names() {
+		if obj, ok := types.Universe.Lookup(name).(*types.Func); ok {
 			prog.builtins[obj] = &Builtin{obj}
 		}
 	}
@@ -123,10 +123,18 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			pkg.values[obj] = fn
 			pkg.Members[name] = fn
 		} else {
+			// TODO(adonovan): interface methods now have
+			// objects, but we probably don't want to call
+			// memberFromObject for them.
+
 			// Method declaration.
+			// TODO(adonovan) Move this test elsewhere.
+			if _, ok := recv.Type().Underlying().(*types.Interface); ok {
+				return // ignore interface methods
+			}
 			_, method := namedTypeMethodIndex(
 				deref(recv.Type()).(*types.Named),
-				makeId(name, pkg.Object))
+				types.Id(pkg.Object, name))
 			pkg.Prog.concreteMethods[method] = fn
 		}
 
@@ -223,7 +231,7 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 	p.Members[p.Init.name] = p.Init
 
 	// CREATE phase.
-	// Allocate all package members: vars, funcs and consts and types.
+	// Allocate all package members: vars, funcs, consts and types.
 	if len(info.Files) > 0 {
 		// Go source package.
 		for _, file := range info.Files {
@@ -236,9 +244,12 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		// No code.
 		// No position information.
 		scope := p.Object.Scope()
-		for i, n := 0, scope.NumEntries(); i < n; i++ {
-			obj := scope.At(i)
+		for _, name := range scope.Names() {
+			obj := scope.Lookup(name)
 			if obj, ok := obj.(*types.TypeName); ok {
+				// TODO(adonovan): are the set of Func
+				// objects passed to memberFromObject
+				// duplicate-free?  I doubt it.  Check.
 				mset := types.NewMethodSet(obj.Type())
 				for i, n := 0, mset.Len(); i < n; i++ {
 					memberFromObject(p, mset.At(i).Func, nil)

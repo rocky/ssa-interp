@@ -56,7 +56,7 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 
-	impctx := importer.Context{Loader: importer.MakeGoBuildLoader(nil)}
+	impctx := importer.Config{Loader: importer.MakeGoBuildLoader(nil)}
 
 	var mode ssa2.BuilderMode = ssa2.NaiveForm
 

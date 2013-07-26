@@ -394,7 +394,7 @@ func newMethod(pkg *ssa2.Package, recvType types.Type, name string) *ssa2.Functi
 	// that is needed is the "pointerness" of Recv.Type, and for
 	// now, we'll set it to always be false since we're only
 	// concerned with rtype.  Encapsulate this better.
-	sig := types.NewSignature(types.NewVar(token.NoPos, nil, "recv", recvType), nil, nil, false)
+	sig := types.NewSignature(nil, types.NewVar(token.NoPos, nil, "recv", recvType), nil, nil, false)
 	fn := ssa2.NewFunction(name, sig, "fake reflect method")
 	fn.Pkg = pkg
 	fn.Prog = pkg.Prog
@@ -409,14 +409,14 @@ func initReflect(i *interpreter) {
 	}
 
 	i.rtypeMethods = ssa2.MethodSet{
-		ssa2.Id{nil, "Bits"}:   newMethod(i.reflectPackage, rtypeType, "Bits"),
-		ssa2.Id{nil, "Elem"}:   newMethod(i.reflectPackage, rtypeType, "Elem"),
-		ssa2.Id{nil, "Kind"}:   newMethod(i.reflectPackage, rtypeType, "Kind"),
-		ssa2.Id{nil, "NumOut"}: newMethod(i.reflectPackage, rtypeType, "NumOut"),
-		ssa2.Id{nil, "Out"}:    newMethod(i.reflectPackage, rtypeType, "Out"),
-		ssa2.Id{nil, "String"}: newMethod(i.reflectPackage, rtypeType, "String"),
+		"Bits":   newMethod(i.reflectPackage, rtypeType, "Bits"),
+		"Elem":   newMethod(i.reflectPackage, rtypeType, "Elem"),
+		"Kind":   newMethod(i.reflectPackage, rtypeType, "Kind"),
+		"NumOut": newMethod(i.reflectPackage, rtypeType, "NumOut"),
+		"Out":    newMethod(i.reflectPackage, rtypeType, "Out"),
+		"String": newMethod(i.reflectPackage, rtypeType, "String"),
 	}
 	i.errorMethods = ssa2.MethodSet{
-		ssa2.Id{nil, "Error"}: newMethod(i.reflectPackage, errorType, "Error"),
+		"Error": newMethod(i.reflectPackage, errorType, "Error"),
 	}
 }

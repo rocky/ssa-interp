@@ -196,11 +196,11 @@ func printTypeInfo(name string, pkg *ssa2.Package) {
 	// e.g. promotion wrappers.
 	// NB: if mem.Type() is a pointer, mset is empty.
 	mset := pkg.Prog.MethodSet(types.NewPointer(mem.Type()))
-	var keys ssa2.Ids
+	var keys []string
 	for id := range mset {
 		keys = append(keys, id)
 	}
-	sort.Sort(keys)
+	sort.Strings(keys)
 	for _, id := range keys {
 		method := mset[id]
 		// TODO(adonovan): show pointerness of receiver of declared method, not the index

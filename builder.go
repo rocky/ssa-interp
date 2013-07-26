@@ -358,60 +358,33 @@ func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escap
 		v = b.expr(fn, e.X)
 	}
 
-	// Apply field selections.
-	st := deref(tx).Underlying().(*types.Struct)
-	for i, index := range indices {
-		f := st.Field(index)
-		ft := f.Type()
+	v = emitImplicitSelections(fn, v, indices[:len(indices)-1])
 
-		isLast := i == len(indices)-1
-
-		// Invariant: v.Type() is a struct or *struct.
-		if isPointer(v.Type()) {
-			ff := &FieldAddr{
-				X:     v,
-				Field: index,
-			}
-			if isLast {
-				ff.setPos(e.Sel.Pos())
-			}
-			ff.setType(types.NewPointer(ft))
-			v = fn.emit(ff)
-
-			// Now: v is a pointer to a struct field (field lvalue).
-
-			if isLast {
-				// Explicit, final field selection.
-
-				// Load the field's value iff we don't want its address.
-				if !wantAddr {
-					v = emitLoad(fn, v)
-				}
-			} else {
-				// Implicit field selection.
-
-				// Load the field's value iff indirectly embedded.
-				if isPointer(ft) {
-					v = emitLoad(fn, v)
-				}
-			}
-
-		} else {
-			ff := &Field{
-				X:     v,
-				Field: index,
-			}
-			if isLast {
-				ff.setPos(e.Sel.Pos())
-			}
-			ff.setType(ft)
-			v = fn.emit(ff)
+	// Final explicit field selection.
+	// Invariant: v.Type() is a possibly named struct or *struct.
+	index := indices[len(indices)-1]
+	fld := deref(v.Type()).Underlying().(*types.Struct).Field(index)
+	if isPointer(v.Type()) {
+		instr := &FieldAddr{
+			X:     v,
+			Field: index,
 		}
-
-		// May be nil at end of last iteration:
-		st, _ = deref(ft).Underlying().(*types.Struct)
+		instr.setPos(e.Sel.Pos())
+		instr.setType(types.NewPointer(fld.Type()))
+		v = fn.emit(instr)
+		// Load the field's value iff we don't want its address.
+		if !wantAddr {
+			v = emitLoad(fn, v)
+		}
+	} else {
+		instr := &Field{
+			X:     v,
+			Field: index,
+		}
+		instr.setPos(e.Sel.Pos())
+		instr.setType(fld.Type())
+		v = fn.emit(instr)
 	}
-
 	return v
 }
 
@@ -715,12 +688,12 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			return b.expr(fn, e.Sel)
 		}
 
-		id := makeId(e.Sel.Name, fn.Pkg.Object)
+		id := types.Id(fn.Pkg.Object, e.Sel.Name)
 
 		// (*T).f or T.f, the method f from the method-set of type T.
 		if fn.Pkg.info.IsType(e.X) {
 			typ := fn.Pkg.typeOf(e.X)
-			if m := fn.Prog.MethodSet(typ)[id]; m != nil {
+			if m := fn.Prog.LookupMethod(typ, id); m != nil {
 				return emitConv(fn, m, fn.Pkg.typeOf(e))
 			}
 
@@ -811,11 +784,11 @@ func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 //
 // findMethod returns (nil, nil) if no such method was found.
 //
-func (b *builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Value) {
+func (b *builder) findMethod(fn *Function, base ast.Expr, id string) (*Function, Value) {
 	typ := fn.Pkg.typeOf(base)
 
 	// Consult method-set of X.
-	if m := fn.Prog.MethodSet(typ)[id]; m != nil {
+	if m := fn.Prog.LookupMethod(typ, id); m != nil {
 		aptr := isPointer(typ)
 		fptr := isPointer(m.Signature.Recv().Type())
 		if aptr == fptr {
@@ -828,7 +801,7 @@ func (b *builder) findMethod(fn *Function, base ast.Expr, id Id) (*Function, Val
 	}
 	if !isPointer(typ) {
 		// Consult method-set of *X.
-		if m := fn.Prog.MethodSet(types.NewPointer(typ))[id]; m != nil {
+		if m := fn.Prog.LookupMethod(types.NewPointer(typ), id); m != nil {
 			// A method found only in MS(*X) must have a
 			// pointer formal receiver; but the actual
 			// value is not a pointer.
@@ -866,7 +839,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		return
 	}
 
-	id := makeId(sel.Sel.Name, fn.Pkg.Object)
+	id := types.Id(fn.Pkg.Object, sel.Sel.Name)
 
 	// Let X be the type of x.
 
@@ -1425,30 +1398,40 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 	// var x X
 	// switch y := x.(type) {
 	// case T1, T2: S1                  // >1 	(y := x)
+	// case nil:    SN                  // nil 	(y := x)
 	// default:     SD                  // 0 types 	(y := x)
 	// case T3:     S3                  // 1 type 	(y := x.(T3))
 	// }
 	//
 	//      ...s.Init...
 	// 	x := eval x
-	//      y := x
 	// .caseT1:
 	// 	t1, ok1 := typeswitch,ok x <T1>
 	// 	if ok1 then goto S1 else goto .caseT2
 	// .caseT2:
 	// 	t2, ok2 := typeswitch,ok x <T2>
-	// 	if ok2 then goto S1 else goto .caseT3
+	// 	if ok2 then goto S1 else goto .caseNil
 	// .S1:
+	//      y := x
 	// 	...S1...
+	// 	goto done
+	// .caseNil:
+	// 	if t2, ok2 := typeswitch,ok x <T2>
+	// 	if x == nil then goto SN else goto .caseT3
+	// .SN:
+	//      y := x
+	// 	...SN...
 	// 	goto done
 	// .caseT3:
 	// 	t3, ok3 := typeswitch,ok x <T3>
 	// 	if ok3 then goto S3 else goto default
 	// .S3:
-	// 	y' := t3  // Kludge: within scope of S3, y resolves here
+	//      y := t3
 	// 	...S3...
 	// 	goto done
 	// .default:
+	//      y := x
+	// 	...SD...
 	// 	goto done
 	// .done:
 
@@ -1463,33 +1446,30 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 	case *ast.AssignStmt: // y := x.(type)
 		emitTrace(fn, ASSIGN_STMT, ass.Pos(), ass.End())
 		x = b.expr(fn, unparen(ass.Rhs[0]).(*ast.TypeAssertExpr).X)
-		id := ass.Lhs[0].(*ast.Ident)
-		fn.addLocalForIdent(id)
-		lval := b.addr(fn, id, false) //  non-escaping
-		lval.store(fn, x)
 	}
 
 	done := fn.newBasicBlock("typeswitch.done")
 	if label != nil {
 		label._break = done
 	}
-	var dfltBody []ast.Stmt
+	var default_ *ast.CaseClause
 	for _, clause := range s.Body.List {
 		cc := clause.(*ast.CaseClause)
 		if cc.List == nil {
-			dfltBody = cc.Body
+			default_ = cc
 			continue
 		}
 		body := fn.newBasicBlock("typeswitch.body")
 		var next *BasicBlock
 		var casetype types.Type
-		var ti Value // t_i, ok := typeassert,ok x <T_i>
+		var ti Value // ti, ok := typeassert,ok x <Ti>
 		for _, cond := range cc.List {
 			next = fn.newBasicBlock("typeswitch.next")
 			casetype = fn.Pkg.typeOf(cond)
 			var condv Value
 			if casetype == tUntypedNil {
 				condv = emitCompare(fn, token.EQL, x, nilConst(x.Type()), token.NoPos)
+				ti = x
 			} else {
 				yok := emitTypeTest(fn, x, casetype, token.NoPos)
 				ti = emitExtract(fn, yok, 0, casetype)
@@ -1498,32 +1478,37 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			emitIf(fn, condv, body, next)
 			fn.currentBlock = next
 		}
+		if len(cc.List) != 1 {
+			ti = x
+		}
 		fn.currentBlock = body
-		if obj := fn.Pkg.info.TypeCaseVar(cc); obj != nil {
-			// Declare a new shadow local variable of the
-			// same name but a more specific type.
-			y2 := fn.addNamedLocal(obj)
-			y2.name += "'" // debugging aid
-			y2.typ = types.NewPointer(casetype)
-			emitStore(fn, y2, ti)
-		}
-		fn.targets = &targets{
-			tail:   fn.targets,
-			_break: done,
-		}
-		b.stmtList(fn, cc.Body)
-		fn.targets = fn.targets.tail
-		emitJump(fn, done)
+		b.typeCase(fn, cc, ti, done)
 		fn.currentBlock = next
+	}
+	if default_ != nil {
+		b.typeCase(fn, default_, x, done)
+	} else {
+		emitJump(fn, done)
+	}
+	fn.currentBlock = done
+}
+
+func (b *builder) typeCase(fn *Function, cc *ast.CaseClause, x Value, done *BasicBlock) {
+	if obj := fn.Pkg.info.TypeCaseVar(cc); obj != nil {
+		// In a switch y := x.(type), each case clause
+		// implicitly declares a distinct object y.
+		// In a single-type case, y has that type.
+		// In multi-type cases, 'case nil' and default,
+		// y has the same type as the interface operand.
+		emitStore(fn, fn.addNamedLocal(obj), x)
 	}
 	fn.targets = &targets{
 		tail:   fn.targets,
 		_break: done,
 	}
-	b.stmtList(fn, dfltBody)
+	b.stmtList(fn, cc.Body)
 	fn.targets = fn.targets.tail
 	emitJump(fn, done)
-	fn.currentBlock = done
 }
 
 // selectStmt emits to fn code for the select statement s, optionally
@@ -1620,13 +1605,13 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		label._break = done
 	}
 
-	var dfltBody *[]ast.Stmt
+	var defaultBody *[]ast.Stmt
 	state := 0
 	r := 2 // index in 'sel' tuple of value; increments if st.Dir==RECV
 	for _, cc := range s.Body.List {
 		clause := cc.(*ast.CommClause)
 		if clause.Comm == nil {
-			dfltBody = &clause.Body
+			defaultBody = &clause.Body
 			continue
 		}
 		body := fn.newBasicBlock("select.body")
@@ -1663,12 +1648,12 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		fn.currentBlock = next
 		state++
 	}
-	if dfltBody != nil {
+	if defaultBody != nil {
 		fn.targets = &targets{
 			tail:   fn.targets,
 			_break: done,
 		}
-		b.stmtList(fn, *dfltBody)
+		b.stmtList(fn, *defaultBody)
 		fn.targets = fn.targets.tail
 	}
 	emitJump(fn, done)
@@ -1763,7 +1748,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	} else {
 		// length = len(x).
 		var c Call
-		c.Call.Func = fn.Prog.builtins[types.Universe.Lookup(nil, "len")]
+		c.Call.Func = fn.Prog.builtins[types.Universe.Lookup("len")]
 		c.Call.Args = []Value{x}
 		c.setType(tInt)
 		length = fn.emit(&c)
