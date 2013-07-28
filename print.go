@@ -111,10 +111,9 @@ func printCall(v *CallCommon, prefix string, instr Instruction) string {
 	var b bytes.Buffer
 	b.WriteString(prefix)
 	if !v.IsInvoke() {
-		b.WriteString(relName(v.Func, instr))
+		b.WriteString(relName(v.Value, instr))
 	} else {
-		name := v.Recv.Type().Underlying().(*types.Interface).Method(v.Method).Name()
-		fmt.Fprintf(&b, "invoke %s.%s [#%d]", relName(v.Recv, instr), name, v.Method)
+		fmt.Fprintf(&b, "invoke %s.%s", relName(v.Value, instr), v.Method.Name())
 	}
 	b.WriteString("(")
 	for i, arg := range v.Args {

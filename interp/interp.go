@@ -88,16 +88,16 @@ type interpreter struct {
 	goTops         []*GoreState
 }
 
-// findMethodSet returns the method set for type typ, which may be one
+// lookupMethod returns the method set for type typ, which may be one
 // of the interpreter's fake types.
-func findMethodSet(i *interpreter, typ types.Type) ssa2.MethodSet {
+func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa2.Function {
 	switch typ {
 	case rtypeType:
-		return i.rtypeMethods
+		return i.rtypeMethods[meth.Id()]
 	case errorType:
-		return i.errorMethods
+		return i.errorMethods[meth.Id()]
 	}
-	return i.prog.MethodSet(typ)
+	return i.prog.LookupMethod(typ.MethodSet().Lookup(meth.Pkg(), meth.Name()))
 }
 
 // visitInstr interprets a single ssa2.Instruction within the activation
@@ -119,11 +119,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		fr.env[instr] = call(fr.i, fr.goNum, fr, instr.Pos(), fn, args)
 
 	case *ssa2.ChangeInterface:
-		x := fr.get(instr.X)
-		if x.(iface).t == nil {
-			panic(fmt.Sprintf("interface conversion: interface is nil, not %s", instr.Type()))
-		}
-		fr.env[instr] = x
+		fr.env[instr] = fr.get(instr.X)
 
 	case *ssa2.ChangeType:
 		fr.env[instr] = fr.get(instr.X) // (can't fail)
@@ -186,13 +182,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.Go:
 		fn, args := prepareCall(fr, &instr.Call)
-		i := fr.i
-		gocall.Lock()
-		i.nGoroutines++
-		goNum := i.nGoroutines
-		i.goTops = append(i.goTops, &GoreState{Fr: nil, state: 0})
-		gocall.Unlock()
-		go call(i, goNum, nil, instr.Pos(), fn, args)
+		go call(fr.i, i.nGoroutines, nil, instr.Pos(), fn, args)
 
 	case *ssa2.MakeChan:
 		fr.env[instr] = make(chan Value, asInt(fr.get(instr.Size)))
@@ -354,20 +344,20 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 // interface method lookup if needed.
 //
 func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
-	if call.Func != nil {
+	v := fr.get(call.Value)
+	if call.Method == nil {
 		// Function call.
-		fn = fr.get(call.Func)
+		fn = v
 	} else {
 		// Interface method invocation.
-		recv := fr.get(call.Recv).(iface)
+		recv := v.(iface)
 		if recv.t == nil {
 			panic("method invoked on nil interface")
 		}
-		id := call.MethodId()
-		fn = findMethodSet(fr.i, recv.t)[id]
+		fn = lookupMethod(fr.i, recv.t, call.Method)
 		if fn == nil {
 			// Unreachable in well-typed programs.
-			panic(fmt.Sprintf("method set for dynamic type %v does not contain %s", recv.t, id))
+			panic(fmt.Sprintf("method set for dynamic type %v does not contain %s", recv.t, call.Method))
 		}
 		args = append(args, copyVal(recv.v))
 	}

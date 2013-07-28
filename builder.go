@@ -19,8 +19,8 @@ package ssa2
 //
 // The builder's and Program's indices (maps) are populated and
 // mutated during the CREATE phase, but during the BUILD phase they
-// remain constant.  The sole exception is Prog.methodSets, which is
-// protected by a dedicated mutex.
+// remain constant.  The sole exception is Prog.methodSets and its
+// related maps, which are protected by a dedicated mutex.
 
 import (
 	"fmt"
@@ -330,64 +330,6 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 	return nil // treat all others as a regular function call
 }
 
-// selectField evaluates the field selector expression e and returns its value,
-// or if wantAddr is true, its address, in which case escaping
-// indicates whether the caller intends to use the resulting pointer
-// in a potentially escaping way.
-//
-func (b *builder) selectField(fn *Function, e *ast.SelectorExpr, wantAddr, escaping bool) Value {
-	tx := fn.Pkg.typeOf(e.X)
-	obj, indices, isIndirect := types.LookupFieldOrMethod(tx, fn.Pkg.Object, e.Sel.Name)
-	if obj == nil {
-		panic("field not found: " + e.Sel.Name)
-	}
-
-	// Be careful!  This code has proven very tricky.
-
-	// NB: The type of the final field is irrelevant to the logic.
-
-	// Emit code for the base expression.
-	var v Value
-	if wantAddr && !isIndirect && !isPointer(tx) {
-		// TODO(adonovan): opt: also use this codepath
-		// for !wantAddr, when safe (i.e. e.X is addressible),
-		// since (FieldAddr;Load) is cheaper than (Load;Field).
-		// Requires go/types to expose addressibility.
-		v = b.addr(fn, e.X, escaping).address(fn)
-	} else {
-		v = b.expr(fn, e.X)
-	}
-
-	v = emitImplicitSelections(fn, v, indices[:len(indices)-1])
-
-	// Final explicit field selection.
-	// Invariant: v.Type() is a possibly named struct or *struct.
-	index := indices[len(indices)-1]
-	fld := deref(v.Type()).Underlying().(*types.Struct).Field(index)
-	if isPointer(v.Type()) {
-		instr := &FieldAddr{
-			X:     v,
-			Field: index,
-		}
-		instr.setPos(e.Sel.Pos())
-		instr.setType(types.NewPointer(fld.Type()))
-		v = fn.emit(instr)
-		// Load the field's value iff we don't want its address.
-		if !wantAddr {
-			v = emitLoad(fn, v)
-		}
-	} else {
-		instr := &Field{
-			X:     v,
-			Field: index,
-		}
-		instr.setPos(e.Sel.Pos())
-		instr.setType(fld.Type())
-		v = fn.emit(instr)
-	}
-	return v
-}
-
 // addr lowers a single-result addressable expression e to SSA form,
 // emitting code to fn and returning the location (an lvalue) defined
 // by the expression.
@@ -439,16 +381,20 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		return b.addr(fn, e.X, escaping)
 
 	case *ast.SelectorExpr:
-		// p.M where p is a package.
-		if obj := fn.Pkg.info.IsPackageRef(e); obj != nil {
+		switch sel := fn.Pkg.info.Selections[e]; sel.Kind() {
+		case types.PackageObj:
+			obj := sel.Obj()
 			if v := b.lookup(fn.Pkg, obj); v != nil {
 				return &address{addr: v}
 			}
 			panic("undefined package-qualified name: " + obj.Name())
-		}
 
-		// e.f where e is an expression.
-		return &address{addr: b.selectField(fn, e, true, escaping)}
+		case types.FieldVal:
+			wantAddr := true
+			v := b.receiver(fn, e.X, wantAddr, escaping, sel)
+			last := len(sel.Index()) - 1
+			return &address{addr: emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos())}
+		}
 
 	case *ast.IndexExpr:
 		var x Value
@@ -683,37 +629,43 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		return v
 
 	case *ast.SelectorExpr:
-		// p.M where p is a package.
-		if obj := fn.Pkg.info.IsPackageRef(e); obj != nil {
+		switch sel := fn.Pkg.info.Selections[e]; sel.Kind() {
+		case types.PackageObj:
 			return b.expr(fn, e.Sel)
-		}
 
-		id := types.Id(fn.Pkg.Object, e.Sel.Name)
+		case types.MethodExpr:
+			// (*T).f or T.f, the method f from the method-set of type T.
+			// For declared methods, a simple conversion will suffice.
+			return emitConv(fn, fn.Prog.LookupMethod(sel), fn.Pkg.typeOf(e))
 
-		// (*T).f or T.f, the method f from the method-set of type T.
-		if fn.Pkg.info.IsType(e.X) {
-			typ := fn.Pkg.typeOf(e.X)
-			if m := fn.Prog.LookupMethod(typ, id); m != nil {
-				return emitConv(fn, m, fn.Pkg.typeOf(e))
-			}
-
-			// T must be an interface; return wrapper.
-			return interfaceMethodWrapper(fn.Prog, typ, id)
-		}
-
-		// Bound method closure?  (e.m where m is a method)
-		if m, recv := b.findMethod(fn, e.X, id); m != nil {
+		case types.MethodVal:
+			// e.f where e is an expression and f is a method.
+			// The result is a bound method closure.
+			obj := sel.Obj().(*types.Func)
+			wantAddr := isPointer(recvType(obj))
+			escaping := true
+			v := b.receiver(fn, e.X, wantAddr, escaping, sel)
 			c := &MakeClosure{
-				Fn:       boundMethodWrapper(m),
-				Bindings: []Value{recv},
+				Fn:       boundMethodWrapper(fn.Prog, obj),
+				Bindings: []Value{v},
 			}
 			c.setPos(e.Sel.Pos())
 			c.setType(fn.Pkg.typeOf(e))
 			return fn.emit(c)
+
+			// TODO(adonovan): add more tests for
+			// interaction of bound interface method
+			// closures and promotion.
+
+		case types.FieldVal:
+			indices := sel.Index()
+			last := len(indices) - 1
+			v := b.expr(fn, e.X)
+			v = emitImplicitSelections(fn, v, indices[:last])
+			return emitFieldSelection(fn, v, indices[last], false, e.Sel.Pos())
 		}
 
-		// e.f where e is an expression.  f may be a method.
-		return b.selectField(fn, e, false, false)
+		panic("unexpected expression-relative selector")
 
 	case *ast.IndexExpr:
 		switch t := fn.Pkg.typeOf(e.X).Underlying().(type) {
@@ -777,39 +729,31 @@ func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 	}
 }
 
-// findMethod returns the method and receiver for a call base.id().
-// It locates the method using the method-set for base's type,
-// and emits code for the receiver, handling the cases where
-// the formal and actual parameter's pointerness are unequal.
+// receiver emits to fn code for expression e in the "receiver"
+// position of selection e.f (where f may be a field or a method) and
+// returns the effective receiver after applying the implicit field
+// selections of sel.
 //
-// findMethod returns (nil, nil) if no such method was found.
+// wantAddr requests that the result is an an address.  If
+// !sel.Indirect(), this may require that e be build in addr() mode; it
+// must thus be addressable.
 //
-func (b *builder) findMethod(fn *Function, base ast.Expr, id string) (*Function, Value) {
-	typ := fn.Pkg.typeOf(base)
+// escaping is defined as per builder.addr().
+//
+func (b *builder) receiver(fn *Function, e ast.Expr, wantAddr, escaping bool, sel *types.Selection) Value {
+	var v Value
+	if wantAddr && !sel.Indirect() && !isPointer(fn.Pkg.typeOf(e)) {
+		v = b.addr(fn, e, escaping).address(fn)
+	} else {
+		v = b.expr(fn, e)
+	}
 
-	// Consult method-set of X.
-	if m := fn.Prog.LookupMethod(typ, id); m != nil {
-		aptr := isPointer(typ)
-		fptr := isPointer(m.Signature.Recv().Type())
-		if aptr == fptr {
-			// Actual's and formal's "pointerness" match.
-			return m, b.expr(fn, base)
-		}
-		// Actual is a pointer, formal is not.
-		// Load a copy.
-		return m, emitLoad(fn, b.expr(fn, base))
+	last := len(sel.Index()) - 1
+	v = emitImplicitSelections(fn, v, sel.Index()[:last])
+	if !wantAddr && isPointer(v.Type()) {
+		v = emitLoad(fn, v)
 	}
-	if !isPointer(typ) {
-		// Consult method-set of *X.
-		if m := fn.Prog.LookupMethod(types.NewPointer(typ), id); m != nil {
-			// A method found only in MS(*X) must have a
-			// pointer formal receiver; but the actual
-			// value is not a pointer.
-			// Implicit & -- possibly escaping.
-			return m, b.addr(fn, base, true).address(fn)
-		}
-	}
-	return nil, nil
+	return v
 }
 
 // setCallFunc populates the function parts of a CallCommon structure
@@ -820,56 +764,72 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 	c.pos = e.Lparen
 	c.HasEllipsis = e.Ellipsis != 0
 
-	// Is the call of the form x.f()?
-	sel, ok := unparen(e.Fun).(*ast.SelectorExpr)
+	// Is this a method call?
+	if selector, ok := unparen(e.Fun).(*ast.SelectorExpr); ok {
+		switch sel := fn.Pkg.info.Selections[selector]; sel.Kind() {
+		case types.PackageObj:
+			// e.g. fmt.Println
 
-	// Case 0: e.Fun evaluates normally to a function.
-	if !ok || fn.Pkg.info.IsPackageRef(sel) != nil {
-		c.Func = b.expr(fn, e.Fun)
-		return
+		case types.MethodExpr:
+			// T.f() or (*T).f(): a statically dispatched
+			// call to the method f in the method-set of T
+			// or *T.  T may be an interface.
+
+			// e.Fun would evaluate to a concrete method,
+			// interface wrapper function, or promotion
+			// wrapper.
+			//
+			// For now, we evaluate it in the usual way.
+
+			// TODO(adonovan): opt: inline expr() here, to
+			// make the call static and to avoid
+			// generation of wrappers.  It's somewhat
+			// tricky as it may consume the first actual
+			// parameter if the call is "invoke" mode.
+			//
+			// Examples:
+			//  type T struct{}; func (T) f() {}   // "call" mode
+			//  type T interface { f() }           // "invoke" mode
+			//
+			//  type S struct{ T }
+			//
+			//  var s S
+			//  S.f(s)
+			//  (*S).f(&s)
+			//
+			// Suggested approach:
+			// - consume the first actual parameter expression
+			//   and build it with b.expr().
+			// - apply implicit field selections.
+			// - use MethodVal logic to populate fields of c.
+
+		case types.FieldVal:
+			// A field access, not a method call.
+
+		case types.MethodVal:
+			obj := sel.Obj().(*types.Func)
+			wantAddr := isPointer(recvType(obj))
+			escaping := true
+			v := b.receiver(fn, selector.X, wantAddr, escaping, sel)
+			if _, ok := deref(v.Type()).Underlying().(*types.Interface); ok {
+				// Invoke-mode call.
+				c.Value = v
+				c.Method = obj
+			} else {
+				// "Call"-mode call.
+				c.Value = fn.Prog.concreteMethod(obj)
+				c.Args = append(c.Args, v)
+			}
+			return
+
+		default:
+			panic(fmt.Sprintf("illegal (%s).%s() call; X:%T",
+				fn.Pkg.typeOf(selector.X), selector.Sel.Name, selector.X))
+		}
 	}
 
-	// Case 1: X.f() or (*X).f(): a statically dipatched call to
-	// the method f in the method-set of X or *X.  X may be
-	// an interface.  Treat like case 0.
-	// TODO(adonovan): opt: inline expr() here, to make the call static
-	// and to avoid generation of a stub for an interface method.
-	if fn.Pkg.info.IsType(sel.X) {
-		c.Func = b.expr(fn, e.Fun)
-		return
-	}
-
-	id := types.Id(fn.Pkg.Object, sel.Sel.Name)
-
-	// Let X be the type of x.
-
-	// Case 2: x.f(): a statically dispatched call to a method
-	// from the method-set of X or perhaps *X (if x is addressable
-	// but not a pointer).
-	if m, recv := b.findMethod(fn, sel.X, id); m != nil {
-		c.Func = m
-		c.Args = append(c.Args, recv)
-		return
-	}
-
-	switch t := fn.Pkg.typeOf(sel.X).Underlying().(type) {
-	case *types.Struct, *types.Pointer:
-		// Case 3: x.f() where x.f is a function value in a
-		// struct field f; not a method call.  f is a 'var'
-		// (of function type) in the Fields of types.Struct X.
-		// Treat like case 0.
-		c.Func = b.expr(fn, e.Fun)
-
-	case *types.Interface:
-		// Case 4: x.f() where a dynamically dispatched call
-		// to an interface method f.  f is a 'func' object in
-		// the Methods of types.Interface X
-		c.Method, _ = interfaceMethodIndex(t, id)
-		c.Recv = b.expr(fn, sel.X)
-
-	default:
-		panic(fmt.Sprintf("illegal (%s).%s() call; X:%T", t, sel.Sel.Name, sel.X))
-	}
+	// Evaluate the function operand in the usual way.
+	c.Value = b.expr(fn, e.Fun)
 }
 
 // emitCallArgs emits to f code for the actual parameters of call e to
@@ -924,7 +884,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 		} else {
 			// Replace a suffix of args with a slice containing it.
 			at := types.NewArray(vt, int64(len(varargs)))
-			// Don't set pos (e.g. to e.Lparen) for implicit Allocs.
+			// Don't set pos for implicit Allocs.
 			a := emitNew(fn, at, token.NoPos)
 			for i, arg := range varargs {
 				iaddr := &IndexAddr{
@@ -1482,18 +1442,18 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			ti = x
 		}
 		fn.currentBlock = body
-		b.typeCase(fn, cc, ti, done)
+		b.typeCaseBody(fn, cc, ti, done)
 		fn.currentBlock = next
 	}
 	if default_ != nil {
-		b.typeCase(fn, default_, x, done)
+		b.typeCaseBody(fn, default_, x, done)
 	} else {
 		emitJump(fn, done)
 	}
 	fn.currentBlock = done
 }
 
-func (b *builder) typeCase(fn *Function, cc *ast.CaseClause, x Value, done *BasicBlock) {
+func (b *builder) typeCaseBody(fn *Function, cc *ast.CaseClause, x Value, done *BasicBlock) {
 	if obj := fn.Pkg.info.TypeCaseVar(cc); obj != nil {
 		// In a switch y := x.(type), each case clause
 		// implicitly declares a distinct object y.
@@ -1748,7 +1708,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	} else {
 		// length = len(x).
 		var c Call
-		c.Call.Func = fn.Prog.builtins[types.Universe.Lookup("len")]
+		c.Call.Value = fn.Prog.builtins[types.Universe.Lookup("len")]
 		c.Call.Args = []Value{x}
 		c.setType(tInt)
 		length = fn.emit(&c)
@@ -2261,7 +2221,7 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 				}
 				nt := pkg.objectOf(id).Type().(*types.Named)
 				for i, n := 0, nt.NumMethods(); i < n; i++ {
-					b.buildFunction(pkg.Prog.concreteMethods[nt.Method(i)])
+					b.buildFunction(pkg.Prog.concreteMethod(nt.Method(i)))
 				}
 			}
 		}
@@ -2357,9 +2317,9 @@ func (p *Package) Build() {
 	emitStore(init, initguard, vTrue)
 
 	// Call the init() function of each package we import.
-	for _, typkg := range p.info.Imports() {
+	for _, obj := range p.info.Imports() {
 		var v Call
-		v.Call.Func = p.Prog.packages[typkg].Init
+		v.Call.Value = p.Prog.packages[obj].Init
 		v.Call.pos = init.pos
 		v.setType(types.NewTuple())
 		init.emit(&v)

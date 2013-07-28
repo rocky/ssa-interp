@@ -22,13 +22,12 @@ type Program struct {
 	PackagesByPath  map[string]*Package         // all loaded Packages, keyed by import path
 	packages        map[*types.Package]*Package // all loaded Packages, keyed by object
 	builtins        map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
-	concreteMethods map[*types.Func]*Function   // maps named concrete methods to their code
+	concreteMethods map[*types.Func]*Function   // maps declared concrete methods to their code
 	mode            BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
 	methodSets          typemap.M                 // maps type to its concrete MethodSet
-	indirectionWrappers map[*Function]*Function   // func(*T) wrappers for T-methods
-	boundMethodWrappers map[*Function]*Function   // wrappers for curried x.Method closures
+	boundMethodWrappers map[*types.Func]*Function // wrappers for curried x.Method closures
 	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
 }
 
@@ -74,6 +73,10 @@ type Member interface {
 //
 // The keys of a method set are strings returned by the types.Id()
 // function.
+//
+// TODO(adonovan): encapsulate the representation behind both Id-based
+// and types.Method-based accessors and enable lazy population.
+// Perhaps hide it entirely within the Program API.
 //
 type MethodSet map[string]*Function
 
@@ -252,7 +255,8 @@ type Instruction interface {
 //
 type Function struct {
 	name      string
-	object    types.Object // a *types.Func; may be nil for init, wrappers, etc.
+	object    types.Object     // a declared *types.Func; nil for init, wrappers, etc.
+	method    *types.Selection // info about provenance of synthetic methods [currently unused]
 	Signature *types.Signature
 	pos       token.Pos
 	endP      token.Pos
@@ -592,10 +596,7 @@ type Convert struct {
 
 // ChangeInterface constructs a value of one interface type from a
 // value of another interface type known to be assignable to it.
-//
-// This operation fails if the operand is nil.
-// For all other operands, well-typedness ensures success.
-// Use TypeAssert for interface conversions that are uncertain.
+// This operation cannot fail.
 //
 // Pos() returns the ast.CallExpr.Lparen if the instruction arose from
 // an explicit T(e) conversion; the ast.TypeAssertExpr.Lparen if the
@@ -823,6 +824,7 @@ type SelectState struct {
 	Dir  ast.ChanDir // direction of case
 	Chan Value       // channel to use (for send or receive)
 	Send Value       // value to send (for send)
+	Pos  token.Pos   // position of token.ARROW
 }
 
 // The Select instruction tests whether (or blocks until) one or more
@@ -925,8 +927,9 @@ type Next struct {
 // If AssertedType is an interface, TypeAssert checks whether the
 // dynamic type of the interface is assignable to it, and if so, the
 // result of the conversion is a copy of the interface value X.
-// If AssertedType is a superinterface of X.Type(), the operation
-// cannot fail; ChangeInterface is preferred in this case.
+// If AssertedType is a superinterface of X.Type(), the operation will
+// fail iff the operand is nil.  (Contrast with ChangeInterface, which
+// performs no nil-check.)
 //
 // Type() reflects the actual type of the result, possibly a
 // 2-types.Tuple; AssertedType is the asserted type.
@@ -1191,35 +1194,33 @@ type anInstruction struct {
 // Each CallCommon exists in one of two modes, function call and
 // interface method invocation, or "call" and "invoke" for short.
 //
-// 1. "call" mode: when Recv is nil (!IsInvoke), a CallCommon
-// represents an ordinary function call of the value in Func.
+// 1. "call" mode: when Method is nil (!IsInvoke), a CallCommon
+// represents an ordinary function call of the value in Value.
 //
-// In the common case in which Func is a *Function, this indicates a
+// In the common case in which Value is a *Function, this indicates a
 // statically dispatched call to a package-level function, an
 // anonymous function, or a method of a named type.  Also statically
-// dispatched, but less common, Func may be a *MakeClosure, indicating
+// dispatched, but less common, Value may be a *MakeClosure, indicating
 // an immediately applied function literal with free variables.  Any
-// other Value of Func indicates a dynamically dispatched function
+// other value of Value indicates a dynamically dispatched function
 // call.  The StaticCallee method returns the callee in these cases.
 //
-// Args contains the arguments to the call.  If Func is a method,
-// Args[0] contains the receiver parameter.  Recv and Method are not
-// used in this mode.
+// Args contains the arguments to the call.  If Value is a method,
+// Args[0] contains the receiver parameter.
 //
 // Example printed form:
 // 	t2 = println(t0, t1)
 // 	go t3()
 //	defer t5(...t6)
 //
-// 2. "invoke" mode: when Recv is non-nil (IsInvoke), a CallCommon
+// 2. "invoke" mode: when Method is non-nil (IsInvoke), a CallCommon
 // represents a dynamically dispatched call to an interface method.
-// In this mode, Recv is the interface value and Method is the index
-// of the method within the interface type of the receiver.
+// In this mode, Value is the interface value and Method is the
+// interface's abstract method.
 //
-// Recv is implicitly supplied to the concrete method implementation
+// Value is implicitly supplied to the concrete method implementation
 // as the receiver parameter; in other words, Args[0] holds not the
-// receiver but the first true argument.  Func is not used in this
-// mode.
+// receiver but the first true argument.
 //
 // Example printed form:
 // 	t1 = invoke t0.String()
@@ -1233,17 +1234,16 @@ type anInstruction struct {
 // readability of the printed form.)
 //
 type CallCommon struct {
-	Recv        Value     // receiver, iff interface method invocation
-	Method      int       // index of interface method; call MethodId() for its Id
-	Func        Value     // target of call, iff function call
-	Args        []Value   // actual parameters, including receiver in invoke mode
-	HasEllipsis bool      // true iff last Args is a slice of '...' args (needed?)
-	pos         token.Pos // position of CallExpr.Lparen, iff explicit in source
+	Value       Value       // receiver (invoke mode) or func value (call mode)
+	Method      *types.Func // abstract method (invoke mode)
+	Args        []Value     // actual parameters (in static method call, includes receiver)
+	HasEllipsis bool        // true iff last Args is a slice of '...' args (needed?)
+	pos         token.Pos   // position of CallExpr.Lparen, iff explicit in source
 }
 
 // IsInvoke returns true if this call has "invoke" (not "call") mode.
 func (c *CallCommon) IsInvoke() bool {
-	return c.Recv != nil
+	return c.Method != nil
 }
 
 func (c *CallCommon) Pos() token.Pos { return c.pos }
@@ -1259,18 +1259,17 @@ func (c *CallCommon) Pos() token.Pos { return c.pos }
 // Signature returns nil for a call to a built-in function.
 //
 func (c *CallCommon) Signature() *types.Signature {
-	if c.Recv != nil {
-		iface := c.Recv.Type().Underlying().(*types.Interface)
-		return iface.Method(c.Method).Type().(*types.Signature)
+	if c.Method != nil {
+		return c.Method.Type().(*types.Signature)
 	}
-	sig, _ := c.Func.Type().Underlying().(*types.Signature) // nil for *Builtin
+	sig, _ := c.Value.Type().Underlying().(*types.Signature) // nil for *Builtin
 	return sig
 }
 
 // StaticCallee returns the called function if this is a trivially
 // static "call"-mode call.
 func (c *CallCommon) StaticCallee() *Function {
-	switch fn := c.Func.(type) {
+	switch fn := c.Value.(type) {
 	case *Function:
 		return fn
 	case *MakeClosure:
@@ -1279,16 +1278,10 @@ func (c *CallCommon) StaticCallee() *Function {
 	return nil
 }
 
-// MethodId returns the Id for the method called by c, which must
-// have "invoke" mode.
-func (c *CallCommon) MethodId() string {
-	return c.Recv.Type().Underlying().(*types.Interface).Method(c.Method).Id()
-}
-
 // Description returns a description of the mode of this call suitable
 // for a user interface, e.g. "static method call".
 func (c *CallCommon) Description() string {
-	switch fn := c.Func.(type) {
+	switch fn := c.Value.(type) {
 	case nil:
 		return "dynamic method call" // ("invoke" mode)
 	case *MakeClosure:
@@ -1445,7 +1438,7 @@ func (v *BinOp) Operands(rands []*Value) []*Value {
 }
 
 func (c *CallCommon) Operands(rands []*Value) []*Value {
-	rands = append(rands, &c.Recv, &c.Func)
+	rands = append(rands, &c.Value)
 	for i := range c.Args {
 		rands = append(rands, &c.Args[i])
 	}
