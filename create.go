@@ -206,6 +206,7 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		Object:  info.Pkg,
 		info:    info, // transient (CREATE and BUILD phases)
 		locs:    make([] LocInst, 0),
+		Scope:   info.Pkg.Scope(),
 	}
 
 	// Add init() function.

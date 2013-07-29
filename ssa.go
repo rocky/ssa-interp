@@ -49,6 +49,7 @@ type Package struct {
 	info    *importer.PackageInfo // package ASTs and type information
 
 	locs   []LocInst            // slice of start source-code positions
+	Scope  *types.Scope
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,
