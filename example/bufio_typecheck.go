@@ -81,7 +81,8 @@ func typecheck(path string, filenames []string) {
 	pkg, err := conf.Check(path, fset, files, nil)
 	if err == nil {
 		scope := pkg.Scope()
-		assignScopeNums(ast2Scope, scope)
+		scopeNum := 0
+		assignScopeNums(ast2Scope, scope, &scopeNum)
 		traverseScope(fset, pkg.Scope(), 0)
 	}
 	pkgCount++
@@ -92,22 +93,21 @@ type Scope struct {
 	scopeNum int
 }
 
-var scopeNum int = 0
 var num2scope [] *types.Scope
 
 var  ast2Scope map[ast.Node]*Scope = make(map[ast.Node]*Scope)
 
-func assignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope) {
+func assignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope, scopeNum *int) {
 	num2scope = append(num2scope, scope)
 	ast2Scope[scope.Node()] = &Scope {
 		Scope: scope,
-		scopeNum: scopeNum,
+		scopeNum: *scopeNum,
 	}
-	scopeNum++
+	*scopeNum++
 	n := scope.NumChildren()
 	for i:=0; i<n; i++ {
 		child := scope.Child(i)
-		if child != nil { assignScopeNums(ast2Scope, child) }
+		if child != nil { assignScopeNums(ast2Scope, child, scopeNum) }
 	}
 }
 

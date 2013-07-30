@@ -182,13 +182,13 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 	}
 }
 
-func AssignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope, scopeNum int) {
+func AssignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope, scopeNum *int) {
 	// num2scope = append(num2scope, scope)
 	ast2Scope[scope.Node()] = &Scope {
 		Scope: scope,
-		scopeNum: scopeNum,
+		scopeNum: *scopeNum,
 	}
-	scopeNum++
+	*scopeNum++
 	n := scope.NumChildren()
 	for i:=0; i<n; i++ {
 		child := scope.Child(i)
@@ -223,7 +223,8 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		Ast2Scope: make(map[ast.Node]*Scope),
 	}
 
-	AssignScopeNums(p.Ast2Scope, info.Pkg.Scope(), 0)
+	scopeNum := 0
+	AssignScopeNums(p.Ast2Scope, info.Pkg.Scope(), &scopeNum)
 
 	// Add init() function.
 	p.Init = &Function{
