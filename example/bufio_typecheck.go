@@ -18,7 +18,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
-	// "strings"
+	"strings"
 	"time"
 	"code.google.com/p/go.tools/go/types"
 	"github.com/rocky/ssa-interp"
@@ -81,8 +81,8 @@ func typecheck(path string, filenames []string) {
 	pkg, err := conf.Check(path, fset, files, nil)
 	if err == nil {
 		scope := pkg.Scope()
-		assignScopeNums(ast2scopeNum, scope)
-		printScopes(fset, ast2scopeNum)
+		assignScopeNums(ast2Scope, scope)
+		traverseScope(fset, pkg.Scope(), 0)
 	}
 	pkgCount++
 }
@@ -95,11 +95,11 @@ type Scope struct {
 var scopeNum int = 0
 var num2scope [] *types.Scope
 
-var  ast2scopeNum map[ast.Node]*Scope = make(map[ast.Node]*Scope)
+var  ast2Scope map[ast.Node]*Scope = make(map[ast.Node]*Scope)
 
-func assignScopeNums(ast2scopeNum map[ast.Node]*Scope, scope *types.Scope) {
+func assignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope) {
 	num2scope = append(num2scope, scope)
-	ast2scopeNum[scope.Node()] = &Scope {
+	ast2Scope[scope.Node()] = &Scope {
 		Scope: scope,
 		scopeNum: scopeNum,
 	}
@@ -107,40 +107,33 @@ func assignScopeNums(ast2scopeNum map[ast.Node]*Scope, scope *types.Scope) {
 	n := scope.NumChildren()
 	for i:=0; i<n; i++ {
 		child := scope.Child(i)
-		if child != nil { assignScopeNums(ast2scopeNum, child) }
+		if child != nil { assignScopeNums(ast2Scope, child) }
 	}
 }
 
-func printScopes(fset *token.FileSet, ast2scopeNum map[ast.Node]*Scope) {
-	for node, scope := range ast2scopeNum {
-		if node != nil {
-			startP := fset.Position(node.Pos())
-			endP   := fset.Position(node.End())
-			fmt.Printf("node %d %s\n", scope.scopeNum, ssa2.PositionRange(startP, endP))
-		}
-		fmt.Println(scope)
+func printScope(fset *token.FileSet, scope *Scope) {
+	node := scope.Node()
+	if node != nil {
+		startP := fset.Position(node.Pos())
+		endP   := fset.Position(node.End())
+		fmt.Println(ssa2.PositionRange(startP, endP))
+	}
+	fmt.Printf("#%d %s\n", scope.scopeNum, scope.Scope)
+}
+
+func traverseScope(fset *token.FileSet, scope *types.Scope, indent int) {
+	const ind = ".  "
+	indn  := strings.Repeat(ind, indent)
+	fmt.Printf("%s ", indn)
+	node  := scope.Node()
+	printScope(fset, ast2Scope[node])
+
+	n := scope.NumChildren()
+	for i:=0; i<n; i++ {
+		child := scope.Child(i)
+		if child != nil { traverseScope(fset, child, indent+1) }
 	}
 }
-// func traverse_scope(fset *token.FileSet, scope *types.Scope, indent int) {
-// 	const ind = ".  "
-// 	indn  := strings.Repeat(ind, indent)
-// 	fmt.Printf("%s ", indn)
-// 	node  := scope.Node()
-
-// 	if node != nil {
-// 		startP := fset.Position(scope.Node().Pos())
-// 		endP   := fset.Position(scope.Node().End())
-// 		fmt.Println(ssa2.PositionRange(startP, endP))
-// 	}
-
-// 	fmt.Printf("#%d %s\n", scopeNum, scope)
-
-// 	n := scope.NumChildren()
-// 	for i:=0; i<n; i++ {
-// 		child := scope.Child(i)
-// 		if child != nil { traverse_scope(fset, child, indent+1) }
-// 	}
-// }
 
 // pkgfiles returns the list of package files for the given directory.
 func pkgfiles(dir string) []string {

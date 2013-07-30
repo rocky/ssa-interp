@@ -182,6 +182,20 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 	}
 }
 
+func AssignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope, scopeNum int) {
+	// num2scope = append(num2scope, scope)
+	ast2Scope[scope.Node()] = &Scope {
+		Scope: scope,
+		scopeNum: scopeNum,
+	}
+	scopeNum++
+	n := scope.NumChildren()
+	for i:=0; i<n; i++ {
+		child := scope.Child(i)
+		if child != nil { AssignScopeNums(ast2Scope, child, scopeNum) }
+	}
+}
+
 // CreatePackage constructs and returns an SSA Package from an
 // error-free package described by info, and populates its Members
 // mapping.
@@ -206,8 +220,10 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		Object:  info.Pkg,
 		info:    info, // transient (CREATE and BUILD phases)
 		locs:    make([] LocInst, 0),
-		Scope:   info.Pkg.Scope(),
+		Ast2Scope: make(map[ast.Node]*Scope),
 	}
+
+	AssignScopeNums(p.Ast2Scope, info.Pkg.Scope(), 0)
 
 	// Add init() function.
 	p.Init = &Function{

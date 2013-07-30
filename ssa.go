@@ -31,6 +31,17 @@ type Program struct {
 	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
 }
 
+// Scopes are attached to basic blocks.  For our purposes, we need a
+// types.Scope plus some sort of non-pointer-address name which we can
+// repeatably derive. The name is just a preorder traversal number of
+// the scope tree for a package. Scope number should be reset for each
+// function, but that's more work. I, rocky, believe this really
+// should be in ast.scope, but it is what it is.
+type Scope struct {
+	*types.Scope
+	scopeNum int
+}
+
 // A Package is a single analyzed Go package containing Members for
 // all package-level functions, variables, constants and types it
 // declares.  These may be accessed directly via Members, or via the
@@ -49,7 +60,7 @@ type Package struct {
 	info    *importer.PackageInfo // package ASTs and type information
 
 	locs   []LocInst            // slice of start source-code positions
-	Scope  *types.Scope
+	Ast2Scope map[ast.Node]*Scope
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,
@@ -316,6 +327,8 @@ type BasicBlock struct {
 	dom          *domNode       // node in dominator tree; optional.
 	gaps         int            // number of nil Instrs (transient).
 	rundefers    int            // number of rundefers (transient)
+	ScopeNum     int            // number indicating which scope this block is in
+	                            // -1 for no scope.
 }
 
 // Pure values ----------------------------------------
