@@ -156,7 +156,7 @@ type funcSyntax struct {
 func (f *Function) labelledBlock(label *ast.Ident) *lblock {
 	lb := f.lblocks[label.Obj]
 	if lb == nil {
-		lb = &lblock{_goto: f.newBasicBlock(label.Name)}
+		lb = &lblock{_goto: f.newBasicBlock(label.Name, -1)}
 		if f.lblocks == nil {
 			f.lblocks = make(map[*ast.Object]*lblock)
 		}
@@ -211,7 +211,7 @@ func (f *Function) addSpilledParam(obj types.Object) {
 // Precondition: f.Type() already set.
 //
 func (f *Function) startBody() {
-	f.currentBlock = f.newBasicBlock("entry")
+	f.currentBlock = f.newBasicBlock("entry", -1)
 	f.objects = make(map[types.Object]Value) // needed for some synthetics, e.g. init
 }
 
@@ -607,11 +607,12 @@ func (f *Function) DumpTo(w io.Writer) {
 // not automatically become the current block for subsequent calls to emit.
 // comment is an optional string for more readable debugging output.
 //
-func (f *Function) newBasicBlock(comment string) *BasicBlock {
+func (f *Function) newBasicBlock(comment string, scopeNum int) *BasicBlock {
 	b := &BasicBlock{
 		Index:   len(f.Blocks),
 		Comment: comment,
 		parent:  f,
+		ScopeNum: scopeNum,
 	}
 	b.Succs = b.succs2[:0]
 	f.Blocks = append(f.Blocks, b)
