@@ -291,6 +291,7 @@ type Function struct {
 	AnonFuncs []*Function   // anonymous functions directly beneath this one
 
 	Breakpoint bool    // Set on runtime if we should stop here
+	Scope      *Scope  // Scope number of its first basic block.
 
 	// The following fields are set transiently during building,
 	// then cleared.
@@ -327,8 +328,7 @@ type BasicBlock struct {
 	dom          *domNode       // node in dominator tree; optional.
 	gaps         int            // number of nil Instrs (transient).
 	rundefers    int            // number of rundefers (transient)
-	ScopeNum     int            // number indicating which scope this block is in
-	                            // -1 for no scope.
+	Scope        *Scope         // Scope this block is in nil for no scope.
 }
 
 // Pure values ----------------------------------------

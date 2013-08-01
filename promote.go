@@ -187,11 +187,12 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function
 		Signature: sig,
 		Synthetic: description,
 		Breakpoint: false,
+		Scope      : nil,
 		LocalsByName: make(map[string]int),
 		Prog:      prog,
 		pos:       mfunc.Pos(),
 	}
-	fn.startBody()
+	fn.startBody(nil)
 	fn.addSpilledParam(sig.Recv())
 	createParams(fn)
 
@@ -296,9 +297,10 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, obj *types.Func) *Fun
 			pos:       obj.Pos(),
 			Prog:      prog,
 			Breakpoint: false,
+			Scope     : nil,
 			LocalsByName: make(map[string]int),
 		}
-		fn.startBody()
+		fn.startBody(nil)
 		fn.addParam("recv", typ, token.NoPos)
 		createParams(fn)
 		var c Call
@@ -353,12 +355,13 @@ func boundMethodWrapper(prog *Program, obj *types.Func) *Function {
 			Prog:      prog,
 			Breakpoint: false,
 			LocalsByName: make(map[string]int),
+			Scope       : nil,
 			pos:       obj.Pos(),
 		}
 
 		cap := &Capture{name: "recv", typ: recvType(obj), parent: fn}
 		fn.FreeVars = []*Capture{cap}
-		fn.startBody()
+		fn.startBody(nil)
 		createParams(fn)
 		var c Call
 

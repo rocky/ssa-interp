@@ -93,6 +93,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	case *types.Func:
 		var fs *funcSyntax
 		synthetic := "loaded from gc object file"
+		var scope *Scope = nil
 		if decl, ok := syntax.(*ast.FuncDecl); ok {
 			synthetic = ""
 			fs = &funcSyntax{
@@ -100,6 +101,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 				recvField: decl.Recv,
 				body:      decl.Body,
 			}
+			scope = pkg.Ast2Scope[decl.Type]
 		}
 		sig := obj.Type().(*types.Signature)
 		fn := &Function{
@@ -111,6 +113,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			Pkg:        pkg,
 			Prog:       pkg.Prog,
 			Breakpoint: false,
+			Scope     : scope,
 			LocalsByName: make(map[string]int),
 			syntax:     fs,
 		}
@@ -182,12 +185,23 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 	}
 }
 
-func AssignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope, scopeNum *int) {
-	// num2scope = append(num2scope, scope)
-	ast2Scope[scope.Node()] = &Scope {
+func assignScopeNum(scope *types.Scope, scopeNum int) *Scope{
+	ssaScope := &Scope {
 		Scope: scope,
-		scopeNum: *scopeNum,
+		scopeNum: scopeNum,
 	}
+	return ssaScope
+}
+
+func AssignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope, scopeNum *int) {
+	node := scope.Node()
+	ast2Scope[node] = assignScopeNum(scope, *scopeNum)
+	// num2scope = append(num2scope, scope)
+	// switch node.(type) {
+	// case *ast.FuncType:
+	// 	fmt.Println("+++FuncType")
+	// }
+
 	*scopeNum++
 	n := scope.NumChildren()
 	for i:=0; i<n; i++ {
@@ -223,7 +237,10 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		Ast2Scope: make(map[ast.Node]*Scope),
 	}
 
-	scopeNum := 0
+	// 0 scope number is pkg init function
+	scope    := assignScopeNum(info.Pkg.Scope(), 0)
+	p.Ast2Scope[scope.Node()] = scope
+	scopeNum := 1
 	AssignScopeNums(p.Ast2Scope, info.Pkg.Scope(), &scopeNum)
 
 	// Add init() function.
@@ -232,6 +249,8 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		Signature: new(types.Signature),
 		Synthetic: "package initializer",
 		LocalsByName: make(map[string]int),
+		Breakpoint: false,
+		Scope:     scope,
 		Pkg:       p,
 		Prog:      prog,
 	}

@@ -61,9 +61,9 @@ var (
 	vFalse = NewConst(exact.MakeBool(false), tBool, token.NoPos, token.NoPos)
 )
 
-func astScope(fn *Function, node ast.Node) int {
+func astScope(fn *Function, node ast.Node) *Scope {
 	// fmt.Printf("scope returning is %d\n", fn.Pkg.Ast2Scope[node].scopeNum)
-	return fn.Pkg.Ast2Scope[node].scopeNum
+	return fn.Pkg.Ast2Scope[node]
 }
 
 // builder holds state associated with the package currently being built.
@@ -109,14 +109,14 @@ func (b *builder) cond(fn *Function, e ast.Expr, t, f *BasicBlock) {
 	case *ast.BinaryExpr:
 		switch e.Op {
 		case token.LAND:
-			ltrue := fn.newBasicBlock("cond.true", -1)
+			ltrue := fn.newBasicBlock("cond.true", nil)
 			b.cond(fn, e.X, ltrue, f)
 			fn.currentBlock = ltrue
 			b.cond(fn, e.Y, t, f)
 			return
 
 		case token.LOR:
-				lfalse := fn.newBasicBlock("cond.false", -1)
+				lfalse := fn.newBasicBlock("cond.false", nil)
 			b.cond(fn, e.X, t, lfalse)
 			fn.currentBlock = lfalse
 			b.cond(fn, e.Y, t, f)
@@ -148,8 +148,8 @@ func (b *builder) cond(fn *Function, e ast.Expr, t, f *BasicBlock) {
 // The value is returned.
 //
 func (b *builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
-	rhs := fn.newBasicBlock("binop.rhs", -1)
-	done := fn.newBasicBlock("binop.done", -1)
+	rhs := fn.newBasicBlock("binop.rhs", nil)
+	done := fn.newBasicBlock("binop.done", nil)
 
 	var short Value // value of the short-circuit path
 	switch e.Op {
@@ -329,7 +329,7 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 			X:   emitConv(fn, b.expr(fn, args[0]), tEface),
 			pos: pos,
 		})
-		fn.currentBlock = fn.newBasicBlock("unreachable", -1)
+		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 		return vFalse // any non-nil Value will do
 	}
 	return nil // treat all others as a regular function call
@@ -495,6 +495,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			Pkg:        fn.Pkg,
 			Prog:       fn.Prog,
 			Breakpoint: false,
+			Scope     : nil,
 			LocalsByName: make(map[string]int),
 			syntax: &funcSyntax{
 				functype: e.Type,
@@ -1277,7 +1278,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 		emitTrace(fn, SWITCH_COND, s.Tag.Pos(), s.Tag.End())
 		tag = b.expr(fn, s.Tag)
 	}
-	done := fn.newBasicBlock("switch.done", -1)
+	done := fn.newBasicBlock("switch.done", astScope(fn, s))
 	if label != nil {
 		label._break = done
 	}
@@ -1294,13 +1295,13 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 		body := fallthru
 		if body == nil {
 			// first case only
-			body = fn.newBasicBlock("switch.body", astScope(fn, s))
+			body = fn.newBasicBlock("switch.body", astScope(fn, s.Body))
 		}
 
 		// Preallocate body block for the next case.
 		fallthru = done
 		if i+1 < ncases {
-			fallthru = fn.newBasicBlock("switch.body", body.ScopeNum)
+			fallthru = fn.newBasicBlock("switch.body", body.Scope)
 		}
 
 		cc := clause.(*ast.CaseClause)
@@ -1314,7 +1315,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 
 		var nextCond *BasicBlock
 		for _, cond := range cc.List {
-			nextCond = fn.newBasicBlock("switch.next", body.ScopeNum)
+			nextCond = fn.newBasicBlock("switch.next", body.Scope)
 			// TODO(adonovan): opt: when tag==vTrue, we'd
 			// get better much code if we use b.cond(cond)
 			// instead of BinOp(EQL, tag, b.expr(cond))
@@ -1414,7 +1415,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 		x = b.expr(fn, unparen(ass.Rhs[0]).(*ast.TypeAssertExpr).X)
 	}
 
-	done := fn.newBasicBlock("typeswitch.done", -1)
+	done := fn.newBasicBlock("typeswitch.done", astScope(fn, s))
 	if label != nil {
 		label._break = done
 	}
@@ -1425,12 +1426,12 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			default_ = cc
 			continue
 		}
-		body := fn.newBasicBlock("typeswitch.body", -1)
+		body := fn.newBasicBlock("typeswitch.body", astScope(fn, s.Body))
 		var next *BasicBlock
 		var casetype types.Type
 		var ti Value // ti, ok := typeassert,ok x <Ti>
 		for _, cond := range cc.List {
-			next = fn.newBasicBlock("typeswitch.next", -1)
+			next = fn.newBasicBlock("typeswitch.next", astScope(fn, s.Body))
 			casetype = fn.Pkg.typeOf(cond)
 			var condv Value
 			if casetype == tUntypedNil {
@@ -1488,7 +1489,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		clause := s.Body.List[0].(*ast.CommClause)
 		if clause.Comm != nil {
 			b.stmt(fn, clause.Comm)
-			done := fn.newBasicBlock("select.done", -1)
+			done := fn.newBasicBlock("select.done", astScope(fn, s))
 			if label != nil {
 				label._break = done
 			}
@@ -1566,7 +1567,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	fn.emit(sel)
 	idx := emitExtract(fn, sel, 0, tInt)
 
-	done := fn.newBasicBlock("select.done", -1)
+	done := fn.newBasicBlock("select.done", astScope(fn, s))
 	if label != nil {
 		label._break = done
 	}
@@ -1580,8 +1581,8 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 			defaultBody = &clause.Body
 			continue
 		}
-		body := fn.newBasicBlock("select.body", -1)
-		next := fn.newBasicBlock("select.next", -1)
+		body := fn.newBasicBlock("select.body", astScope(fn, s.Body))
+		next := fn.newBasicBlock("select.next", nil) //rocky: FIXME get scope
 		emitIf(fn, emitCompare(fn, token.EQL, idx, intConst(int64(state)), token.NoPos), body, next)
 		fn.currentBlock = body
 		fn.targets = &targets{
@@ -1646,14 +1647,14 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 		b.stmt(fn, s.Init)
 	}
 	body := fn.newBasicBlock("for.body", astScope(fn, s.Body))
-	done := fn.newBasicBlock("for.done", -1) // target of 'break'
+	done := fn.newBasicBlock("for.done", astScope(fn, s)) // target of 'break'
 	loop := body                         // target of back-edge
 	if s.Cond != nil {
-		loop = fn.newBasicBlock("for.loop", -1)
+		loop = fn.newBasicBlock("for.loop", astScope(fn, s.Cond))
 	}
 	cont := loop // target of 'continue'
 	if s.Post != nil {
-		cont = fn.newBasicBlock("for.post", -1)
+		cont = fn.newBasicBlock("for.post", astScope(fn, s.Cond))
 	}
 	if label != nil {
 		label._break = done
@@ -1723,7 +1724,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	index := fn.addLocal(tInt, token.NoPos)
 	emitStore(fn, index, intConst(-1))
 
-	loop = fn.newBasicBlock("rangeindex.loop", -1)
+	loop = fn.newBasicBlock("rangeindex.loop", nil)
 	emitJump(fn, loop)
 	fn.currentBlock = loop
 
@@ -1735,8 +1736,8 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	incr.setType(tInt)
 	emitStore(fn, index, fn.emit(incr))
 
-	body := fn.newBasicBlock("rangeindex.body", -1)
-	done = fn.newBasicBlock("rangeindex.done", -1)
+	body := fn.newBasicBlock("rangeindex.body", nil)
+	done = fn.newBasicBlock("rangeindex.done", nil)
 	emitIf(fn, emitCompare(fn, token.LSS, incr, length, token.NoPos), body, done)
 	fn.currentBlock = body
 
@@ -1806,7 +1807,7 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 	rng.setType(tRangeIter)
 	it := fn.emit(rng)
 
-	loop = fn.newBasicBlock("rangeiter.loop", -1)
+	loop = fn.newBasicBlock("rangeiter.loop", nil)
 	emitJump(fn, loop)
 	fn.currentBlock = loop
 
@@ -1823,8 +1824,8 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 	))
 	fn.emit(okv)
 
-	body := fn.newBasicBlock("rangeiter.body", -1)
-	done = fn.newBasicBlock("rangeiter.done", -1)
+	body := fn.newBasicBlock("rangeiter.body", nil)
+	done = fn.newBasicBlock("rangeiter.done", nil)
 	emitIf(fn, emitExtract(fn, okv, 0, tBool), body, done)
 	fn.currentBlock = body
 
@@ -1854,7 +1855,7 @@ func (b *builder) rangeChan(fn *Function, x Value, tk types.Type) (k Value, loop
 	//      goto loop
 	// done:                                   (target of break)
 
-	loop = fn.newBasicBlock("rangechan.loop", -1)
+	loop = fn.newBasicBlock("rangechan.loop", nil)
 	emitJump(fn, loop)
 	fn.currentBlock = loop
 	recv := &UnOp{
@@ -1867,8 +1868,8 @@ func (b *builder) rangeChan(fn *Function, x Value, tk types.Type) (k Value, loop
 		varOk,
 	))
 	ko := fn.emit(recv)
-	body := fn.newBasicBlock("rangechan.body", -1)
-	done = fn.newBasicBlock("rangechan.done", -1)
+	body := fn.newBasicBlock("rangechan.body", nil)
+	done = fn.newBasicBlock("rangechan.done", nil)
 	emitIf(fn, emitExtract(fn, ko, 1, tBool), body, done)
 	fn.currentBlock = body
 	if tk != nil {
@@ -2039,7 +2040,7 @@ start:
 			// block when explicitly returning from it.
 			fn.emit(new(RunDefers))
 			emitJump(fn, block)
-			fn.currentBlock = fn.newBasicBlock("unreachable", -1)
+			fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 			return
 		}
 
@@ -2078,7 +2079,7 @@ start:
 			}
 		}
 		fn.emit(&Ret{Results: results, pos: s.Return})
-		fn.currentBlock = fn.newBasicBlock("unreachable", -1)
+		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 
 	case *ast.BranchStmt:
 		var block *BasicBlock
@@ -2111,7 +2112,7 @@ start:
 			block = fn.labelledBlock(s.Label)._goto
 		}
 		emitJump(fn, block)
-		fn.currentBlock = fn.newBasicBlock("unreachable", -1)
+		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 
 	case *ast.BlockStmt:
 		b.stmtList(fn, s.List)
@@ -2122,11 +2123,11 @@ start:
 			emitTrace(fn, IF_INIT, s.Init.Pos(), s.Init.End())
 			b.stmt(fn, s.Init)
 		}
-		then := fn.newBasicBlock("if.then", -1)
-		done := fn.newBasicBlock("if.done", -1)
+		then := fn.newBasicBlock("if.then", astScope(fn, s.Body))
+		done := fn.newBasicBlock("if.done", astScope(fn, s))
 		els := done
 		if s.Else != nil {
-			els = fn.newBasicBlock("if.else", -1)
+			els = fn.newBasicBlock("if.else", astScope(fn, s.Else))
 		}
 		emitTrace(fn, IF_COND, s.Cond.Pos(), s.Cond.End())
 		b.cond(fn, s.Cond, then, els)
@@ -2170,6 +2171,7 @@ func (b *builder) buildFunction(fn *Function) {
 	if fn.syntax == nil {
 		return // not a Go source function.  (Synthetic, or from object file.)
 	}
+
 	if fn.syntax.body == nil {
 		// External function.
 		if fn.Params == nil {
@@ -2190,12 +2192,16 @@ func (b *builder) buildFunction(fn *Function) {
 		}
 		return
 	}
+	var scope *Scope = nil
+	pkg := fn.Pkg
+	if fn.syntax.functype != nil {
+		scope = pkg.Ast2Scope[fn.syntax.functype]
+	}
 	if fn.Prog.mode&LogSource != 0 {
 		defer logStack("build function %s @ %s", fn, fn.Prog.Fset.Position(fn.pos))()
 	}
-	pkg := fn.Pkg
 	pkg.locs = append(pkg.locs, LocInst{Pos: fn.pos, Trace: nil, Fn: fn})
-	fn.startBody()
+	fn.startBody(scope)
 	fn.createSyntacticParams()
 	b.stmt(fn, fn.syntax.body)
 	if cb := fn.currentBlock; cb != nil && (cb == fn.Blocks[0] || cb.Preds != nil) {
@@ -2254,7 +2260,7 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 			// treated like a "goto" to the the next init
 			// block, which we stuff in the outermost
 			// break label.
-			next := init.newBasicBlock("init.next", -1)
+			next := init.newBasicBlock("init.next", pkg.Ast2Scope[decl.Type])
 			init.targets = &targets{
 				tail:   init.targets,
 				_break: next,
@@ -2269,7 +2275,8 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 
 		} else {
 			// Package-level function.
-			b.buildFunction(pkg.values[pkg.objectOf(id)].(*Function))
+			obj := pkg.objectOf(id)
+			b.buildFunction(pkg.values[obj].(*Function))
 		}
 	}
 
@@ -2312,12 +2319,13 @@ func (p *Package) Build() {
 		defer logStack("build %s", p)()
 	}
 	init := p.Init
-	init.startBody()
+	scope := init.Scope
+	init.startBody(scope)
 
 	// Make init() skip if package is already initialized.
 	initguard := p.Var("init$guard")
-	doinit := init.newBasicBlock("init.start", -1)
-	done := init.newBasicBlock("init.done", -1)
+	doinit := init.newBasicBlock("init.start", scope)
+	done := init.newBasicBlock("init.done", scope)
 	emitIf(init, emitLoad(init, initguard), done, doinit)
 	init.currentBlock = doinit
 	emitStore(init, initguard, vTrue)

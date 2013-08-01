@@ -83,19 +83,23 @@ func main() {
 	// # Name: main.init
 	// # Synthetic: package initializer
 	// func init():
+	// # scope: 0
 	// .0.entry:                                                               P:0 S:2
 	// 	t0 = *init$guard                                                   bool
 	// 	if t0 goto 2.init.done else 1.init.start
+	// # scope: 0
 	// .1.init.start:                                                          P:1 S:1
 	// 	*init$guard = true:bool
 	// 	t1 = fmt.init()                                                      ()
 	// 	jump 2.init.done
+	// # scope: 0
 	// .2.init.done:                                                           P:2 S:0
 	// 	ret
 	//
 	// # Name: main.main
 	// # Located at hello.go:8:6-10:2
 	// func main():
+	// # scope: 3
 	// .0.entry:                                                               P:0 S:0
 	//	trace <STATEMENT in list> at hello.go:9:2-22
 	// 	a0 = new [1]interface{}                                 *[1]interface{}

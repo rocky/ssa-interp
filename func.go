@@ -156,7 +156,7 @@ type funcSyntax struct {
 func (f *Function) labelledBlock(label *ast.Ident) *lblock {
 	lb := f.lblocks[label.Obj]
 	if lb == nil {
-		lb = &lblock{_goto: f.newBasicBlock(label.Name, -1)}
+		lb = &lblock{_goto: f.newBasicBlock(label.Name, nil)}
 		if f.lblocks == nil {
 			f.lblocks = make(map[*ast.Object]*lblock)
 		}
@@ -210,8 +210,8 @@ func (f *Function) addSpilledParam(obj types.Object) {
 // startBody initializes the function prior to generating SSA code for its body.
 // Precondition: f.Type() already set.
 //
-func (f *Function) startBody() {
-	f.currentBlock = f.newBasicBlock("entry", -1)
+func (f *Function) startBody(scope *Scope) {
+	f.currentBlock = f.newBasicBlock("entry", scope)
 	f.objects = make(map[types.Object]Value) // needed for some synthetics, e.g. init
 }
 
@@ -590,6 +590,9 @@ func (f *Function) DumpTo(w io.Writer) {
 			fmt.Fprintf(w, ".nil:\n")
 			continue
 		}
+		if b.Scope != nil {
+			fmt.Fprintf(w, "# scope: %d\n", b.Scope.scopeNum)
+		}
 		n, _ := fmt.Fprintf(w, ".%s:", b)
 		fmt.Fprintf(w, "%*sP:%d S:%d\n", punchcard-1-n-len("P:n S:n"), "", len(b.Preds), len(b.Succs))
 
@@ -607,12 +610,12 @@ func (f *Function) DumpTo(w io.Writer) {
 // not automatically become the current block for subsequent calls to emit.
 // comment is an optional string for more readable debugging output.
 //
-func (f *Function) newBasicBlock(comment string, scopeNum int) *BasicBlock {
+func (f *Function) newBasicBlock(comment string, scope *Scope) *BasicBlock {
 	b := &BasicBlock{
 		Index:   len(f.Blocks),
 		Comment: comment,
 		parent:  f,
-		ScopeNum: scopeNum,
+		Scope: scope,
 	}
 	b.Succs = b.succs2[:0]
 	f.Blocks = append(f.Blocks, b)
@@ -640,6 +643,7 @@ func NewFunction(name string, sig *types.Signature, provenance string) *Function
 		Signature: sig,
 		Synthetic: provenance,
 		Breakpoint: false,
+		Scope: nil,
 		LocalsByName: make(map[string]int),
 	}
 }

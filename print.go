@@ -88,8 +88,14 @@ func (v *Phi) String() string {
 		}
 		// Be robust against malformed CFG.
 		blockname := "?"
-		if v.block != nil && i < len(v.block.Preds) {
-			blockname = v.block.Preds[i].String()
+		if v.block != nil {
+			if v.block.Scope != nil {
+				str := fmt.Sprintf("# scope: %d\n", v.block.Scope.scopeNum)
+				b.WriteString(str)
+			}
+			if i < len(v.block.Preds) {
+				blockname = v.block.Preds[i].String()
+			}
 		}
 		b.WriteString(blockname)
 		b.WriteString(": ")

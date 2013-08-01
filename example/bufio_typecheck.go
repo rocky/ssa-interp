@@ -121,11 +121,135 @@ func printScope(fset *token.FileSet, scope *Scope) {
 	fmt.Printf("#%d %s\n", scope.scopeNum, scope.Scope)
 }
 
+func PrintAstType(node ast.Node) {
+	switch n := node.(type) {
+	case *ast.Comment:
+		fmt.Println("Comment")
+	case *ast.CommentGroup:
+		fmt.Println("Comment Group")
+	case *ast.Field:
+		fmt.Println("Field")
+	case *ast.FieldList:
+		fmt.Println("FieldList")
+		// Expressions
+	case *ast.BadExpr, *ast.Ident, *ast.BasicLit:
+		fmt.Println("BadExpr, Ident or BasicLit")
+		// nothing to do
+	case *ast.Ellipsis:
+		fmt.Println("Elipsis")
+	case *ast.FuncLit:
+		fmt.Println("FuncLit")
+	case *ast.CompositeLit:
+		fmt.Println("CompositeLit")
+	case *ast.ParenExpr:
+		fmt.Println("ParenExpr")
+	case *ast.SelectorExpr:
+		fmt.Println("SelectorExpr")
+	case *ast.IndexExpr:
+		fmt.Println("IndexExpr")
+	case *ast.SliceExpr:
+		fmt.Println("SliceExpr")
+	case *ast.TypeAssertExpr:
+		fmt.Println("TypeAssertExpr")
+	case *ast.CallExpr:
+		fmt.Println("CallExpr")
+	case *ast.StarExpr:
+		fmt.Println("StarExpr")
+	case *ast.UnaryExpr:
+		fmt.Println("UnaryExpr")
+	case *ast.BinaryExpr:
+		fmt.Println("BinaryExpr")
+	case *ast.KeyValueExpr:
+		fmt.Println("KeyValueExpr")
+		// Types
+	case *ast.ArrayType:
+		fmt.Println("ArrayType")
+	case *ast.StructType:
+		fmt.Println("StructType")
+	case *ast.FuncType:
+		fmt.Println("FuncType")
+	case *ast.InterfaceType:
+		fmt.Println("InterfaceType")
+	case *ast.MapType:
+		fmt.Println("MapType")
+	case *ast.ChanType:
+		fmt.Println("ChanType")
+		// Statements
+	case *ast.BadStmt:
+		fmt.Println("BadStmt")
+	case *ast.DeclStmt:
+		fmt.Println("DeclStmt")
+	case *ast.EmptyStmt:
+		fmt.Println("EmptyStmt")
+	case *ast.LabeledStmt:
+		fmt.Println("LabeledStmt")
+	case *ast.ExprStmt:
+		fmt.Println("ExprStmt")
+	case *ast.SendStmt:
+		fmt.Println("SendStmt")
+	case *ast.IncDecStmt:
+		fmt.Println("IncDecStmt")
+	case *ast.AssignStmt:
+		fmt.Println("AssignStmt")
+	case *ast.GoStmt:
+		fmt.Println("GoStmt")
+	case *ast.DeferStmt:
+		fmt.Println("DeferStmt")
+	case *ast.ReturnStmt:
+		fmt.Println("ReturnStmt")
+	case *ast.BranchStmt:
+		fmt.Println("BranchStmt")
+	case *ast.BlockStmt:
+		fmt.Println("BlockStmt")
+	case *ast.IfStmt:
+		fmt.Println("IfStmt")
+	case *ast.CaseClause:
+		fmt.Println("CaseClause")
+	case *ast.SwitchStmt:
+		fmt.Println("SwitchStmt")
+	case *ast.TypeSwitchStmt:
+		fmt.Println("TypeSwitchStmt")
+	case *ast.CommClause:
+		fmt.Println("CommClause")
+	case *ast.SelectStmt:
+		fmt.Println("SelectStmt")
+	case *ast.ForStmt:
+		fmt.Println("ForStmt")
+	case *ast.RangeStmt:
+		fmt.Println("RangeStmt")
+		// Declarations
+	case *ast.ImportSpec:
+		fmt.Println("ImportSpec")
+	case *ast.ValueSpec:
+		fmt.Println("ValueSpec")
+	case *ast.TypeSpec:
+		fmt.Println("TypeSpec")
+	case *ast.BadDecl:
+		fmt.Println("BadDecl")
+	case *ast.GenDecl:
+		fmt.Println("GenDecl")
+	case *ast.FuncDecl:
+		fmt.Println("FuncDecl")
+		// Files and packages
+	case *ast.File:
+		fmt.Println("File")
+	case *ast.Package:
+		fmt.Println("Package")
+	default:
+		fmt.Printf("ast.Walk: unexpected node type %T", n)
+	}
+}
+
 func traverseScope(fset *token.FileSet, scope *types.Scope, indent int) {
 	const ind = ".  "
 	indn  := strings.Repeat(ind, indent)
 	fmt.Printf("%s ", indn)
 	node  := scope.Node()
+	fmt.Println("---------")
+	if node != nil {
+		PrintAstType(node)
+	}
+	fmt.Println("=========")
 	printScope(fset, ast2Scope[node])
 
 	n := scope.NumChildren()
