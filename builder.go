@@ -1646,15 +1646,20 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 		emitTrace(fn, FOR_INIT, s.Init.Pos(), s.Init.End())
 		b.stmt(fn, s.Init)
 	}
+	forScope := astScope(fn, s)
+	parentScope := fn.Pkg.TypeScope2Scope[forScope.Scope.Parent()]
 	body := fn.newBasicBlock("for.body", astScope(fn, s.Body))
-	done := fn.newBasicBlock("for.done", astScope(fn, s)) // target of 'break'
+
+	// target of 'break'
+	done := fn.newBasicBlock("for.done", parentScope)
+
 	loop := body                         // target of back-edge
 	if s.Cond != nil {
-		loop = fn.newBasicBlock("for.loop", astScope(fn, s.Cond))
+		loop = fn.newBasicBlock("for.loop", forScope)
 	}
 	cont := loop // target of 'continue'
 	if s.Post != nil {
-		cont = fn.newBasicBlock("for.post", astScope(fn, s.Cond))
+		cont = fn.newBasicBlock("for.post", forScope)
 	}
 	if label != nil {
 		label._break = done

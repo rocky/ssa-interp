@@ -61,6 +61,7 @@ type Package struct {
 
 	locs   []LocInst            // slice of start source-code positions
 	Ast2Scope map[ast.Node]*Scope
+	TypeScope2Scope map[*types.Scope]*Scope // Maps a type.scope to our Scope
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,

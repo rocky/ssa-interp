@@ -185,17 +185,19 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 	}
 }
 
-func assignScopeNum(scope *types.Scope, scopeNum int) *Scope{
-	ssaScope := &Scope {
-		Scope: scope,
+func assignScopeNum(typesScope *types.Scope, scopeNum int) *Scope{
+	scope := &Scope {
+		Scope: typesScope,
 		scopeNum: scopeNum,
 	}
-	return ssaScope
+	return scope
 }
 
-func AssignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope, scopeNum *int) {
-	node := scope.Node()
-	ast2Scope[node] = assignScopeNum(scope, *scopeNum)
+func AssignScopeNums(pkg *Package, typesScope *types.Scope, scopeNum *int) {
+	node  := typesScope.Node()
+	scope := assignScopeNum(typesScope, *scopeNum)
+	pkg.Ast2Scope[node] = scope
+	pkg.TypeScope2Scope[typesScope] = scope
 	// num2scope = append(num2scope, scope)
 	// switch node.(type) {
 	// case *ast.FuncType:
@@ -205,8 +207,8 @@ func AssignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope, scopeNum
 	*scopeNum++
 	n := scope.NumChildren()
 	for i:=0; i<n; i++ {
-		child := scope.Child(i)
-		if child != nil { AssignScopeNums(ast2Scope, child, scopeNum) }
+		child := typesScope.Child(i)
+		if child != nil { AssignScopeNums(pkg, child, scopeNum) }
 	}
 }
 
@@ -235,13 +237,14 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		info:    info, // transient (CREATE and BUILD phases)
 		locs:    make([] LocInst, 0),
 		Ast2Scope: make(map[ast.Node]*Scope),
+		TypeScope2Scope: make(map[*types.Scope]*Scope),
 	}
 
 	// 0 scope number is pkg init function
 	scope    := assignScopeNum(info.Pkg.Scope(), 0)
 	p.Ast2Scope[scope.Node()] = scope
 	scopeNum := 1
-	AssignScopeNums(p.Ast2Scope, info.Pkg.Scope(), &scopeNum)
+	AssignScopeNums(p, info.Pkg.Scope(), &scopeNum)
 
 	// Add init() function.
 	p.Init = &Function{

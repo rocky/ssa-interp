@@ -16,7 +16,8 @@ func init() {
 		fn: ScopeCommand,
 		help: `quit [level]
 
-Prints infromation about scope. If a level is given we go up that many levels.
+Prints information about the scope for the current stack frame.
+If a level is given, we go up that many levels.
 `,
 		min_args: 0,
 		max_args: 1,
