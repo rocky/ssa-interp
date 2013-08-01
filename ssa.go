@@ -1603,3 +1603,5 @@ func (v *TypeAssert) Operands(rands []*Value) []*Value {
 func (v *UnOp) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
+
+func (s *Scope) ScopeNum() int { return s.scopeNum }

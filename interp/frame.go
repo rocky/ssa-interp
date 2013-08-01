@@ -49,6 +49,10 @@ func (fr *Frame) get(key ssa2.Value) Value {
 	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
 }
 
+func (fr *Frame) Scope() *ssa2.Scope {
+	return fr.block.Scope
+}
+
 func (fr *Frame) rundefers() {
 	for i := range fr.defers {
 		if (fr.i.TraceMode & EnableTracing) != 0 {
