@@ -8,7 +8,6 @@ package interp
 // external or because they use "unsafe" or "reflect" operations.
 
 import (
-	"unsafe" // For Pointer in encode_pc. Move to separate file?
 	"fmt"
 	"math"
 	"io"
@@ -16,7 +15,22 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+	"github.com/rocky/ssa-interp"
 )
+
+var fn2NumMap map[*ssa2.Function]uint  = make(map[*ssa2.Function]uint, 0)
+var num2fnMap []*ssa2.Function
+var lastFn2Num uint = 1
+
+func fn2Num(fn *ssa2.Function) uint {
+	if fn2NumMap[fn] != 0 {
+		return fn2NumMap[fn]
+	}
+	fn2NumMap[fn] = lastFn2Num
+	num2fnMap = append(num2fnMap, fn)
+	lastFn2Num++
+	return fn2NumMap[fn]
+}
 
 type externalFn func(fr *Frame, args []Value) Value
 
@@ -64,6 +78,8 @@ var Externals = map[string]externalFn{
 	"runtime.Breakpoint":              ext۰runtime۰Breakpoint,
 	"runtime.Caller":                  ext۰runtime۰Caller,
 	"runtime.Callers":                 ext۰runtime۰Callers,
+	// "runtime.FuncForPC":               ext۰runtime۰FuncForPC,
+	"runtime.function":                ext۰runtime۰function,
 	"runtime.GC":                      ext۰runtime۰GC,
 	"runtime.GOMAXPROCS":              ext۰runtime۰GOMAXPROCS,
 	"runtime.Gosched":                 ext۰runtime۰Gosched,
@@ -162,10 +178,10 @@ func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
 	return nil
 }
 
-func encode_pc(fr *Frame) uintptr {
-	var fnaddr uintptr = uintptr(unsafe.Pointer(fr.fn))
-	bpc := uintptr(fr.block.Index) * 0xff + uintptr(fr.pc)
-	return ((fnaddr & 0x0000ffff) | (bpc << 16))
+func encode_pc(fr *Frame) uint {
+	fnNum := fn2Num(fr.fn)
+	bpc := uint(fr.block.Index) * 0xff + uint(fr.pc)
+	return (fnNum << 16) | (bpc & 0x0000ffff)
 }
 
 func ext۰runtime۰Caller(fr *Frame, args []Value) Value {
@@ -211,6 +227,25 @@ func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
 	}
 	return count
 }
+
+// FIXME: this isn't used because it is internally called
+// from runtime/stack. But it's what we probably
+// want
+func ext۰runtime۰function(fr *Frame, args []Value) Value {
+	pc := args[0].(uintptr)
+	fnIndex := pc >> 16
+	fn := num2fnMap[fnIndex - 1]
+	if fn == nil {
+		return []byte("??Unknown fn")
+	}
+	return []byte(fn.Name())
+}
+
+// // Can't really write this using runtime.function because interperter
+// // can't cant copy return value to *Func.
+// func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {
+// 	return nil
+// }
 
 func ext۰runtime۰getgoroot(fr *Frame, args []Value) Value {
 	return os.Getenv("GOROOT")

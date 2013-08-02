@@ -10,6 +10,7 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"runtime"
 )
 
 const zero int = 1
@@ -360,6 +361,8 @@ func init() {
 	defer func() {
 		r := recover()
 		if r != "interface conversion: interface is nil, not main.I" {
+			_, file, line := runtime.Caller(0)
+			fmt.Printf("Backtrace: %s:%d\n", file, line)
 			panic("I->I type assertion succeeed for nil value")
 		}
 	}()
