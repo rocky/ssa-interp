@@ -1278,7 +1278,8 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 		emitTrace(fn, SWITCH_COND, s.Tag.Pos(), s.Tag.End())
 		tag = b.expr(fn, s.Tag)
 	}
-	done := fn.newBasicBlock("switch.done", astScope(fn, s))
+	switchScope := astScope(fn, s)
+	done := fn.newBasicBlock("switch.done", parentScope(fn, switchScope))
 	if label != nil {
 		label._break = done
 	}
@@ -1415,7 +1416,9 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 		x = b.expr(fn, unparen(ass.Rhs[0]).(*ast.TypeAssertExpr).X)
 	}
 
-	done := fn.newBasicBlock("typeswitch.done", astScope(fn, s))
+	typeSwitchScope := astScope(fn, s)
+
+	done := fn.newBasicBlock("typeswitch.done", parentScope(fn, typeSwitchScope))
 	if label != nil {
 		label._break = done
 	}
@@ -1489,7 +1492,8 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		clause := s.Body.List[0].(*ast.CommClause)
 		if clause.Comm != nil {
 			b.stmt(fn, clause.Comm)
-			done := fn.newBasicBlock("select.done", astScope(fn, s))
+			selectScope := astScope(fn, s)
+			done := fn.newBasicBlock("select.done", selectScope)
 			if label != nil {
 				label._break = done
 			}
@@ -1567,7 +1571,8 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	fn.emit(sel)
 	idx := emitExtract(fn, sel, 0, tInt)
 
-	done := fn.newBasicBlock("select.done", astScope(fn, s))
+	selectScope := astScope(fn, s)
+	done := fn.newBasicBlock("select.done", selectScope)
 	if label != nil {
 		label._break = done
 	}
@@ -1647,11 +1652,10 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 		b.stmt(fn, s.Init)
 	}
 	forScope := astScope(fn, s)
-	parentScope := fn.Pkg.TypeScope2Scope[forScope.Scope.Parent()]
 	body := fn.newBasicBlock("for.body", astScope(fn, s.Body))
 
 	// target of 'break'
-	done := fn.newBasicBlock("for.done", parentScope)
+	done := fn.newBasicBlock("for.done", parentScope(fn, forScope))
 
 	loop := body                         // target of back-edge
 	if s.Cond != nil {
@@ -1959,6 +1963,10 @@ func (b *builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 	fn.currentBlock = done
 }
 
+func parentScope(fn *Function, scope *Scope) *Scope {
+	return fn.Pkg.TypeScope2Scope[scope.Scope.Parent()]
+}
+
 // stmt lowers statement s to SSA form, emitting code to fn.
 func (b *builder) stmt(fn *Function, _s ast.Stmt) {
 	// The label of the current statement.  If non-nil, its _goto
@@ -2128,8 +2136,9 @@ start:
 			emitTrace(fn, IF_INIT, s.Init.Pos(), s.Init.End())
 			b.stmt(fn, s.Init)
 		}
+		ifScope := astScope(fn, s)
 		then := fn.newBasicBlock("if.then", astScope(fn, s.Body))
-		done := fn.newBasicBlock("if.done", astScope(fn, s))
+		done := fn.newBasicBlock("if.done", parentScope(fn, ifScope))
 		els := done
 		if s.Else != nil {
 			els = fn.newBasicBlock("if.else", astScope(fn, s.Else))
