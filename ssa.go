@@ -505,6 +505,7 @@ type Phi struct {
 // See CallCommon for generic function call documentation.
 //
 // Pos() returns the ast.CallExpr.Lparen, if explicit in the source.
+// EndP() returns the ast.CallExpr.Rparen, if explicit in the source.
 //
 // Example printed form:
 // 	t2 = println(t0, t1)
@@ -570,6 +571,7 @@ type UnOp struct {
 // This operation cannot fail dynamically.
 //
 // Pos() returns the ast.CallExpr.Lparen, if the instruction arose
+// EndP() returns the ast.CallExpr.Rparen, if the instruction arose
 // from an explicit conversion in the source.
 //
 // Example printed form:
@@ -599,6 +601,7 @@ type ChangeType struct {
 // representation are eliminated during SSA construction.
 //
 // Pos() returns the ast.CallExpr.Lparen, if the instruction arose
+// EndP() returns the ast.CallExpr.Rparen, if the instruction arose
 // from an explicit conversion in the source.
 //
 // Example printed form:
@@ -1194,6 +1197,7 @@ type Register struct {
 	num       int        // "name" of virtual register, e.g. "t0".  Not guaranteed unique.
 	typ       types.Type // type of virtual register
 	pos       token.Pos  // position of source expression, or NoPos
+	endP      token.Pos  // end position of source expression, or NoPos
 	referrers []Instruction
 }
 
@@ -1254,6 +1258,7 @@ type CallCommon struct {
 	Args        []Value     // actual parameters (in static method call, includes receiver)
 	HasEllipsis bool        // true iff last Args is a slice of '...' args (needed?)
 	pos         token.Pos   // position of CallExpr.Lparen, iff explicit in source
+	endP        token.Pos   // position of CallExpr.Raren,  iff explicit in source
 }
 
 // IsInvoke returns true if this call has "invoke" (not "call") mode.

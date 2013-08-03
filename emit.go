@@ -316,7 +316,7 @@ func emitTypeAssert(f *Function, x Value, t types.Type, pos token.Pos) Value {
 // emitTypeTest emits to f a type test value,ok := x.(t) and returns
 // a (value, ok) tuple.  x.Type() must be an interface.
 //
-func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos) Value {
+func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos, end token.Pos) Value {
 	// TODO(adonovan): opt: simplify infallible tests as per
 	// emitTypeAssert, and return (x, vTrue).
 	// (Requires that exprN returns a slice of extracted values,
@@ -327,6 +327,7 @@ func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos) Value {
 		CommaOk:      true,
 	}
 	a.setPos(pos)
+	a.setEnd(end)
 	a.setType(types.NewTuple(
 		types.NewVar(token.NoPos, nil, "value", t),
 		varOk,

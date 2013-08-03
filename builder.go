@@ -230,9 +230,7 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 		tuple = fn.emit(lookup)
 
 	case *ast.TypeAssertExpr:
-		// rocky: Until Lparen exists...
-		return emitTypeTest(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.X.Pos())
-		//return emitTypeTest(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
+		return emitTypeTest(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.X.Pos(), e.X.End())
 
 	case *ast.UnaryExpr: // must be receive <-
 		typ = fn.Pkg.typeOf(e.X).Underlying().(*types.Chan).Elem()
@@ -519,9 +517,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		return b.expr(fn, e.X)
 
 	case *ast.TypeAssertExpr: // single-result form only
-		// rocky: Until Lparen exists...
-		return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.X.Pos())
-		//return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.Lparen)
+	    return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.X.Pos())
 
 	case *ast.CallExpr:
 		typ := fn.Pkg.typeOf(e)
@@ -532,11 +528,14 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			if y != x {
 				switch y := y.(type) {
 				case *Convert:
-					y.pos = e.Lparen
+					y.pos  = e.Lparen
+					y.endP = e.Rparen
 				case *ChangeType:
-					y.pos = e.Lparen
+					y.pos  = e.Lparen
+					y.endP = e.Rparen
 				case *MakeInterface:
-					y.pos = e.Lparen
+					y.pos  = e.Lparen
+					y.endP = e.Rparen
 				}
 			}
 			return y
@@ -1441,7 +1440,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 				condv = emitCompare(fn, token.EQL, x, nilConst(x.Type()), token.NoPos)
 				ti = x
 			} else {
-				yok := emitTypeTest(fn, x, casetype, token.NoPos)
+				yok := emitTypeTest(fn, x, casetype, token.NoPos, token.NoPos)
 				ti = emitExtract(fn, yok, 0, casetype)
 				condv = emitExtract(fn, yok, 1, tBool)
 			}

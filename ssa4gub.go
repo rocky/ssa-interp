@@ -30,9 +30,11 @@ func (prog *Program) Package(pkg *types.Package) *Package {
 	return prog.packages[pkg]
 }
 
+func (v *Register) EndP() token.Pos            { return v.endP }
 func (v *Function) EndP() token.Pos            { return v.endP }
 func (v *Function) Fset() *token.FileSet       { return v.Prog.Fset }
 func (v *Function) NamedResults() []*Alloc     { return v.namedResults }
+func (v *Register) setEnd(pos token.Pos)       { v.endP = pos }
 
 func (p *Package) Locs() []LocInst { return p.locs }
 
