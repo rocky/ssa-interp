@@ -766,7 +766,8 @@ func (b *builder) receiver(fn *Function, e ast.Expr, wantAddr, escaping bool, se
 // occurring in e.
 //
 func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
-	c.pos = e.Lparen
+	c.pos  = e.Pos()
+	c.endP = e.End()
 	c.HasEllipsis = e.Ellipsis != 0
 
 	// Is this a method call?
@@ -2090,7 +2091,7 @@ start:
 				results = append(results, emitLoad(fn, r))
 			}
 		}
-		fn.emit(&Ret{Results: results, pos: s.Return})
+		fn.emit(&Ret{Results: results, pos: s.Pos(), endP: s.End()})
 		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 
 	case *ast.BranchStmt:

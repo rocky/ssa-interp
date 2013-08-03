@@ -1032,7 +1032,7 @@ type If struct {
 // Ret must be the last instruction of its containing BasicBlock.
 // Such a block has no successors.
 //
-// Pos() returns the ast.ReturnStmt.Return, if explicit in the source.
+// Pos() and EndP() are set the corresponding ast values.
 //
 // Example printed form:
 // 	ret
@@ -1042,6 +1042,7 @@ type Ret struct {
 	anInstruction
 	Results []Value
 	pos     token.Pos
+	endP    token.Pos
 }
 
 // The RunDefers instruction pops and invokes the entire stack of
