@@ -267,7 +267,8 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 // the caller should treat this like an ordinary library function
 // call.
 //
-func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.Type, pos token.Pos) Value {
+func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.Type,
+	pos token.Pos, endP token.Pos) Value {
 	switch name {
 	case "make":
 		switch typ.Underlying().(type) {
@@ -326,6 +327,7 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 		fn.emit(&Panic{
 			X:   emitConv(fn, b.expr(fn, args[0]), tEface),
 			pos: pos,
+			endP: endP,
 		})
 		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 		return vFalse // any non-nil Value will do
@@ -544,7 +546,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		if id, ok := e.Fun.(*ast.Ident); ok {
 			obj := fn.Pkg.objectOf(id)
 			if _, ok := fn.Prog.builtins[obj]; ok {
-				if v := b.builtin(fn, id.Name, e.Args, typ, e.Lparen); v != nil {
+				if v := b.builtin(fn, id.Name, e.Args, typ, e.Pos(), e.End()); v != nil {
 					return v
 				}
 			}
