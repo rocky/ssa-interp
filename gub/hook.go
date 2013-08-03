@@ -62,11 +62,14 @@ func computePrompt() string {
 func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
     gubLock.Lock()
     defer gubLock.Unlock()
-	traceEvent = event
 	if skipEvent(fr, event) { return }
 	frameInit(fr)
 	// FIXME: use
 	// genericInstr = fr.Block().Instrs[ic]
+	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].kind == "Function" {
+		event = ssa2.CALL_ENTER
+	}
+	traceEvent = event
 	printLocInfo(topFrame, instr, event)
 
 	line := ""
@@ -113,8 +116,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			interp.ClearInstTracing()
 		case "lo", "local", "locals":
 			LocalsCommand(args)
-		case "param", "parameters":
-			ParametersCommand(args)
 		case "v":
 			VariableCommand(args)
 		default:

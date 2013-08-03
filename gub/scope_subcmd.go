@@ -1,6 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 
-// scope [level]
+// info scope [level]
 //
 // Prints information about scope
 
@@ -11,21 +11,20 @@ import (
 )
 
 func init() {
-	name := "scope"
-	cmds[name] = &CmdInfo{
-		fn: ScopeCommand,
-		help: `quit [level]
+	parent := "info"
+	subcmds[parent] = &SubcmdInfo{
+		fn: InfoScopeSubcmd,
+		help: `info scope [level]
 
 Prints information about the scope for the current stack frame.
 If a level is given, we go up that many levels.
 `,
-		min_args: 0,
-		max_args: 1,
+		min_args: 1,
+		max_args: 2,
 	}
-	AddToCategory("data", name)
 }
 
-func ScopeCommand(args []string) {
+func InfoScopeSubcmd(args []string) {
 	scope := curFrame.Scope()
 	if scope == nil {
 		errmsg("No scope recorded here")

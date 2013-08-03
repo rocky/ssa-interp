@@ -65,15 +65,15 @@ func LocalsCommand(args []string) {
 	}
 }
 
-func ParametersCommand(args []string) {
-	argc := len(args) - 1
-	if !argCountOK(0, 1, args) { return }
+func InfoArgsSubcmd(args []string) {
+	argc := len(args) - 2
+	if !argCountOK(1, 2, args) { return }
 	if argc == 0 {
 		for i, p := range curFrame.Fn().Params {
 			msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))
 		}
 	} else {
-		varname := args[1]
+		varname := args[2]
 		for i, p := range curFrame.Fn().Params {
 			if varname == curFrame.Fn().Params[i].Name() {
 				msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))

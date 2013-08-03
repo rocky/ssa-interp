@@ -51,7 +51,7 @@ func bpprint(bp Breakpoint) {
 }
 
 
-func BreakpointList() {
+func InfoBreakpointSubcmd() {
 	if IsBreakpointEmpty() {
 		msg("No breakpoints set")
 		return
@@ -87,7 +87,7 @@ want to distinguish parts of a compound statement`,
 
 func BreakpointCommand(args []string) {
 	if len(args) == 1 {
-		BreakpointList()
+		InfoBreakpointSubcmd()
 		return
 	}
 	name := args[1]
