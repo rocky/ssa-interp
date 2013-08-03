@@ -49,6 +49,12 @@ func DisasmInst(instr Instruction, width int) string {
 		if t := v.Type(); t != nil {
 			s += fmt.Sprintf(" %*s", l-10, t)
 		}
+	case *Store:
+		// fmt.Printf("found a store %s\n", v)
+		// if v.Scope != nil {
+		// 	println("got scope %d", v.Scope.scopeNum)
+		// }
+		s += instr.String()
 	case nil:
 		// Be robust against bad transforms.
 		s += "<deleted>"

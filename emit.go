@@ -14,13 +14,14 @@ const (
 	debugMe bool = false
 )
 // emitNew emits to f a new (heap Alloc) instruction allocating an
-// object of type typ.  pos is the optional source location.
+// object of type typ.  pos and endP are the optional source location.
 //
-func emitNew(f *Function, typ types.Type, pos token.Pos) Value {
+func emitNew(f *Function, typ types.Type, pos token.Pos, endP token.Pos) Value {
 	return f.emit(&Alloc{
 		typ:  types.NewPointer(typ),
 		Heap: true,
 		pos:  pos,
+		endP: pos,
 	})
 }
 

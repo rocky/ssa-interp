@@ -308,7 +308,7 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 		}
 
 	case "new":
-		return emitNew(fn, deref(typ), pos)
+		return emitNew(fn, deref(typ), pos, endP)
 
 	case "len", "cap":
 		// Special case: len or cap of an array or *array is
@@ -375,9 +375,9 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		t := deref(fn.Pkg.typeOf(e))
 		var v Value
 		if escaping {
-			v = emitNew(fn, t, e.Lbrace)
+			v = emitNew(fn, t, e.Pos(), e.End())
 		} else {
-			v = fn.addLocal(t, e.Lbrace)
+			v = fn.addLocal(t, e.Pos(), e.End())
 		}
 		b.compLit(fn, v, e, t) // initialize in place
 		return &address{addr: v}
@@ -723,16 +723,16 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 }
 
 // stmtList emits to fn code for all statements in list.
-func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
+func (b *builder) stmtList(fn *Function, list []ast.Stmt, scope *Scope) {
 	for _, s := range list {
-		// Don't adding a trace statement in an "if" or "for" because
+		// Don't add a trace statement in an "if" or "for" because
 		// those statement add a trace themselves.
 		switch s.(type) {
 		case *ast.IfStmt, *ast.ForStmt:
 		default:
 			emitTrace(fn, STMT_IN_LIST, s.Pos(), s.End())
 		}
-		b.stmt(fn, s)
+		b.stmt(fn, s, scope)
 	}
 }
 
@@ -893,7 +893,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 			// Replace a suffix of args with a slice containing it.
 			at := types.NewArray(vt, int64(len(varargs)))
 			// Don't set pos for implicit Allocs.
-			a := emitNew(fn, at, token.NoPos)
+			a := emitNew(fn, at, token.NoPos, token.NoPos)
 			for i, arg := range varargs {
 				iaddr := &IndexAddr{
 					X:     a,
@@ -1100,7 +1100,7 @@ func (b *builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
 //
 // Note the similarity with localValueSpec.
 //
-func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
+func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool, scope *Scope) {
 	// Side effects of all LHSs and RHSs must occur in left-to-right order.
 	var lvals []lvalue
 	for _, lhs := range lhss {
@@ -1135,7 +1135,7 @@ func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 				rvals = append(rvals, b.expr(fn, rval))
 			}
 			for i, lval := range lvals {
-				lval.store(fn, rvals[i])
+				lval.storeWithScope(fn, rvals[i], scope)
 			}
 		}
 	} else {
@@ -1143,7 +1143,7 @@ func (b *builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
 		tuple := b.exprN(fn, rhss[0])
 		result := tuple.Type().(*types.Tuple)
 		for i, lval := range lvals {
-			lval.store(fn, emitExtract(fn, tuple, i, result.At(i).Type()))
+			lval.storeWithScope(fn, emitExtract(fn, tuple, i, result.At(i).Type()), scope)
 		}
 	}
 }
@@ -1205,7 +1205,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 		switch t := t.(type) {
 		case *types.Slice:
 			at = types.NewArray(t.Elem(), b.arrayLen(fn, e.Elts))
-			array = emitNew(fn, at, e.Lbrace)
+			array = emitNew(fn, at, e.Pos(), e.End())
 		case *types.Array:
 			at = t
 			array = addr
@@ -1272,16 +1272,17 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 	// We treat SwitchStmt like a sequential if-else chain.
 	// More efficient strategies (e.g. multiway dispatch)
 	// are possible if all cases are free of side effects.
+	switchScope := astScope(fn, s)
+	parent      := parentScope(fn, switchScope)
 	if s.Init != nil {
-		b.stmt(fn, s.Init)
+		b.stmt(fn, s.Init, parent)
 	}
 	var tag Value = vTrue
 	if s.Tag != nil {
 		emitTrace(fn, SWITCH_COND, s.Tag.Pos(), s.Tag.End())
 		tag = b.expr(fn, s.Tag)
 	}
-	switchScope := astScope(fn, s)
-	done := fn.newBasicBlock("switch.done", parentScope(fn, switchScope))
+	done := fn.newBasicBlock("switch.done", parent)
 	if label != nil {
 		label._break = done
 	}
@@ -1335,7 +1336,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 			_break:       done,
 			_fallthrough: fallthru,
 		}
-		b.stmtList(fn, cc.Body)
+		b.stmtList(fn, cc.Body, switchScope)
 		fn.targets = fn.targets.tail
 		emitJump(fn, done)
 		fn.currentBlock = nextCond
@@ -1348,7 +1349,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 			_break:       done,
 			_fallthrough: dfltFallthrough,
 		}
-		b.stmtList(fn, *dfltBody)
+		b.stmtList(fn, *dfltBody, switchScope)
 		fn.targets = fn.targets.tail
 	}
 	emitJump(fn, done)
@@ -1405,8 +1406,9 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 	// 	goto done
 	// .done:
 
+	typeSwitchScope := astScope(fn, s)
 	if s.Init != nil {
-		b.stmt(fn, s.Init)
+		b.stmt(fn, s.Init, typeSwitchScope)
 	}
 
 	var x Value
@@ -1417,8 +1419,6 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 		emitTrace(fn, ASSIGN_STMT, ass.Pos(), ass.End())
 		x = b.expr(fn, unparen(ass.Rhs[0]).(*ast.TypeAssertExpr).X)
 	}
-
-	typeSwitchScope := astScope(fn, s)
 
 	done := fn.newBasicBlock("typeswitch.done", parentScope(fn, typeSwitchScope))
 	if label != nil {
@@ -1454,18 +1454,19 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 			ti = x
 		}
 		fn.currentBlock = body
-		b.typeCaseBody(fn, cc, ti, done)
+		b.typeCaseBody(fn, cc, ti, done, typeSwitchScope)
 		fn.currentBlock = next
 	}
 	if default_ != nil {
-		b.typeCaseBody(fn, default_, x, done)
+		b.typeCaseBody(fn, default_, x, done, typeSwitchScope)
 	} else {
 		emitJump(fn, done)
 	}
 	fn.currentBlock = done
 }
 
-func (b *builder) typeCaseBody(fn *Function, cc *ast.CaseClause, x Value, done *BasicBlock) {
+func (b *builder) typeCaseBody(fn *Function, cc *ast.CaseClause, x Value, done *BasicBlock,
+	scope *Scope) {
 	if obj := fn.Pkg.info.TypeCaseVar(cc); obj != nil {
 		// In a switch y := x.(type), each case clause
 		// implicitly declares a distinct object y.
@@ -1478,7 +1479,7 @@ func (b *builder) typeCaseBody(fn *Function, cc *ast.CaseClause, x Value, done *
 		tail:   fn.targets,
 		_break: done,
 	}
-	b.stmtList(fn, cc.Body)
+	b.stmtList(fn, cc.Body, scope)
 	fn.targets = fn.targets.tail
 	emitJump(fn, done)
 }
@@ -1490,11 +1491,11 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	// A blocking select of a single case degenerates to a
 	// simple send or receive.
 	// TODO(adonovan): opt: is this optimization worth its weight?
+	selectScope := astScope(fn, s)
 	if len(s.Body.List) == 1 {
 		clause := s.Body.List[0].(*ast.CommClause)
 		if clause.Comm != nil {
-			b.stmt(fn, clause.Comm)
-			selectScope := astScope(fn, s)
+			b.stmt(fn, clause.Comm, selectScope)
 			done := fn.newBasicBlock("select.done", selectScope)
 			if label != nil {
 				label._break = done
@@ -1503,7 +1504,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 				tail:   fn.targets,
 				_break: done,
 			}
-			b.stmtList(fn, clause.Body)
+			b.stmtList(fn, clause.Body, selectScope)
 			fn.targets = fn.targets.tail
 			emitJump(fn, done)
 			fn.currentBlock = done
@@ -1573,7 +1574,6 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	fn.emit(sel)
 	idx := emitExtract(fn, sel, 0, tInt)
 
-	selectScope := astScope(fn, s)
 	done := fn.newBasicBlock("select.done", selectScope)
 	if label != nil {
 		label._break = done
@@ -1616,7 +1616,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 			}
 			r++
 		}
-		b.stmtList(fn, clause.Body)
+		b.stmtList(fn, clause.Body, selectScope)
 		fn.targets = fn.targets.tail
 		emitJump(fn, done)
 		fn.currentBlock = next
@@ -1627,7 +1627,7 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 			tail:   fn.targets,
 			_break: done,
 		}
-		b.stmtList(fn, *defaultBody)
+		b.stmtList(fn, *defaultBody, selectScope)
 		fn.targets = fn.targets.tail
 	}
 	emitJump(fn, done)
@@ -1649,11 +1649,11 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	//      ...post...
 	//      jump loop
 	// done:                                 (target of break)
+	forScope := astScope(fn, s)
 	if s.Init != nil {
 		emitTrace(fn, FOR_INIT, s.Init.Pos(), s.Init.End())
-		b.stmt(fn, s.Init)
+		b.stmt(fn, s.Init, forScope)
 	}
-	forScope := astScope(fn, s)
 	body := fn.newBasicBlock("for.body", astScope(fn, s.Body))
 
 	// target of 'break'
@@ -1683,14 +1683,14 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 		_break:    done,
 		_continue: cont,
 	}
-	b.stmt(fn, s.Body)
+	b.stmt(fn, s.Body, forScope)
 	fn.targets = fn.targets.tail
 	emitJump(fn, cont)
 
 	if s.Post != nil {
 		fn.currentBlock = cont
 		emitTrace(fn, FOR_ITER, s.Post.Pos(), s.Post.End())
-		b.stmt(fn, s.Post)
+		b.stmt(fn, s.Post, forScope)
 		emitJump(fn, loop) // back-edge
 	}
 	fn.currentBlock = done
@@ -1732,7 +1732,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 		length = fn.emit(&c)
 	}
 
-	index := fn.addLocal(tInt, token.NoPos)
+	index := fn.addLocal(tInt, token.NoPos, token.NoPos)
 	emitStore(fn, index, intConst(-1))
 
 	loop = fn.newBasicBlock("rangeindex.loop", nil)
@@ -1959,7 +1959,7 @@ func (b *builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 		_break:    done,
 		_continue: loop,
 	}
-	b.stmt(fn, s.Body)
+	b.stmt(fn, s.Body, astScope(fn, s))
 	fn.targets = fn.targets.tail
 	emitJump(fn, loop) // back-edge
 	fn.currentBlock = done
@@ -1970,7 +1970,7 @@ func parentScope(fn *Function, scope *Scope) *Scope {
 }
 
 // stmt lowers statement s to SSA form, emitting code to fn.
-func (b *builder) stmt(fn *Function, _s ast.Stmt) {
+func (b *builder) stmt(fn *Function, _s ast.Stmt, scope *Scope) {
 	// The label of the current statement.  If non-nil, its _goto
 	// target is always set; its _break and _continue are set only
 	// within the body of switch/typeswitch/select/for/range.
@@ -2019,7 +2019,7 @@ start:
 	case *ast.AssignStmt:
 		switch s.Tok {
 		case token.ASSIGN, token.DEFINE:
-			b.assignStmt(fn, s.Lhs, s.Rhs, s.Tok == token.DEFINE)
+			b.assignStmt(fn, s.Lhs, s.Rhs, s.Tok == token.DEFINE, scope)
 
 		default: // +=, etc.
 			op := s.Tok + token.ADD - token.ADD_ASSIGN
@@ -2130,15 +2130,15 @@ start:
 		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 
 	case *ast.BlockStmt:
-		b.stmtList(fn, s.List)
+		b.stmtList(fn, s.List, astScope(fn, s))
 		emitTrace(fn, BLOCK_END, s.End(), s.End())
 
 	case *ast.IfStmt:
+		ifScope := astScope(fn, s)
 		if s.Init != nil {
 			emitTrace(fn, IF_INIT, s.Init.Pos(), s.Init.End())
-			b.stmt(fn, s.Init)
+			b.stmt(fn, s.Init, ifScope)
 		}
-		ifScope := astScope(fn, s)
 		then := fn.newBasicBlock("if.then", astScope(fn, s.Body))
 		done := fn.newBasicBlock("if.done", parentScope(fn, ifScope))
 		els := done
@@ -2148,12 +2148,12 @@ start:
 		emitTrace(fn, IF_COND, s.Cond.Pos(), s.Cond.End())
 		b.cond(fn, s.Cond, then, els)
 		fn.currentBlock = then
-		b.stmt(fn, s.Body)
+		b.stmt(fn, s.Body, ifScope)
 		emitJump(fn, done)
 
 		if s.Else != nil {
 			fn.currentBlock = els
-			b.stmt(fn, s.Else)
+			b.stmt(fn, s.Else, astScope(fn, s.Else))
 			emitJump(fn, done)
 		}
 
@@ -2219,7 +2219,7 @@ func (b *builder) buildFunction(fn *Function) {
 	pkg.locs = append(pkg.locs, LocInst{Pos: fn.pos, Trace: nil, Fn: fn})
 	fn.startBody(scope)
 	fn.createSyntacticParams()
-	b.stmt(fn, fn.syntax.body)
+	b.stmt(fn, fn.syntax.body, scope)
 	if cb := fn.currentBlock; cb != nil && (cb == fn.Blocks[0] || cb.Preds != nil) {
 		// Run function calls deferred in this function when
 		// falling off the end of the body block.
@@ -2276,12 +2276,13 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 			// treated like a "goto" to the the next init
 			// block, which we stuff in the outermost
 			// break label.
-			next := init.newBasicBlock("init.next", pkg.Ast2Scope[decl.Type])
+			scope := pkg.Ast2Scope[decl.Type]
+			next := init.newBasicBlock("init.next", scope)
 			init.targets = &targets{
 				tail:   init.targets,
 				_break: next,
 			}
-			b.stmt(init, decl.Body)
+			b.stmt(init, decl.Body, scope)
 			// Run function calls deferred in this init
 			// block when falling off the end of the block.
 			init.emit(new(RunDefers))

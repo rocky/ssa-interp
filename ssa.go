@@ -474,6 +474,7 @@ type Alloc struct {
 	typ       types.Type
 	Heap      bool
 	pos       token.Pos
+	endP      token.Pos
 	referrers []Instruction
 	index     int // dense numbering; for lifting
 }
@@ -1135,6 +1136,7 @@ type Store struct {
 	Addr Value
 	Val  Value
 	pos  token.Pos
+	Scope *Scope      // the scope for this instruction
 }
 
 // The MapUpdate instruction updates the association of Map[Key] to
