@@ -388,7 +388,8 @@ func (f *Function) debugInfo() bool {
 // Precondition: f.syntax != nil (i.e. a Go source function).
 //
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
-	l := f.addLocal(obj.Type(), obj.Pos(), obj.Pos())
+	scope := f.Pkg.Ast2Scope[obj.Parent().Node()]
+	l := f.addLocal(obj.Type(), obj.Pos(), obj.Pos(), scope)
 	l.name = obj.Name()
 	// FIXME: !
 	// if f.LocalsByName[obj.Name()] != 0 {
@@ -406,8 +407,9 @@ func (f *Function) addLocalForIdent(id *ast.Ident) *Alloc {
 // addLocal creates an anonymous local variable of type typ, adds it
 // to function f and returns it.  pos is the optional source location.
 //
-func (f *Function) addLocal(typ types.Type, pos token.Pos, endP token.Pos) *Alloc {
-	v := &Alloc{typ: types.NewPointer(typ), pos: pos, endP: endP}
+func (f *Function) addLocal(typ types.Type, pos token.Pos, endP token.Pos,
+	scope *Scope) *Alloc {
+	v := &Alloc{typ: types.NewPointer(typ), pos: pos, endP: endP, Scope: scope}
 	f.Locals = append(f.Locals, v)
 	f.emit(v)
 	return v

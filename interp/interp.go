@@ -156,6 +156,12 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 	case *ssa2.Panic:
 		// FIXME: use instr instead of nil
 		TraceHook(fr, nil, ssa2.PANIC)
+		switch os.Getenv("GOTRACEBACK") {
+		case "0":
+			//do nothing
+		case "1", "2", "crash":
+			debug۰PrintStack(fr)
+		}
 		panic(targetPanic{fr.get(instr.X)})
 
 	case *ssa2.Send:
@@ -411,7 +417,7 @@ func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 	}
 	if fn.Enclosing == nil {
 		name := fn.String()
-		if ext := Externals[name]; ext != nil {
+		if ext := externals[name]; ext != nil {
 			if InstTracing() {
 				fmt.Fprintln(os.Stderr, "\t(external)")
 			}

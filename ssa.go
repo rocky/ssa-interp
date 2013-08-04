@@ -477,6 +477,7 @@ type Alloc struct {
 	endP      token.Pos
 	referrers []Instruction
 	index     int // dense numbering; for lifting
+	Scope     *Scope
 }
 
 // The Phi instruction represents an SSA φ-node, which combines values

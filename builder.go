@@ -377,7 +377,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		if escaping {
 			v = emitNew(fn, t, e.Pos(), e.End())
 		} else {
-			v = fn.addLocal(t, e.Pos(), e.End())
+			v = fn.addLocal(t, e.Pos(), e.End(), nil)
 		}
 		b.compLit(fn, v, e, t) // initialize in place
 		return &address{addr: v}
@@ -1732,7 +1732,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 		length = fn.emit(&c)
 	}
 
-	index := fn.addLocal(tInt, token.NoPos, token.NoPos)
+	index := fn.addLocal(tInt, token.NoPos, token.NoPos, nil)
 	emitStore(fn, index, intConst(-1))
 
 	loop = fn.newBasicBlock("rangeindex.loop", nil)

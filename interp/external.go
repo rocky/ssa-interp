@@ -8,29 +8,12 @@ package interp
 // external or because they use "unsafe" or "reflect" operations.
 
 import (
-	"fmt"
 	"math"
-	"io"
 	"os"
 	"runtime"
 	"syscall"
 	"time"
-	"github.com/rocky/ssa-interp"
 )
-
-var fn2NumMap map[*ssa2.Function]uint  = make(map[*ssa2.Function]uint, 0)
-var num2fnMap []*ssa2.Function
-var lastFn2Num uint = 1
-
-func fn2Num(fn *ssa2.Function) uint {
-	if fn2NumMap[fn] != 0 {
-		return fn2NumMap[fn]
-	}
-	fn2NumMap[fn] = lastFn2Num
-	num2fnMap = append(num2fnMap, fn)
-	lastFn2Num++
-	return fn2NumMap[fn]
-}
 
 type externalFn func(fr *Frame, args []Value) Value
 
@@ -40,7 +23,7 @@ type externalFn func(fr *Frame, args []Value) Value
 
 // Key strings are from Function.FullName().
 // That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
-var Externals = map[string]externalFn{
+var externals = map[string]externalFn{
 	"(reflect.Value).Bool":            ext۰reflect۰Value۰Bool,
 	"(reflect.Value).CanAddr":         ext۰reflect۰Value۰CanAddr,
 	"(reflect.Value).CanInterface":    ext۰reflect۰Value۰CanInterface,
@@ -66,6 +49,8 @@ var Externals = map[string]externalFn{
 	"(reflect.rtype).String":          ext۰reflect۰rtype۰String,
 	"bytes.Equal":                     ext۰bytes۰Equal,
 	"bytes.IndexByte":                 ext۰bytes۰IndexByte,
+	"runtime/debug.function":          ext۰debug۰function,
+	"runtime/debug.PrintStack":        ext۰debug۰PrintStack,
 	"math.Float32bits":                ext۰math۰Float32bits,
 	"math.Float32frombits":            ext۰math۰Float32frombits,
 	"math.Float64bits":                ext۰math۰Float64bits,
@@ -79,10 +64,10 @@ var Externals = map[string]externalFn{
 	"runtime.Caller":                  ext۰runtime۰Caller,
 	"runtime.Callers":                 ext۰runtime۰Callers,
 	// "runtime.FuncForPC":               ext۰runtime۰FuncForPC,
-	"runtime.function":                ext۰runtime۰function,
 	"runtime.GC":                      ext۰runtime۰GC,
 	"runtime.GOMAXPROCS":              ext۰runtime۰GOMAXPROCS,
 	"runtime.Gosched":                 ext۰runtime۰Gosched,
+	"runtime.NumCPU":                  ext۰runtime۰NumCPU,
 	"runtime.ReadMemStats":            ext۰runtime۰ReadMemStats,
 	"runtime.SetFinalizer":            ext۰runtime۰SetFinalizer,
 	"runtime.getgoroot":               ext۰runtime۰getgoroot,
@@ -145,18 +130,6 @@ func ext۰bytes۰IndexByte(fr *Frame, args []Value) Value {
 	return -1
 }
 
-func ext۰os۰Exit(fr *Frame, args []Value) Value {
-	msg := fmt.Sprintf("exit status %d", args[0].(int))
-	io.WriteString(os.Stderr, msg)
-	io.WriteString(os.Stderr, "\n")
-	// os.Exit works even if it doesn't allow cleanup as I suppose
-	// exitPanic might.
-	os.Exit(args[0].(int))
-	// This doesn't seem to work. We leave it uncommented
-	// to make go's return value checking happy.
-	panic(exitPanic(args[0].(int)))
-}
-
 func ext۰math۰Float64frombits(fr *Frame, args []Value) Value {
 	return math.Float64frombits(args[0].(uint64))
 }
@@ -178,75 +151,6 @@ func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
 	return nil
 }
 
-func encode_pc(fr *Frame) uint {
-	fnNum := fn2Num(fr.fn)
-	bpc := uint(fr.block.Index) * 0xff + uint(fr.pc)
-	return (fnNum << 16) | (bpc & 0x0000ffff)
-}
-
-func ext۰runtime۰Caller(fr *Frame, args []Value) Value {
-	skip := args[0].(int)
-
-	final_fr := fr
-	for i:=0; i<skip; i++ {
-		final_fr = final_fr.caller
-		if final_fr == nil {
-			return tuple{0, "None", 0, false}
-		}
-	}
-
-	fset := fr.fn.Prog.Fset
-	startP := fset.Position(final_fr.startP)
-
-	var filename string
-	if startP.IsValid() {
-		filename = startP.Filename
-	} else {
-		filename = "??"
-	}
-	pc := encode_pc(final_fr)
-	line := startP.Line
-	return tuple{pc, filename, line, true}
-}
-
-func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
-	skip := args[0].(int)
-	pc   := args[1].([]Value)
-	size := len(pc)
-
-	for i:=0; i<=skip; i++ {
-		fr = fr.caller
-		if fr == nil {
-			return 0
-		}
-	}
-	var count int
-	for count = 0; fr != nil && count <= size; fr = fr.caller {
-		pc[count] = encode_pc(fr)
-		count++
-	}
-	return count
-}
-
-// FIXME: this isn't used because it is internally called
-// from runtime/stack. But it's what we probably
-// want
-func ext۰runtime۰function(fr *Frame, args []Value) Value {
-	pc := args[0].(uintptr)
-	fnIndex := pc >> 16
-	fn := num2fnMap[fnIndex - 1]
-	if fn == nil {
-		return []byte("??Unknown fn")
-	}
-	return []byte(fn.Name())
-}
-
-// // Can't really write this using runtime.function because interperter
-// // can't cant copy return value to *Func.
-// func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {
-// 	return nil
-// }
-
 func ext۰runtime۰getgoroot(fr *Frame, args []Value) Value {
 	return os.Getenv("GOROOT")
 }
@@ -263,6 +167,10 @@ func ext۰runtime۰GC(fr *Frame, args []Value) Value {
 func ext۰runtime۰Gosched(fr *Frame, args []Value) Value {
 	runtime.Gosched()
 	return nil
+}
+
+func ext۰runtime۰NumCPU(fr *Frame, args []Value) Value {
+	return runtime.NumCPU()
 }
 
 func ext۰runtime۰ReadMemStats(fr *Frame, args []Value) Value {
@@ -391,7 +299,6 @@ func ext۰syscall۰Getpid(fr *Frame, args []Value) Value {
 // os/signal/signal_unix.go:16:func signal_recv() uint32
 // runtime/debug.go:13:func LockOSThread()
 // runtime/debug.go:17:func UnlockOSThread()
-// runtime/debug.go:27:func NumCPU() int
 // runtime/debug.go:30:func NumCgoCall() int64
 // runtime/debug.go:33:func NumGoroutine() int
 // runtime/debug.go:90:func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)

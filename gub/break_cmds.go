@@ -93,7 +93,7 @@ func BreakpointCommand(args []string) {
 	name := args[1]
 	fn := GetFunction(name)
 	if fn != nil {
-		if ext := interp.Externals[name]; ext != nil {
+		if ext := interp.Externals()[name]; ext != nil {
 			msg("Sorry, %s is a built-in external function.", name)
 			return
 		}

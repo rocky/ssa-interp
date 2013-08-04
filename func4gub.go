@@ -52,7 +52,13 @@ func DisasmInst(instr Instruction, width int) string {
 	case *Store:
 		// fmt.Printf("found a store %s\n", v)
 		// if v.Scope != nil {
-		// 	println("got scope %d", v.Scope.scopeNum)
+		// 	println("got store scope %d", v.Scope.scopeNum)
+		// }
+		s += instr.String()
+	case *Alloc:
+		// fmt.Printf("found an alloc %s\n", v)
+		// if v.Scope != nil {
+		// 	println("got alloc scope %d", v.Scope.scopeNum)
 		// }
 		s += instr.String()
 	case nil:
