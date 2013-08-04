@@ -23,8 +23,7 @@ var testData = []testDatum {
 	{gofile: "gcd",   baseName: "stepping"},
 	{gofile: "panic", baseName: "panic"},
 	{gofile: "gcd",   baseName: "frame"},
-	// Eval horribly broken with ssa changes. Sigh.
-	// {gofile: "expr",  baseName: "eval"},
+	{gofile: "expr",  baseName: "eval"},
 }
 
 // Runs debugger on go program with baseName. Then compares output.

@@ -12,14 +12,35 @@ import (
 	"github.com/rocky/ssa-interp/interp"
 )
 
-func EnvLookup(fr *interp.Frame, name string) (ssa2.Value, string) {
+func printInEnvironment(fr *interp.Frame, name string) bool {
+	if k, v, scope := EnvLookup(fr, name); k != nil {
+		envStr := ""
+		if scope != nil {
+			envStr = fmt.Sprintf(" at scope %d", scope.ScopeNum())
+		}
+		msg("%s is in the environment%s", name, envStr)
+		msg("\t%s = %s", k, derefValue(v))
+		return true
+	} else {
+		errmsg("Name %s not found in environment", name)
+		return false
+	}
+}
+
+func EnvLookup(fr *interp.Frame, name string) (ssa2.Value, string, *ssa2.Scope) {
+	fn := fr.Fn()
+	if i := fn.LocalsByName[name]; i > 0 {
+		k := fn.Locals[i-1]
+		v := deref2Str(fr.Env()[k])
+		return k, v, k.Scope
+	}
 	for k, v := range fr.Env() {
 		if name == k.Name() {
 			v := deref2Str(v)
-			return k, v
+			return k, v, nil
 		}
 	}
-	return nil, ""
+	return nil, "", nil
 }
 
 func Val(lit string) exact.Value {
@@ -70,7 +91,7 @@ func IndexExpr(e *ast.IndexExpr) exact.Value {
 	}
 	switch id := e.X.(type) {
 	case *ast.Ident:
-		if k, _ := EnvLookup(curFrame, id.Name); k != nil {
+		if k, _, _ := EnvLookup(curFrame, id.Name); k != nil {
 			val := derefValue(curFrame.Get(k))
 			ary := val.([]interp.Value)
 			if index < 0 || index >= uint64(len(ary)) {
@@ -112,7 +133,7 @@ func evalExpr(n ast.Node) exact.Value {
 			errmsg("Can't handle call (%s) yet at pos %d", e.Fun, e.Pos())
 			return nil
 		case *ast.Ident:
-			if k, val := EnvLookup(curFrame, e.Name); k != nil {
+			if k, val, _ := EnvLookup(curFrame, e.Name); k != nil {
 				return Val(val)
 			}
 			errmsg("Can't find value for id '%s' here at pos %d", e.Name, e.Pos())

@@ -229,12 +229,8 @@ func WhatisName(name string) {
 		}
 	}
 
-	if k, v := EnvLookup(curFrame, name); k != nil {
-		msg("%s is in the environment", name)
-		msg("\t%s = %s", k, derefValue(v))
-		return
-	}
-	if printIfLocal(curFrame, name) {return}
+	if printInEnvironment(curFrame, name) {return}
+	if printIfLocal(curFrame, name)       {return}
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {

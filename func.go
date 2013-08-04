@@ -198,6 +198,7 @@ func (f *Function) addSpilledParam(obj types.Object) {
 	spill := &Alloc{Comment: obj.Name()}
 	spill.setType(types.NewPointer(obj.Type()))
 	spill.setPos(obj.Pos())
+	spill.Scope = f.Scope
 	f.objects[obj] = spill
 	f.Locals = append(f.Locals, spill)
 	f.LocalsByName[obj.Name()] = len(f.Locals)
@@ -388,6 +389,8 @@ func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 	l := f.addLocal(obj.Type(), obj.Pos(), obj.Pos(), nil)
 	l.Comment = obj.Name()
 	f.objects[obj] = l
+	f.LocalsByName[obj.Name()] = len(f.Locals)
+	l.Scope = f.Pkg.TypeScope2Scope[obj.Parent()]
 	return l
 }
 

@@ -88,6 +88,7 @@ type NamedConst struct {
 	object *types.Const
 	Value  *Const
 	pos    token.Pos
+	endP   token.Pos
 }
 
 // An SSA value that can be referenced by an instruction.
@@ -147,6 +148,7 @@ type Value interface {
 	// debug information.)
 	//
 	Pos() token.Pos
+	EndP() token.Pos
 }
 
 // An Instruction is an SSA instruction that computes a new Value or
@@ -341,6 +343,7 @@ type Capture struct {
 	name      string
 	typ       types.Type
 	pos       token.Pos
+	endP      token.Pos
 	parent    *Function
 	referrers []Instruction
 
@@ -355,6 +358,7 @@ type Parameter struct {
 	object    types.Object // a *types.Var; nil for non-source locals
 	typ       types.Type
 	pos       token.Pos
+	endP      token.Pos
 	parent    *Function
 	referrers []Instruction
 }
@@ -389,7 +393,7 @@ type Const struct {
 	typ   types.Type
 	Value exact.Value
 	pos   token.Pos
-	end   token.Pos
+	endP  token.Pos
 }
 
 // A Global is a named Value holding the address of a package-level
@@ -403,6 +407,7 @@ type Global struct {
 	object types.Object // a *types.Var; may be nil for synthetics e.g. init$guard
 	typ    types.Type
 	pos    token.Pos
+	endP   token.Pos
 
 	Pkg *Package
 
@@ -422,6 +427,7 @@ type Global struct {
 //
 type Builtin struct {
 	object *types.Func // canonical types.Universe object for this built-in
+	endP token.Pos
 }
 
 // Value-defining instructions  ----------------------------------------
@@ -1189,6 +1195,7 @@ type Register struct {
 	typ       types.Type // type of virtual register
 	pos       token.Pos  // position of source expression, or NoPos
 	endP      token.Pos  // end position of source expression, or NoPos
+	Scope     *Scope
 	referrers []Instruction
 }
 

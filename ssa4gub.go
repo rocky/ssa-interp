@@ -33,15 +33,20 @@ type Scope struct {
 	scopeNum int
 }
 
-func (s *Alloc)    EndP() token.Pos            { return s.endP }
-func (s *DebugRef) EndP() token.Pos            { return s.Expr.End() }
-func (s *Defer)    EndP() token.Pos            { return s.Call.endP }
-func (s *Go)       EndP() token.Pos            { return s.Call.endP }
-func (v *Register) EndP() token.Pos            { return v.endP }
-func (s *Ret)      EndP() token.Pos            { return s.endP }
-func (v *Function) EndP() token.Pos            { return v.endP }
-func (v *Function) Fset() *token.FileSet       { return v.Prog.Fset }
-func (v *Function) NamedResults() []*Alloc     { return v.namedResults }
+func (s *Alloc)     EndP() token.Pos            { return s.endP }
+func (s *Builtin)   EndP() token.Pos            { return s.endP }
+func (s *Capture)   EndP() token.Pos            { return s.endP }
+func (s *Const)     EndP() token.Pos            { return s.endP }
+func (s *DebugRef)  EndP() token.Pos            { return s.Expr.End() }
+func (s *Defer)     EndP() token.Pos            { return s.Call.endP }
+func (s *Go)        EndP() token.Pos            { return s.Call.endP }
+func (v *Register)  EndP() token.Pos            { return v.endP }
+func (s *Ret)       EndP() token.Pos            { return s.endP }
+func (v *Function)  EndP() token.Pos            { return v.endP }
+func (v *Function)  Fset() *token.FileSet       { return v.Prog.Fset }
+func (v *Function)  NamedResults() []*Alloc     { return v.namedResults }
+func (v *Global)    EndP() token.Pos            { return v.endP }
+func (v *Parameter) EndP() token.Pos            { return v.endP }
 func (v *Register) setEnd(pos token.Pos)       { v.endP = pos }
 
 func (p *Package) Locs() []LocInst { return p.locs }

@@ -221,7 +221,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	// change yet; this defers the point at which the number of
 	// possible representations explodes.
 	if c, ok := val.(*Const); ok {
-		return NewConst(c.Value, typ, c.pos, c.end)
+		return NewConst(c.Value, typ, c.pos, c.endP)
 	}
 
 	// A representation-changing conversion.

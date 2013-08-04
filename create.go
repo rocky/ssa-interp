@@ -48,7 +48,8 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	// Create Values for built-in functions.
 	for _, name := range types.Universe.Names() {
 		if obj, ok := types.Universe.Lookup(name).(*types.Func); ok {
-			prog.builtins[obj] = &Builtin{obj}
+			// FIXME: end position is not right
+			prog.builtins[obj] = &Builtin{obj, obj.Pos()}
 		}
 	}
 

@@ -22,12 +22,7 @@ If *name* is supplied, only show that name.
 
 func EnvironmentCommand(args []string) {
 	if len(args) == 2 {
-		name := args[1]
-		if k, v := EnvLookup(curFrame, name); k != nil {
-			msg("%s: %s = %s", name, k, v)
-		} else {
-			errmsg("Name %s not found in environment", name)
-		}
+		printInEnvironment(curFrame, args[1])
 		return
 	}
 	for k, v := range curFrame.Env() {
