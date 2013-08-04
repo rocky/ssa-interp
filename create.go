@@ -23,7 +23,7 @@ const (
 	SanityCheckFunctions                         // Perform sanity checking of function bodies
 	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
 	BuildSerially                                // Build packages serially, not in parallel.
-	DebugInfo                                    // Include DebugRef instructions [TODO(adonovan): finer grain?]
+	DebugInfo                                    // Include DebugRef Globally
 )
 
 // NewProgram returns a new SSA Program initially containing no
@@ -40,7 +40,6 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 		PackagesByPath:      make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
 		builtins:            make(map[types.Object]*Builtin),
-		concreteMethods:     make(map[*types.Func]*Function),
 		boundMethodWrappers: make(map[*types.Func]*Function),
 		ifaceMethodWrappers: make(map[*types.Func]*Function),
 		mode:                mode,
@@ -103,31 +102,25 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			}
 			scope = pkg.Ast2Scope[decl.Type]
 		}
-		sig := obj.Type().(*types.Signature)
 		fn := &Function{
-			name:       name,
-			object:     obj,
-			Signature:  sig,
-			Synthetic:  synthetic,
-			pos:        obj.Pos(), // (iff syntax)
-			Pkg:        pkg,
-			Prog:       pkg.Prog,
+			name:      name,
+			object:    obj,
+			Signature: obj.Type().(*types.Signature),
+			Synthetic: synthetic,
+			pos:       obj.Pos(), // (iff syntax)
+			Pkg:       pkg,
+			Prog:      pkg.Prog,
+			syntax:     fs,
 			Breakpoint: false,
 			Scope     : scope,
 			LocalsByName: make(map[string]int),
-			syntax:     fs,
 		}
 		if fs != nil && fs.body != nil {
 			fn.endP =  fs.body.End()
 		}
-		if recv := sig.Recv(); recv == nil {
-			// Function declaration.
-			pkg.values[obj] = fn
-			pkg.Members[name] = fn
-		} else {
-			// Concrete method.
-			_ = deref(recv.Type()).(*types.Named) // assertion
-			pkg.Prog.concreteMethods[obj] = fn
+		pkg.values[obj] = fn
+		if fn.Signature.Recv() == nil {
+			pkg.Members[name] = fn // package-level function
 		}
 
 	default: // (incl. *types.Package)
@@ -182,33 +175,6 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 		if !isBlankIdent(id) {
 			memberFromObject(pkg, pkg.objectOf(id), decl)
 		}
-	}
-}
-
-func assignScopeNum(typesScope *types.Scope, scopeNum int) *Scope{
-	scope := &Scope {
-		Scope: typesScope,
-		scopeNum: scopeNum,
-	}
-	return scope
-}
-
-func AssignScopeNums(pkg *Package, typesScope *types.Scope, scopeNum *int) {
-	node  := typesScope.Node()
-	scope := assignScopeNum(typesScope, *scopeNum)
-	pkg.Ast2Scope[node] = scope
-	pkg.TypeScope2Scope[typesScope] = scope
-	// num2scope = append(num2scope, scope)
-	// switch node.(type) {
-	// case *ast.FuncType:
-	// 	fmt.Println("+++FuncType")
-	// }
-
-	*scopeNum++
-	n := scope.NumChildren()
-	for i:=0; i<n; i++ {
-		child := typesScope.Child(i)
-		if child != nil { AssignScopeNums(pkg, child, scopeNum) }
 	}
 }
 

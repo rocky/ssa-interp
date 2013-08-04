@@ -75,16 +75,18 @@ const (
 	DisableRecover Mode = 1 << iota
 )
 
+type methodSet map[string]*ssa2.Function
+
 // State shared between all interpreted goroutines.
 type interpreter struct {
-	prog           *ssa2.Program         // the SSA program
+	prog           *ssa2.Program        // the SSA program
 	globals        map[ssa2.Value]*Value // addresses of global variables (immutable)
-	Mode           Mode                  // interpreter options
-	TraceMode      TraceMode             // interpreter trace options
-	reflectPackage *ssa2.Package         // the fake reflect package
-	errorMethods   ssa2.MethodSet        // the method set of reflect.error, which implements the error interface.
-	rtypeMethods   ssa2.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
-	nGoroutines    int                   // number of goroutines
+	Mode           Mode                 // interpreter options
+	TraceMode      TraceMode            // interpreter trace options
+	reflectPackage *ssa2.Package        // the fake reflect package
+	errorMethods   methodSet            // the method set of reflect.error, which implements the error interface.
+	rtypeMethods   methodSet            // the method set of rtype, which implements the reflect.Type interface.
+	nGoroutines    int                  // number of goroutines
 	goTops         []*GoreState
 }
 
@@ -97,7 +99,7 @@ func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa2.Functi
 	case errorType:
 		return i.errorMethods[meth.Id()]
 	}
-	return i.prog.LookupMethod(typ.MethodSet().Lookup(meth.Pkg(), meth.Name()))
+	return i.prog.Method(typ.MethodSet().Lookup(meth.Pkg(), meth.Name()))
 }
 
 // visitInstr interprets a single ssa2.Instruction within the activation

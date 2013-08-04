@@ -183,30 +183,30 @@ func printPackageInfo(name string, pkg *ssa2.Package) {
 	}
 }
 
-func printTypeInfo(name string, pkg *ssa2.Package) {
-	mem := pkg.Members[name]
-	msg("Type %s at:", mem.Type())
-	position := pkg.Prog.Fset.Position(mem.Pos())
-	msg("  " + ssa2.PositionRange(position, position))
-	msg("  %s", mem.Type().Underlying())
+// func printTypeInfo(name string, pkg *ssa2.Package) {
+// 	mem := pkg.Members[name]
+// 	msg("Type %s at:", mem.Type())
+// 	position := pkg.Prog.Fset.Position(mem.Pos())
+// 	msg("  " + ssa2.PositionRange(position, position))
+// 	msg("  %s", mem.Type().Underlying())
 
-	// We display only mset(*T) since its keys
-	// are a superset of mset(T)'s keys, though the
-	// methods themselves may differ,
-	// e.g. promotion wrappers.
-	// NB: if mem.Type() is a pointer, mset is empty.
-	mset := pkg.Prog.MethodSet(types.NewPointer(mem.Type()))
-	var keys []string
-	for id := range mset {
-		keys = append(keys, id)
-	}
-	sort.Strings(keys)
-	for _, id := range keys {
-		method := mset[id]
-		// TODO(adonovan): show pointerness of receiver of declared method, not the index
-		msg("    method %s %s", id, method.Signature)
-	}
-}
+// 	// We display only mset(*T) since its keys
+// 	// are a superset of mset(T)'s keys, though the
+// 	// methods themselves may differ,
+// 	// e.g. promotion wrappers.
+// 	// NB: if mem.Type() is a pointer, mset is empty.
+// 	mset := pkg.Prog.MethodSet(types.NewPointer(mem.Type()))
+// 	var keys []string
+// 	for id := range mset {
+// 		keys = append(keys, id)
+// 	}
+// 	sort.Strings(keys)
+// 	for _, id := range keys {
+// 		method := mset[id]
+// 		// TODO(adonovan): show pointerness of receiver of declared method, not the index
+// 		msg("    method %s %s", id, method.Signature)
+// 	}
+// }
 
 func WhatisName(name string) {
 	ids := strings.Split(name, ".")
@@ -246,8 +246,8 @@ func WhatisName(name string) {
 		}
 	} else if c := pkg.Const(name); c != nil {
 		printConstantInfo(c, name, pkg)
-	} else if t := pkg.Type(name); t != nil {
-		printTypeInfo(name, pkg)
+	// } else if t := pkg.Type(name); t != nil {
+	// 	printTypeInfo(name, pkg)
 	} else if pkg := curFrame.I().Program().PackageByName(name); pkg != nil {
 		printPackageInfo(name, pkg)
 	} else {

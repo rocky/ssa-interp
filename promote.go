@@ -67,112 +67,14 @@ func (prog *Program) Method(meth *types.Selection) *Function {
 	return fn
 }
 
-// MethodSet returns the method set for type typ, building wrapper
-// methods as needed for embedded field promotion, and indirection for
-// *T receiver types, etc.
-// A nil result indicates an empty set.
+// declaredFunc returns the concrete function/method denoted by obj.
+// Panic ensues if there is none.
 //
-// This function should only be called when you need to construct the
-// entire method set, synthesizing all wrappers, for example during
-// the processing of a MakeInterface instruction or when visiting all
-// reachable functions.
-//
-// If you only need to look up a single method (obj), avoid this
-// function and use LookupMethod instead:
-//
-//      meth := types.MethodSet(typ).Lookup(pkg, name)
-// 	m := prog.MethodSet(typ)[meth.Id()]   // don't do this
-//	m := prog.LookupMethod(meth)          // use this instead
-//
-// If you only need to enumerate the keys, use types.MethodSet
-// instead.
-//
-// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
-//
-// Thread-safe.
-//
-func (prog *Program) MethodSet(typ types.Type) MethodSet {
-	return prog.populateMethodSet(typ, nil)
-}
-
-// populateMethodSet returns the method set for typ, ensuring that it
-// contains at least the function for meth, if that is a key.
-// If meth is nil, the entire method set is populated.
-//
-// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
-//
-func (prog *Program) populateMethodSet(typ types.Type, meth *types.Selection) MethodSet {
-	tmset := methodSet(typ)
-	n := tmset.Len()
-	if n == 0 {
-		return nil
+func (prog *Program) declaredFunc(obj *types.Func) *Function {
+	if v := prog.packageLevelValue(obj); v != nil {
+		return v.(*Function)
 	}
-
-	if prog.mode&LogSource != 0 {
-		defer logStack("populateMethodSet %s meth=%v", typ, meth)()
-	}
-
-	prog.methodsMu.Lock()
-	defer prog.methodsMu.Unlock()
-
-	mset, _ := prog.methodSets.At(typ).(MethodSet)
-	if mset == nil {
-		mset = make(MethodSet)
-		prog.methodSets.Set(typ, mset)
-	}
-
-	if len(mset) < n {
-		if meth != nil { // single method
-			id := meth.Obj().Id()
-			if mset[id] == nil {
-				mset[id] = findMethod(prog, meth)
-			}
-		} else {
-			// complete set
-			for i := 0; i < n; i++ {
-				meth := tmset.At(i)
-				if id := meth.Obj().Id(); mset[id] == nil {
-					mset[id] = findMethod(prog, meth)
-				}
-			}
-		}
-	}
-
-	return mset
-}
-
-func methodSet(typ types.Type) *types.MethodSet {
-	// TODO(adonovan): temporary workaround.  Inline it away when fixed.
-	if _, ok := deref(typ).Underlying().(*types.Interface); ok && isPointer(typ) {
-		// TODO(gri): fix: go/types bug: pointer-to-interface
-		// has no methods---yet go/types says it has!
-		return new(types.MethodSet)
-	}
-	return typ.MethodSet()
-}
-
-// LookupMethod returns the Function for the specified method object,
-// building wrapper methods on demand.  It returns nil if the typ has
-// no such method.
-//
-// Thread-safe.
-//
-// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
-//
-func (prog *Program) LookupMethod(meth *types.Selection) *Function {
-	return prog.populateMethodSet(meth.Recv(), meth)[meth.Obj().Id()]
-}
-
-// concreteMethod returns the concrete method denoted by obj.
-// Panic ensues if there is no such method (e.g. it's a standalone
-// function).
-//
-func (prog *Program) concreteMethod(obj *types.Func) *Function {
-	fn := prog.concreteMethods[obj]
-	if fn == nil {
-		panic("no concrete method: " + obj.String())
-	}
-	return fn
+	panic("no concrete method: " + obj.String())
 }
 
 // findMethod returns the concrete Function for the method meth,
@@ -182,18 +84,18 @@ func (prog *Program) concreteMethod(obj *types.Func) *Function {
 //
 func findMethod(prog *Program, meth *types.Selection) *Function {
 	needsPromotion := len(meth.Index()) > 1
-	mfunc := meth.Obj().(*types.Func)
-	needsIndirection := !isPointer(recvType(mfunc)) && isPointer(meth.Recv())
+	obj := meth.Obj().(*types.Func)
+	needsIndirection := !isPointer(recvType(obj)) && isPointer(meth.Recv())
 
 	if needsPromotion || needsIndirection {
 		return makeWrapper(prog, meth.Recv(), meth)
 	}
 
 	if _, ok := meth.Recv().Underlying().(*types.Interface); ok {
-		return interfaceMethodWrapper(prog, meth.Recv(), mfunc)
+		return interfaceMethodWrapper(prog, meth.Recv(), obj)
 	}
 
-	return prog.concreteMethod(mfunc)
+	return prog.declaredFunc(obj)
 }
 
 // makeWrapper returns a synthetic wrapper Function that optionally
@@ -218,16 +120,16 @@ func findMethod(prog *Program, meth *types.Selection) *Function {
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
 //
 func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function {
-	mfunc := meth.Obj().(*types.Func)
-	old := mfunc.Type().(*types.Signature)
+	obj := meth.Obj().(*types.Func)
+	old := obj.Type().(*types.Signature)
 	sig := types.NewSignature(nil, types.NewVar(token.NoPos, nil, "recv", typ), old.Params(), old.Results(), old.IsVariadic())
 
-	description := fmt.Sprintf("wrapper for %s", mfunc)
+	description := fmt.Sprintf("wrapper for %s", obj)
 	if prog.mode&LogSource != 0 {
 		defer logStack("make %s to (%s)", description, typ)()
 	}
 	fn := &Function{
-		name:      mfunc.Name(),
+		name:      obj.Name(),
 		method:    meth,
 		Signature: sig,
 		Synthetic: description,
@@ -235,7 +137,7 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function
 		Scope      : nil,
 		LocalsByName: make(map[string]int),
 		Prog:      prog,
-		pos:       mfunc.Pos(),
+		pos:       obj.Pos(),
 	}
 	fn.startBody(nil)
 	fn.addSpilledParam(sig.Recv())
@@ -268,10 +170,10 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function
 		if !isPointer(old.Recv().Type()) {
 			v = emitLoad(fn, v)
 		}
-		c.Call.Value = prog.concreteMethod(mfunc)
+		c.Call.Value = prog.declaredFunc(obj)
 		c.Call.Args = append(c.Call.Args, v)
 	} else {
-		c.Call.Method = mfunc
+		c.Call.Method = obj
 		c.Call.Value = emitLoad(fn, v)
 	}
 	for _, arg := range fn.Params[1:] {
@@ -411,7 +313,7 @@ func boundMethodWrapper(prog *Program, obj *types.Func) *Function {
 		var c Call
 
 		if _, ok := recvType(obj).Underlying().(*types.Interface); !ok { // concrete
-			c.Call.Value = prog.concreteMethod(obj)
+			c.Call.Value = prog.declaredFunc(obj)
 			c.Call.Args = []Value{cap}
 		} else {
 			c.Call.Value = cap

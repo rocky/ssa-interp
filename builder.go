@@ -61,11 +61,6 @@ var (
 	vFalse = NewConst(exact.MakeBool(false), tBool, token.NoPos, token.NoPos)
 )
 
-func astScope(fn *Function, node ast.Node) *Scope {
-	// fmt.Printf("scope returning is %d\n", fn.Pkg.Ast2Scope[node].scopeNum)
-	return fn.Pkg.Ast2Scope[node]
-}
-
 // builder holds state associated with the package currently being built.
 // Its methods contain all the logic for AST-to-SSA conversion.
 type builder struct {
@@ -230,7 +225,8 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 		tuple = fn.emit(lookup)
 
 	case *ast.TypeAssertExpr:
-		return emitTypeTest(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.X.Pos(), e.X.End())
+		t := fn.Pkg.typeOf(e).(*types.Tuple).At(0).Type()
+		return emitTypeTest(fn, b.expr(fn, e.X), t, e.X.Pos(), e.X.End())
 
 	case *ast.UnaryExpr: // must be receive <-
 		typ = fn.Pkg.typeOf(e.X).Underlying().(*types.Chan).Elem()
@@ -308,7 +304,9 @@ func (b *builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
 		}
 
 	case "new":
-		return emitNew(fn, deref(typ), pos, endP)
+		alloc := emitNew(fn, deref(typ), pos, endP)
+		// alloc.Comment = "new"
+		return alloc
 
 	case "len", "cap":
 		// Special case: len or cap of an array or *array is
@@ -369,18 +367,19 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		if v == nil {
 			v = fn.lookup(obj, escaping)
 		}
-		return &address{addr: v, id: e, object: obj}
+		return &address{addr: v, expr: e, object: obj}
 
 	case *ast.CompositeLit:
 		t := deref(fn.Pkg.typeOf(e))
-		var v Value
+		var v *Alloc
 		if escaping {
 			v = emitNew(fn, t, e.Pos(), e.End())
 		} else {
 			v = fn.addLocal(t, e.Pos(), e.End(), nil)
 		}
+		v.Comment = "complit"
 		b.compLit(fn, v, e, t) // initialize in place
-		return &address{addr: v}
+		return &address{addr: v, expr: e}
 
 	case *ast.ParenExpr:
 		return b.addr(fn, e.X, escaping)
@@ -390,7 +389,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		case types.PackageObj:
 			obj := sel.Obj()
 			if v := b.lookup(fn.Pkg, obj); v != nil {
-				return &address{addr: v}
+				return &address{addr: v, expr: e}
 			}
 			panic("undefined package-qualified name: " + obj.Name())
 
@@ -398,7 +397,11 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			wantAddr := true
 			v := b.receiver(fn, e.X, wantAddr, escaping, sel)
 			last := len(sel.Index()) - 1
-			return &address{addr: emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos())}
+			return &address{
+				addr:   emitFieldSelection(fn, v, sel.Index()[last], true, e.Sel.Pos()),
+				expr:   e.Sel,
+				object: sel.Obj(),
+			}
 		}
 
 	case *ast.IndexExpr:
@@ -427,11 +430,12 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			X:     x,
 			Index: emitConv(fn, b.expr(fn, e.Index), tInt),
 		}
+		v.setPos(e.Lbrack)
 		v.setType(et)
-		return &address{addr: fn.emit(v)}
+		return &address{addr: fn.emit(v), expr: e}
 
 	case *ast.StarExpr:
-		return &address{addr: b.expr(fn, e.X), starPos: e.Star}
+		return &address{addr: b.expr(fn, e.X), starPos: e.Star, expr: e}
 	}
 
 	panic(fmt.Sprintf("unexpected address expression: %T", e))
@@ -471,13 +475,16 @@ func (b *builder) exprInPlace(fn *Function, loc lvalue, e ast.Expr) {
 // expr lowers a single-result expression e to SSA form, emitting code
 // to fn and returning the Value defined by the expression.
 //
-func (b *builder) expr(fn *Function, e ast.Expr) Value {
+func (b *builder) expr(fn *Function, e ast.Expr) (result Value) {
+	// Is expression a constant?
 	if v := fn.Pkg.info.ValueOf(e); v != nil {
-		c := NewConst(v, fn.Pkg.typeOf(e), e.Pos(), e.Pos())
-		if id, ok := unparen(e).(*ast.Ident); ok {
-			emitDebugRef(fn, id, c)
-		}
-		return c
+		return NewConst(v, fn.Pkg.typeOf(e), e.Pos(), e.End())
+	}
+
+	e = unparen(e)
+
+	if fn.debugInfo() {
+		defer func() { emitDebugRef(fn, e, result) }()
 	}
 
 	switch e := e.(type) {
@@ -490,13 +497,13 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			name:       fmt.Sprintf("func@%d.%d", posn.Line, posn.Column),
 			Signature:  fn.Pkg.typeOf(e.Type).Underlying().(*types.Signature),
 			pos:        e.Type.Func,
-			endP:       e.Body.End(),
 			Enclosing:  fn,
 			Pkg:        fn.Pkg,
 			Prog:       fn.Prog,
 			Breakpoint: false,
 			Scope     : nil,
 			LocalsByName: make(map[string]int),
+			endP:       e.Body.End(),
 			syntax: &funcSyntax{
 				functype: e.Type,
 				body:     e.Body,
@@ -514,9 +521,6 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			fv.outer = nil
 		}
 		return fn.emit(v)
-
-	case *ast.ParenExpr:
-		return b.expr(fn, e.X)
 
 	case *ast.TypeAssertExpr: // single-result form only
 	    return emitTypeAssert(fn, b.expr(fn, e.X), fn.Pkg.typeOf(e), e.X.Pos())
@@ -631,9 +635,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			return v // (func)
 		}
 		// Local var.
-		v := emitLoad(fn, fn.lookup(obj, false)) // var (address)
-		emitDebugRef(fn, e, v)
-		return v
+		return emitLoad(fn, fn.lookup(obj, false)) // var (address)
 
 	case *ast.SelectorExpr:
 		switch sel := fn.Pkg.info.Selections[e]; sel.Kind() {
@@ -643,7 +645,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 		case types.MethodExpr:
 			// (*T).f or T.f, the method f from the method-set of type T.
 			// For declared methods, a simple conversion will suffice.
-			return emitConv(fn, fn.Prog.LookupMethod(sel), fn.Pkg.typeOf(e))
+			return emitConv(fn, fn.Prog.Method(sel), fn.Pkg.typeOf(e))
 
 		case types.MethodVal:
 			// e.f where e is an expression and f is a method.
@@ -660,16 +662,14 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 			c.setType(fn.Pkg.typeOf(e))
 			return fn.emit(c)
 
-			// TODO(adonovan): add more tests for
-			// interaction of bound interface method
-			// closures and promotion.
-
 		case types.FieldVal:
 			indices := sel.Index()
 			last := len(indices) - 1
 			v := b.expr(fn, e.X)
 			v = emitImplicitSelections(fn, v, indices[:last])
-			return emitFieldSelection(fn, v, indices[last], false, e.Sel.Pos())
+			v = emitFieldSelection(fn, v, indices[last], false, e.Sel.Pos())
+			emitDebugRef(fn, e.Sel, v)
+			return v
 		}
 
 		panic("unexpected expression-relative selector")
@@ -682,6 +682,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 				X:     b.expr(fn, e.X),
 				Index: emitConv(fn, b.expr(fn, e.Index), tInt),
 			}
+			v.setPos(e.Lbrack)
 			v.setType(t.Elem())
 			return fn.emit(v)
 
@@ -825,7 +826,7 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 				c.Method = obj
 			} else {
 				// "Call"-mode call.
-				c.Value = fn.Prog.concreteMethod(obj)
+				c.Value = fn.Prog.declaredFunc(obj)
 				c.Args = append(c.Args, v)
 			}
 			return
@@ -894,6 +895,7 @@ func (b *builder) emitCallArgs(fn *Function, sig *types.Signature, e *ast.CallEx
 			at := types.NewArray(vt, int64(len(varargs)))
 			// Don't set pos for implicit Allocs.
 			a := emitNew(fn, at, token.NoPos, token.NoPos)
+			a.Comment = "varargs"
 			for i, arg := range varargs {
 				iaddr := &IndexAddr{
 					X:     a,
@@ -1196,7 +1198,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 			}
 			faddr.setType(types.NewPointer(sf.Type()))
 			fn.emit(faddr)
-			b.exprInPlace(fn, &address{addr: faddr}, e)
+			b.exprInPlace(fn, &address{addr: faddr, expr: e}, e)
 		}
 
 	case *types.Array, *types.Slice:
@@ -1205,7 +1207,9 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 		switch t := t.(type) {
 		case *types.Slice:
 			at = types.NewArray(t.Elem(), b.arrayLen(fn, e.Elts))
-			array = emitNew(fn, at, e.Pos(), e.End())
+			alloc := emitNew(fn, at, e.Pos(), e.End())
+			alloc.Comment = "slicelit"
+			array = alloc
 		case *types.Array:
 			at = t
 			array = addr
@@ -1229,7 +1233,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, typ typ
 			}
 			iaddr.setType(types.NewPointer(at.Elem()))
 			fn.emit(iaddr)
-			b.exprInPlace(fn, &address{addr: iaddr}, e)
+			b.exprInPlace(fn, &address{addr: iaddr, expr: e}, e)
 		}
 		if t != at { // slice
 			s := &Slice{X: array}
@@ -1443,7 +1447,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 				condv = emitCompare(fn, token.EQL, x, nilConst(x.Type()), token.NoPos)
 				ti = x
 			} else {
-				yok := emitTypeTest(fn, x, casetype, token.NoPos, token.NoPos)
+				yok := emitTypeTest(fn, x, casetype, cc.Case, token.NoPos)
 				ti = emitExtract(fn, yok, 0, casetype)
 				condv = emitExtract(fn, yok, 1, tBool)
 			}
@@ -1514,34 +1518,52 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 
 	// First evaluate all channels in all cases, and find
 	// the directions of each state.
-	var states []SelectState
+	var states []*SelectState
 	blocking := true
+	debugInfo := fn.debugInfo()
 	for _, clause := range s.Body.List {
+		var st *SelectState
 		switch comm := clause.(*ast.CommClause).Comm.(type) {
 		case nil: // default case
 			blocking = false
+			continue
 
 		case *ast.SendStmt: // ch<- i
 			ch := b.expr(fn, comm.Chan)
-			states = append(states, SelectState{
+			st = &SelectState{
 				Dir:  ast.SEND,
 				Chan: ch,
 				Send: emitConv(fn, b.expr(fn, comm.Value),
 					ch.Type().Underlying().(*types.Chan).Elem()),
-			})
+				Pos: comm.Arrow,
+			}
+			if debugInfo {
+				st.DebugNode = comm
+			}
 
 		case *ast.AssignStmt: // x := <-ch
-			states = append(states, SelectState{
+			recv := unparen(comm.Rhs[0]).(*ast.UnaryExpr)
+			st = &SelectState{
 				Dir:  ast.RECV,
-				Chan: b.expr(fn, unparen(comm.Rhs[0]).(*ast.UnaryExpr).X),
-			})
+				Chan: b.expr(fn, recv.X),
+				Pos:  recv.OpPos,
+			}
+			if debugInfo {
+				st.DebugNode = recv
+			}
 
 		case *ast.ExprStmt: // <-ch
-			states = append(states, SelectState{
+			recv := unparen(comm.X).(*ast.UnaryExpr)
+			st = &SelectState{
 				Dir:  ast.RECV,
-				Chan: b.expr(fn, unparen(comm.X).(*ast.UnaryExpr).X),
-			})
+				Chan: b.expr(fn, recv.X),
+				Pos:  recv.OpPos,
+			}
+			if debugInfo {
+				st.DebugNode = recv
+			}
 		}
+		states = append(states, st)
 	}
 
 	// We dispatch on the (fair) result of Select using a
@@ -1598,6 +1620,10 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		}
 		switch comm := clause.Comm.(type) {
 		case *ast.ExprStmt: // <-ch
+			if debugInfo {
+				v := emitExtract(fn, sel, r, vars[r].Type())
+				emitDebugRef(fn, states[state].DebugNode.(ast.Expr), v)
+			}
 			r++
 
 		case *ast.AssignStmt: // x := <-states[state].Chan
@@ -1605,7 +1631,11 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 				fn.addLocalForIdent(comm.Lhs[0].(*ast.Ident))
 			}
 			x := b.addr(fn, comm.Lhs[0], false) // non-escaping
-			x.store(fn, emitExtract(fn, sel, r, vars[r].Type()))
+			v := emitExtract(fn, sel, r, vars[r].Type())
+			if debugInfo {
+				emitDebugRef(fn, states[state].DebugNode.(ast.Expr), v)
+			}
+			x.store(fn, v)
 
 			if len(comm.Lhs) == 2 { // x, ok := ...
 				if comm.Tok == token.DEFINE {
@@ -1965,10 +1995,6 @@ func (b *builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 	fn.currentBlock = done
 }
 
-func parentScope(fn *Function, scope *Scope) *Scope {
-	return fn.Pkg.TypeScope2Scope[scope.Scope.Parent()]
-}
-
 // stmt lowers statement s to SSA form, emitting code to fn.
 func (b *builder) stmt(fn *Function, _s ast.Stmt, scope *Scope) {
 	// The label of the current statement.  If non-nil, its _goto
@@ -2029,14 +2055,14 @@ start:
 	case *ast.GoStmt:
 		// The "intrinsics" new/make/len/cap are forbidden here.
 		// panic is treated like an ordinary function call.
-		var v Go
+		v := Go{pos: s.Go, endP: s.End()}
 		b.setCall(fn, s.Call, &v.Call)
 		fn.emit(&v)
 
 	case *ast.DeferStmt:
 		// The "intrinsics" new/make/len/cap are forbidden here.
 		// panic is treated like an ordinary function call.
-		var v Defer
+		v := Defer{pos: s.Defer, endP: s.End()}
 		b.setCall(fn, s.Call, &v.Call)
 		fn.emit(&v)
 
@@ -2159,6 +2185,8 @@ start:
 
 		fn.currentBlock = done
 
+		// TODO statement debug info.
+
 	case *ast.SwitchStmt:
 		b.switchStmt(fn, s, label)
 
@@ -2187,7 +2215,6 @@ func (b *builder) buildFunction(fn *Function) {
 	if fn.syntax == nil {
 		return // not a Go source function.  (Synthetic, or from object file.)
 	}
-
 	if fn.syntax.body == nil {
 		// External function.
 		if fn.Params == nil {
@@ -2229,54 +2256,32 @@ func (b *builder) buildFunction(fn *Function) {
 	fn.finishBody()
 }
 
-// buildDecl builds SSA code for all globals, functions or methods
-// declared by decl in package pkg.
+// buildInit emits to init any initialization code needed for
+// declaration decl, causing SSA-building of any functions or methods
+// it references transitively.
 //
-func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
+func (b *builder) buildInit(init *Function, decl ast.Decl) {
 	switch decl := decl.(type) {
 	case *ast.GenDecl:
-		switch decl.Tok {
-		// Nothing to do for CONST, IMPORT.
-		case token.VAR:
+		if decl.Tok == token.VAR {
 			for _, spec := range decl.Specs {
-				b.globalValueSpec(pkg.Init, spec.(*ast.ValueSpec), nil, nil)
-			}
-		case token.TYPE:
-			for _, spec := range decl.Specs {
-				id := spec.(*ast.TypeSpec).Name
-				if isBlankIdent(id) {
-					continue
-				}
-				nt := pkg.objectOf(id).Type().(*types.Named)
-				for i, n := 0, nt.NumMethods(); i < n; i++ {
-					b.buildFunction(pkg.Prog.concreteMethod(nt.Method(i)))
-				}
+				b.globalValueSpec(init, spec.(*ast.ValueSpec), nil, nil)
 			}
 		}
 
 	case *ast.FuncDecl:
-		id := decl.Name
-		if decl.Recv != nil {
-			return // method declaration
-		}
-		if isBlankIdent(id) {
-			// no-op
-
-			// TODO(adonovan): test: can references within
-			// the blank functions' body affect the program?
-
-		} else if id.Name == "init" {
+		if decl.Recv == nil && decl.Name.Name == "init" {
 			// init() block
-			if pkg.Prog.mode&LogSource != 0 {
-				fmt.Fprintln(os.Stderr, "build init block @", pkg.Prog.Fset.Position(decl.Pos()))
+			if init.Prog.mode&LogSource != 0 {
+				fmt.Fprintln(os.Stderr, "build init block @",
+					init.Prog.Fset.Position(decl.Pos()))
 			}
-			init := pkg.Init
 
 			// A return statement within an init block is
 			// treated like a "goto" to the the next init
 			// block, which we stuff in the outermost
 			// break label.
-			scope := pkg.Ast2Scope[decl.Type]
+			scope := init.Pkg.Ast2Scope[decl.Type]
 			next := init.newBasicBlock("init.next", scope)
 			init.targets = &targets{
 				tail:   init.targets,
@@ -2289,14 +2294,24 @@ func (b *builder) buildDecl(pkg *Package, decl ast.Decl) {
 			emitJump(init, next)
 			init.targets = init.targets.tail
 			init.currentBlock = next
-
-		} else {
-			// Package-level function.
-			obj := pkg.objectOf(id)
-			b.buildFunction(pkg.values[obj].(*Function))
 		}
 	}
+}
 
+// buildFuncDecl builds SSA code for the function or method declared
+// by decl in package pkg.
+//
+func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
+	id := decl.Name
+	if isBlankIdent(id) {
+		// TODO(gri): workaround for missing object,
+		// see e.g. $GOROOT/test/blank.go:27.
+		return
+	}
+	if decl.Recv == nil && id.Name == "init" {
+		return // init() block: already done in pass 1
+	}
+	b.buildFunction(pkg.values[pkg.objectOf(id)].(*Function))
 }
 
 // BuildAll calls Package.Build() for each package in prog.
@@ -2321,6 +2336,10 @@ func (prog *Program) BuildAll() {
 }
 
 // Build builds SSA code for all functions and vars in package p.
+//
+// Precondition: CreatePackage must have been called for all of p's
+// direct imports (and hence its direct imports must have been
+// error-free).
 //
 // Build is idempotent and thread-safe.
 //
@@ -2349,8 +2368,12 @@ func (p *Package) Build() {
 
 	// Call the init() function of each package we import.
 	for _, obj := range p.info.Imports() {
+		prereq := p.Prog.packages[obj]
+		if prereq == nil {
+			panic(fmt.Sprintf("Package(%q).Build(): unsatisified import: Program.CreatePackage(%q) was not called", p.Object.Path(), obj.Path()))
+		}
 		var v Call
-		v.Call.Value = p.Prog.packages[obj].Init
+		v.Call.Value = prereq.Init
 		v.Call.pos = init.pos
 		v.setType(types.NewTuple())
 		init.emit(&v)
@@ -2360,28 +2383,35 @@ func (p *Package) Build() {
 		nTo1Vars: make(map[*ast.ValueSpec]bool),
 	}
 
-	// Visit the package's var decls and init funcs in source
-	// order.  This causes init() code to be generated in
-	// topological order.  We visit them transitively through
-	// functions of the same package, but we don't treat functions
-	// as roots.
-	//
-	// We also ensure all functions and methods are built, even if
-	// they are unreachable.
+	// Pass 1: visit the package's var decls and init funcs in
+	// source order, causing init() code to be generated in
+	// topological order.  We visit package-level vars
+	// transitively through functions and methods, building them
+	// as we go.
 	for _, file := range p.info.Files {
 		for _, decl := range file.Decls {
-			b.buildDecl(p, decl)
+			b.buildInit(init, decl)
 		}
 	}
 
-	p.info = nil // We no longer need ASTs or go/types deductions.
-
-	// Finish up.
+	// Finish up init().
 	emitJump(init, done)
 	init.currentBlock = done
 	init.emit(new(RunDefers))
 	init.emit(new(Ret))
 	init.finishBody()
+
+	// Pass 2: build all remaining package-level functions and
+	// methods in source order, including unreachable/blank ones.
+	for _, file := range p.info.Files {
+		for _, decl := range file.Decls {
+			if decl, ok := decl.(*ast.FuncDecl); ok {
+				b.buildFuncDecl(p, decl)
+			}
+		}
+	}
+
+	p.info = nil // We no longer need ASTs or go/types deductions.
 }
 
 // Only valid during p's create and build phases.

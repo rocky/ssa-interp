@@ -18,12 +18,11 @@ import (
 // A Program is a partial or complete Go program converted to SSA form.
 //
 type Program struct {
-	Fset            *token.FileSet              // position information for the files of this Program
-	PackagesByPath  map[string]*Package         // all loaded Packages, keyed by import path
-	packages        map[*types.Package]*Package // all loaded Packages, keyed by object
-	builtins        map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
-	concreteMethods map[*types.Func]*Function   // maps declared concrete methods to their code
-	mode            BuilderMode                 // set of mode bits for SSA construction
+	Fset           *token.FileSet              // position information for the files of this Program
+	PackagesByPath map[string]*Package         // all loaded Packages, keyed by import path
+	packages       map[*types.Package]*Package // all loaded Packages, keyed by object
+	builtins       map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
+	mode           BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
 	methodSets          typemap.M                 // maps type to its concrete MethodSet
@@ -40,8 +39,8 @@ type Package struct {
 	Prog    *Program               // the owning program
 	Object  *types.Package         // the type checker's package object for this package
 	Members map[string]Member      // all package members keyed by name
-	values  map[types.Object]Value // package-level vars and funcs, keyed by object
-	Init    *Function              // the package's (concatenated) init function [TODO use Func("init")]
+	values  map[types.Object]Value // package-level vars & funcs (incl. methods), keyed by object
+	Init    *Function              // Func("init"); the package's (concatenated) init function
 
 	debug   bool                   // include full debug info in this package.
 
@@ -67,22 +66,6 @@ type Member interface {
 	Type() types.Type     // type of the package member
 	Token() token.Token   // token.{VAR,FUNC,CONST,TYPE}
 }
-
-// A MethodSet contains all the methods for a particular type T.
-// The method sets for T and *T are distinct entities.
-//
-// All methods in the method set for T have a receiver type of exactly
-// T.  The method set of *T may contain synthetic indirection methods
-// that wrap methods whose receiver type is T.
-//
-// The keys of a method set are strings returned by the types.Id()
-// function.
-//
-// TODO(adonovan): encapsulate the representation behind both Id-based
-// and types.Method-based accessors and enable lazy population.
-// Perhaps hide it entirely within the Program API.
-//
-type MethodSet map[string]*Function
 
 // A Type is a Member of a Package representing a package-level named type.
 //
@@ -148,14 +131,20 @@ type Value interface {
 	// Instruction.Operands contains the inverse of this relation.
 	Referrers() *[]Instruction
 
-	// Pos returns the location of the source construct that
-	// gave rise to this value, or token.NoPos if it was not
-	// explicit in the source.
+	// Pos returns the location of the AST token most closely
+	// associated with the operation that gave rise to this value,
+	// or token.NoPos if it was not explicit in the source.
 	//
-	// For each ast.Expr type, a particular field is designated as
-	// the canonical location for the expression, e.g. the Lparen
-	// for an *ast.CallExpr.  This enables us to find the value
-	// corresponding to a given piece of source syntax.
+	// For each ast.Node type, a particular token is designated as
+	// the closest location for the expression, e.g. the Lparen
+	// for an *ast.CallExpr.  This permits a compact but
+	// approximate mapping from Values to source positions for use
+	// in diagnostic messages, for example.
+	//
+	// (Do not use this position to determine which Value
+	// corresponds to an ast.Expr; use Function.ValueForExpr
+	// instead.  NB: it requires that the function was built with
+	// debug information.)
 	//
 	Pos() token.Pos
 }
@@ -214,15 +203,22 @@ type Instruction interface {
 	// Values.)
 	Operands(rands []*Value) []*Value
 
-	// Pos returns the location of the source construct that
-	// gave rise to this instruction, or token.NoPos if it was not
-	// explicit in the source.
+	// Pos returns the location of the AST token most closely
+	// associated with the operation that gave rise to this
+	// instruction, or token.NoPos if it was not explicit in the
+	// source.
 	//
-	// For each ast.Expr type, a particular field is designated as
-	// the canonical location for the expression, e.g. the Lparen
-	// for an *ast.CallExpr.  This enables us to find the
-	// instruction corresponding to a given piece of source
-	// syntax.
+	// For each ast.Node type, a particular token is designated as
+	// the closest location for the expression, e.g. the Go token
+	// for an *ast.GoStmt.  This permits a compact but approximate
+	// mapping from Instructions to source positions for use in
+	// diagnostic messages, for example.
+	//
+	// (Do not use this position to determine which Instruction
+	// corresponds to an ast.Expr; see the notes for Value.Pos.
+	// This position may be used to determine which non-Value
+	// Instruction corresponds to some ast.Stmts, but not all: If
+	// and Jump instructions have no Pos(), for example.)
 	//
 	Pos() token.Pos
 }
@@ -460,15 +456,10 @@ type Builtin struct {
 // 	t1 = new int
 //
 type Alloc struct {
-	anInstruction
-	name      string
-	typ       types.Type
-	Heap      bool
-	pos       token.Pos
-	endP      token.Pos
-	referrers []Instruction
-	index     int // dense numbering; for lifting
-	Scope     *Scope
+	Register
+	Comment string
+	Heap    bool
+	index   int // dense numbering; for lifting
 }
 
 // The Phi instruction represents an SSA φ-node, which combines values
@@ -625,7 +616,8 @@ type ChangeInterface struct {
 // MakeInterface constructs an instance of an interface type from a
 // value of a concrete type.
 //
-// Use Program.MethodSet(X.Type()) to find the method-set of X.
+// Use X.Type().MethodSet() to find the method-set of X, and
+// Program.Method(m) to find the implementation of a method.
 //
 // To construct the zero value of an interface type T, use:
 // 	NewConst(exact.MakeNil(), T, pos)
@@ -876,7 +868,7 @@ type SelectState struct {
 //
 type Select struct {
 	Register
-	States   []SelectState
+	States   []*SelectState
 	Blocking bool
 }
 
@@ -948,8 +940,9 @@ type Next struct {
 //
 // Pos() returns the ast.CallExpr.Lparen if the instruction arose from
 // an explicit T(e) conversion; the ast.TypeAssertExpr.Lparen if the
-// instruction arose from an explicit e.(T) operation; or token.NoPos
-// otherwise.
+// instruction arose from an explicit e.(T) operation; or the
+// ast.CaseClause.Case if the instruction arose from a case of a
+// type-switch statement.
 //
 // Example printed form:
 // 	t1 = typeassert t0.(int)
@@ -1160,8 +1153,8 @@ type MapUpdate struct {
 // Pos() returns the ast.Ident or ast.Selector.Sel of the source-level
 // reference.
 //
-// Object() returns the source-level (var/const) object denoted by
-// that reference.
+// Object() returns the source-level (var/const/func) object denoted
+// by Expr if it is an *ast.Ident; otherwise it is nil.
 //
 // (By representing these as instructions, rather than out-of-band,
 // consistency is maintained during transformation passes by the
@@ -1443,7 +1436,6 @@ func (s *If) Pos() token.Pos        { return token.NoPos }
 func (s *Jump) Pos() token.Pos      { return token.NoPos }
 func (s *RunDefers) Pos() token.Pos { return token.NoPos }
 func (s *DebugRef) Pos() token.Pos  { return s.Expr.Pos() }
-func (s *DebugRef) End() token.Pos  { return s.Expr.End() }
 
 // Operands.
 

@@ -195,11 +195,9 @@ func (f *Function) addParamObj(obj types.Object) *Parameter {
 //
 func (f *Function) addSpilledParam(obj types.Object) {
 	param := f.addParamObj(obj)
-	spill := &Alloc{
-		name: obj.Name() + "~", // "~" means "spilled"
-		typ:  types.NewPointer(obj.Type()),
-		pos:  obj.Pos(),
-	}
+	spill := &Alloc{Comment: obj.Name()}
+	spill.setType(types.NewPointer(obj.Type()))
+	spill.setPos(obj.Pos())
 	f.objects[obj] = spill
 	f.Locals = append(f.Locals, spill)
 	f.LocalsByName[obj.Name()] = len(f.Locals)
@@ -267,21 +265,12 @@ func (f *Function) createSyntacticParams() {
 // numberRegisters assigns numbers to all SSA registers
 // (value-defining Instructions) in f, to aid debugging.
 // (Non-Instruction Values are named at construction.)
-// NB: named Allocs retain their existing name.
-// TODO(adonovan): when we have source position info,
-// preserve names only for source locals.
 //
 func numberRegisters(f *Function) {
-	a, v := 0, 0
+	v := 0
 	for _, b := range f.Blocks {
 		for _, instr := range b.Instrs {
-			switch instr := instr.(type) {
-			case *Alloc:
-				// Allocs may be named at birth.
-				if instr.name == "" {
-					instr.name = fmt.Sprintf("a%d", a)
-					a++
-				}
+			switch instr.(type) {
 			case Value:
 				instr.(interface {
 					setNum(int)
@@ -386,8 +375,7 @@ func (pkg *Package) SetDebugMode(debug bool) {
 
 // debugInfo reports whether debug info is wanted for this function.
 func (f *Function) debugInfo() bool {
-	// TODO(adonovan): make the policy finer grained.
-	return f.Prog.mode&DebugInfo != 0
+	return f.Pkg.debug || f.Prog.mode&DebugInfo != 0
 }
 
 // addNamedLocal creates a local variable, adds it to function f and
@@ -397,14 +385,8 @@ func (f *Function) debugInfo() bool {
 // Precondition: f.syntax != nil (i.e. a Go source function).
 //
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
-	scope := f.Pkg.Ast2Scope[obj.Parent().Node()]
-	l := f.addLocal(obj.Type(), obj.Pos(), obj.Pos(), scope)
-	l.name = obj.Name()
-	// FIXME: !
-	// if f.LocalsByName[obj.Name()] != 0 {
-	// 	fmt.Println("Warning: already have", obj.Name())
-	// }
-	f.LocalsByName[obj.Name()] = len(f.Locals)
+	l := f.addLocal(obj.Type(), obj.Pos(), obj.Pos(), nil)
+	l.Comment = obj.Name()
 	f.objects[obj] = l
 	return l
 }
@@ -418,7 +400,10 @@ func (f *Function) addLocalForIdent(id *ast.Ident) *Alloc {
 //
 func (f *Function) addLocal(typ types.Type, pos token.Pos, endP token.Pos,
 	scope *Scope) *Alloc {
-	v := &Alloc{typ: types.NewPointer(typ), pos: pos, endP: endP, Scope: scope}
+	v := &Alloc{}
+	v.setType(types.NewPointer(typ))
+	v.setPos(pos)
+	v.setEnd(endP)
 	f.Locals = append(f.Locals, v)
 	f.emit(v)
 	return v

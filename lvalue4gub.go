@@ -1,12 +1,12 @@
 package ssa2
 
-func (a address) storeWithScope(fn *Function, v Value, scope *Scope) {
+func (a *address) storeWithScope(fn *Function, v Value, scope *Scope) {
 	store := emitStore(fn, a.addr, v)
 	store.Scope = scope
 	store.pos = a.starPos
-	if a.id != nil {
+	if a.expr != nil {
 		// store.Val is v converted for assignability.
-		emitDebugRef(fn, a.id, store.Val)
+		emitDebugRef(fn, a.expr, store.Val)
 	}
 }
 

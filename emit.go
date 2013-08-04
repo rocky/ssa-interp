@@ -16,13 +16,13 @@ const (
 // emitNew emits to f a new (heap Alloc) instruction allocating an
 // object of type typ.  pos and endP are the optional source location.
 //
-func emitNew(f *Function, typ types.Type, pos token.Pos, endP token.Pos) Value {
-	return f.emit(&Alloc{
-		typ:  types.NewPointer(typ),
-		Heap: true,
-		pos:  pos,
-		endP: pos,
-	})
+func emitNew(f *Function, typ types.Type, pos token.Pos, endP token.Pos) *Alloc {
+	v := &Alloc{Heap: true}
+	v.setType(types.NewPointer(typ))
+	v.setPos(pos)
+	v.setEnd(endP)
+	f.emit(v)
+	return v
 }
 
 // emitLoad emits to f an instruction to load the address addr into a
@@ -36,7 +36,7 @@ func emitLoad(f *Function, addr Value) *UnOp {
 }
 
 // emitDebugRef emits to f a DebugRef pseudo-instruction associating
-// reference id with local var/const value v.
+// expression e with value v.
 //
 func emitDebugRef(f *Function, e ast.Expr, v Value) {
 	if !f.debugInfo() {
@@ -171,7 +171,7 @@ func isValuePreserving(ut_src, ut_dst types.Type) bool {
 // emitConv emits to f code to convert Value val to exactly type typ,
 // and returns the converted value.  Implicit conversions are required
 // by language assignability rules in assignments, parameter passing,
-// etc.
+// etc.  Conversions cannot fail dynamically.
 //
 func emitConv(f *Function, val Value, typ types.Type) Value {
 	t_src := val.Type()
@@ -193,10 +193,11 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 
 	// Conversion to, or construction of a value of, an interface type?
 	if _, ok := ut_dst.(*types.Interface); ok {
-
 		// Assignment from one interface type to another?
 		if _, ok := ut_src.(*types.Interface); ok {
-			return emitTypeAssert(f, val, typ, token.NoPos)
+			c := &ChangeInterface{X: val}
+			c.setType(typ)
+			return f.emit(c)
 		}
 
 		// Untyped nil constant?  Return interface-typed nil constant.
@@ -300,20 +301,6 @@ func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
 // returns the value.  x.Type() must be an interface.
 //
 func emitTypeAssert(f *Function, x Value, t types.Type, pos token.Pos) Value {
-	// Simplify infallible assertions.
-	txi := x.Type().Underlying().(*types.Interface)
-	if ti, ok := t.Underlying().(*types.Interface); ok {
-		// Even when ti==txi, we still need ChangeInterface
-		// since it performs a nil-check.
-		// TODO(adonovan): needs more tests.
-		if types.IsAssignableTo(ti, txi) {
-			c := &ChangeInterface{X: x}
-			c.setPos(pos)
-			c.setType(t)
-			return f.emit(c)
-		}
-	}
-
 	a := &TypeAssert{X: x, AssertedType: t}
 	a.setPos(pos)
 	a.setType(t)
@@ -323,18 +310,14 @@ func emitTypeAssert(f *Function, x Value, t types.Type, pos token.Pos) Value {
 // emitTypeTest emits to f a type test value,ok := x.(t) and returns
 // a (value, ok) tuple.  x.Type() must be an interface.
 //
-func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos, end token.Pos) Value {
-	// TODO(adonovan): opt: simplify infallible tests as per
-	// emitTypeAssert, and return (x, vTrue).
-	// (Requires that exprN returns a slice of extracted values,
-	// not a single Value of type *types.Tuple.)
+func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos, endP token.Pos) Value {
 	a := &TypeAssert{
 		X:            x,
 		AssertedType: t,
 		CommaOk:      true,
 	}
 	a.setPos(pos)
-	a.setEnd(end)
+	a.setEnd(endP)
 	a.setType(types.NewTuple(
 		types.NewVar(token.NoPos, nil, "value", t),
 		varOk,

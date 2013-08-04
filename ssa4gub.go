@@ -33,16 +33,8 @@ type Scope struct {
 	scopeNum int
 }
 
-// Package returns the SSA package corresponding to the specified
-// type-checker package object.
-// It returns nil if no such SSA package has been created.
-//
-func (prog *Program) Package(pkg *types.Package) *Package {
-	return prog.packages[pkg]
-}
-
-func (v *Alloc)    Name() string               { return v.name }
 func (s *Alloc)    EndP() token.Pos            { return s.endP }
+func (s *DebugRef) EndP() token.Pos            { return s.Expr.End() }
 func (s *Defer)    EndP() token.Pos            { return s.Call.endP }
 func (s *Go)       EndP() token.Pos            { return s.Call.endP }
 func (v *Register) EndP() token.Pos            { return v.endP }

@@ -26,34 +26,34 @@ type lvalue interface {
 type address struct {
 	addr    Value
 	starPos token.Pos    // source position, if from explicit *addr
-	id      *ast.Ident   // source syntax, if from *ast.Ident
+	expr    ast.Expr     // source syntax [debug mode]
 	object  types.Object // source var, if from *ast.Ident
 }
 
-func (a address) load(fn *Function) Value {
+func (a *address) load(fn *Function) Value {
 	load := emitLoad(fn, a.addr)
 	load.pos = a.starPos
 	return load
 }
 
-func (a address) store(fn *Function, v Value) {
+func (a *address) store(fn *Function, v Value) {
 	store := emitStore(fn, a.addr, v)
 	store.pos = a.starPos
-	if a.id != nil {
+	if a.expr != nil {
 		// store.Val is v converted for assignability.
-		emitDebugRef(fn, a.id, store.Val)
+		emitDebugRef(fn, a.expr, store.Val)
 	}
 }
 
-func (a address) address(fn *Function) Value {
-	if a.id != nil {
+func (a *address) address(fn *Function) Value {
+	if a.expr != nil {
 		// NB: this kind of DebugRef yields the object's address.
-		emitDebugRef(fn, a.id, a.addr)
+		emitDebugRef(fn, a.expr, a.addr)
 	}
 	return a.addr
 }
 
-func (a address) typ() types.Type {
+func (a *address) typ() types.Type {
 	return deref(a.addr.Type())
 }
 
