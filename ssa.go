@@ -31,17 +31,6 @@ type Program struct {
 	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
 }
 
-// Scopes are attached to basic blocks.  For our purposes, we need a
-// types.Scope plus some sort of non-pointer-address name which we can
-// repeatably derive. The name is just a preorder traversal number of
-// the scope tree for a package. Scope number should be reset for each
-// function, but that's more work. I, rocky, believe this really
-// should be in ast.scope, but it is what it is.
-type Scope struct {
-	*types.Scope
-	scopeNum int
-}
-
 // A Package is a single analyzed Go package containing Members for
 // all package-level functions, variables, constants and types it
 // declares.  These may be accessed directly via Members, or via the
@@ -53,6 +42,8 @@ type Package struct {
 	Members map[string]Member      // all package members keyed by name
 	values  map[types.Object]Value // package-level vars and funcs, keyed by object
 	Init    *Function              // the package's (concatenated) init function [TODO use Func("init")]
+
+	debug   bool                   // include full debug info in this package.
 
 	// The following fields are set transiently, then cleared
 	// after building.
@@ -841,10 +832,11 @@ type Lookup struct {
 // It represents one goal state and its corresponding communication.
 //
 type SelectState struct {
-	Dir  ast.ChanDir // direction of case
-	Chan Value       // channel to use (for send or receive)
-	Send Value       // value to send (for send)
-	Pos  token.Pos   // position of token.ARROW
+	Dir       ast.ChanDir // direction of case
+	Chan      Value       // channel to use (for send or receive)
+	Send      Value       // value to send (for send)
+	Pos       token.Pos   // position of token.ARROW
+	DebugNode ast.Node    // ast.SendStmt or ast.UnaryExpr(<-) [debug mode]
 }
 
 // The Select instruction tests whether (or blocks until) one or more
@@ -1094,6 +1086,8 @@ type Panic struct {
 type Go struct {
 	anInstruction
 	Call CallCommon
+	pos  token.Pos
+	endP token.Pos
 }
 
 // The Defer instruction pushes the specified call onto a stack of
@@ -1109,6 +1103,8 @@ type Go struct {
 type Defer struct {
 	anInstruction
 	Call CallCommon
+	pos  token.Pos
+	endP token.Pos
 }
 
 // The Send instruction sends X on channel Chan.
@@ -1157,7 +1153,7 @@ type MapUpdate struct {
 }
 
 // A DebugRef instruction provides the position information for a
-// specific source-level reference that denotes the SSA value X.
+// specific source-level expression that compiles to the SSA value X.
 //
 // DebugRef is a pseudo-instruction: it has no dynamic effect.
 //
@@ -1174,8 +1170,8 @@ type MapUpdate struct {
 type DebugRef struct {
 	anInstruction
 	X      Value        // the value whose position we're declaring
-	pos    token.Pos    // location of the reference
-	object types.Object // the identity of the source var/const
+	Expr   ast.Expr     // the referring expression
+	object types.Object // the identity of the source var/const/func
 }
 
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
@@ -1369,7 +1365,6 @@ func (v *Parameter) Pos() token.Pos            { return v.pos }
 func (v *Parameter) Parent() *Function         { return v.parent }
 
 func (v *Alloc) Type() types.Type          { return v.typ }
-func (v *Alloc) Name() string              { return v.name }
 func (v *Alloc) Referrers() *[]Instruction { return &v.referrers }
 func (v *Alloc) Pos() token.Pos            { return v.pos }
 
@@ -1437,8 +1432,8 @@ func (p *Package) Type(name string) (t *Type) {
 }
 
 func (v *Call) Pos() token.Pos      { return v.Call.pos }
-func (s *Defer) Pos() token.Pos     { return s.Call.pos }
-func (s *Go) Pos() token.Pos        { return s.Call.pos }
+func (s *Defer) Pos() token.Pos     { return s.pos }
+func (s *Go) Pos() token.Pos        { return s.pos }
 func (s *MapUpdate) Pos() token.Pos { return s.pos }
 func (s *Panic) Pos() token.Pos     { return s.pos }
 func (s *Ret) Pos() token.Pos       { return s.pos }
@@ -1447,7 +1442,8 @@ func (s *Store) Pos() token.Pos     { return s.pos }
 func (s *If) Pos() token.Pos        { return token.NoPos }
 func (s *Jump) Pos() token.Pos      { return token.NoPos }
 func (s *RunDefers) Pos() token.Pos { return token.NoPos }
-func (s *DebugRef) Pos() token.Pos  { return s.pos }
+func (s *DebugRef) Pos() token.Pos  { return s.Expr.Pos() }
+func (s *DebugRef) End() token.Pos  { return s.Expr.End() }
 
 // Operands.
 
@@ -1611,5 +1607,3 @@ func (v *TypeAssert) Operands(rands []*Value) []*Value {
 func (v *UnOp) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
-
-func (s *Scope) ScopeNum() int { return s.scopeNum }

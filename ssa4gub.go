@@ -22,6 +22,17 @@ type LocInst struct {
 	Fn     *Function
 }
 
+// Scopes are attached to basic blocks.  For our purposes, we need a
+// types.Scope plus some sort of non-pointer-address name which we can
+// repeatably derive. The name is just a preorder traversal number of
+// the scope tree for a package. Scope number should be reset for each
+// function, but that's more work. I, rocky, believe this really
+// should be in ast.scope, but it is what it is.
+type Scope struct {
+	*types.Scope
+	scopeNum int
+}
+
 // Package returns the SSA package corresponding to the specified
 // type-checker package object.
 // It returns nil if no such SSA package has been created.
@@ -30,6 +41,7 @@ func (prog *Program) Package(pkg *types.Package) *Package {
 	return prog.packages[pkg]
 }
 
+func (v *Alloc)    Name() string               { return v.name }
 func (s *Alloc)    EndP() token.Pos            { return s.endP }
 func (s *Defer)    EndP() token.Pos            { return s.Call.endP }
 func (s *Go)       EndP() token.Pos            { return s.Call.endP }
@@ -45,3 +57,6 @@ func (p *Package) Locs() []LocInst { return p.locs }
 func (prog *Program) PackageByName(name string) *Package {
 	return prog.PackagesByPath[name]
 }
+
+
+func (s *Scope) ScopeNum() int { return s.scopeNum }

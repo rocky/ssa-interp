@@ -37,7 +37,7 @@ func (fr *Frame) get(key ssa2.Value) Value {
 	case *ssa2.Function, *ssa2.Builtin:
 		return key
 	case *ssa2.Const:
-		return LiteralValue(key)
+		return constValue(key)
 	case *ssa2.Global:
 		if r, ok := fr.i.globals[key]; ok {
 			return r

@@ -22,6 +22,51 @@ func recvType(obj *types.Func) types.Type {
 	return obj.Type().(*types.Signature).Recv().Type()
 }
 
+func methodSetOf(typ types.Type) *types.MethodSet {
+	// TODO(adonovan): temporary workaround.  Inline it away when fixed.
+	if _, ok := deref(typ).Underlying().(*types.Interface); ok && isPointer(typ) {
+		// TODO(gri): fix: go/types bug: pointer-to-interface
+		// has no methods---yet go/types says it has!
+		return new(types.MethodSet)
+	}
+	return typ.MethodSet()
+}
+
+// Method returns the Function implementing method meth, building
+// wrapper methods on demand.
+//
+// Thread-safe.
+//
+// EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
+//
+func (prog *Program) Method(meth *types.Selection) *Function {
+	if meth == nil {
+		panic("Method(nil)")
+	}
+	typ := meth.Recv()
+	if prog.mode&LogSource != 0 {
+		defer logStack("Method %s %v", typ, meth)()
+	}
+
+	prog.methodsMu.Lock()
+	defer prog.methodsMu.Unlock()
+
+	type methodSet map[string]*Function
+	mset, _ := prog.methodSets.At(typ).(methodSet)
+	if mset == nil {
+		mset = make(methodSet)
+		prog.methodSets.Set(typ, mset)
+	}
+
+	id := meth.Obj().Id()
+	fn := mset[id]
+	if fn == nil {
+		fn = findMethod(prog, meth)
+		mset[id] = fn
+	}
+	return fn
+}
+
 // MethodSet returns the method set for type typ, building wrapper
 // methods as needed for embedded field promotion, and indirection for
 // *T receiver types, etc.
