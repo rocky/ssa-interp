@@ -154,14 +154,13 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		fr.rundefers()
 
 	case *ssa2.Panic:
-		// FIXME: use instr instead of nil
-		TraceHook(fr, nil, ssa2.PANIC)
 		switch os.Getenv("GOTRACEBACK") {
 		case "0":
 			//do nothing
 		case "1", "2", "crash":
 			debug۰PrintStack(fr)
 		}
+		TraceHook(fr, &genericInstr, ssa2.PANIC)
 		panic(targetPanic{fr.get(instr.X)})
 
 	case *ssa2.Send:
