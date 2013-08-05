@@ -160,13 +160,13 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		case "0":
 			//do nothing
 		case "1":
-			debug۰PrintStack(fr)
+			runtime۰Gotraceback(fr)
 		case "2", "crash":
-			debug۰PrintStack(fr)
+			runtime۰Gotraceback(fr)
 			for _, goTop := range fr.i.goTops {
 				otherFr := goTop.Fr
 				if otherFr == fr { continue }
-				debug۰PrintStack(otherFr)
+				runtime۰Gotraceback(otherFr)
 			}
 		}
 		TraceHook(fr, &genericInstr, ssa2.PANIC)

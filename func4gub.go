@@ -30,6 +30,19 @@ func (f *Function) PositionRange() string {
 	return "-"
 }
 
+func (fn *Function) FnAndParamString() string {
+	s := fmt.Sprintf("%s(", fn.Name())
+	params :=""
+	if len(fn.Params) > 0 {
+		params = fn.Params[0].Name()
+		for i:=1; i<len(fn.Params); i++ {
+			params += ", " + fn.Params[i].Name()
+		}
+	}
+	s += params + ")"
+	return s
+}
+
 func DisasmInst(instr Instruction, width int) string {
 
 	s := "\t"

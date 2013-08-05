@@ -13,7 +13,7 @@ func printStack(fr *interp.Frame, count int) {
 		if fr == curFrame {
 			pointer = "=> "
 		}
-		msg("%s#%d %s", pointer, i, StackLocation(fr))
+		msg("%s#%d %s", pointer, i, fr.FnAndParamString())
 		i++
 	}
 }

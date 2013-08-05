@@ -49,6 +49,10 @@ func (fr *Frame) get(key ssa2.Value) Value {
 	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
 }
 
+func (fr *Frame) FnAndParamString() string {
+	return fr.Fn().FnAndParamString()
+}
+
 func (fr *Frame) Scope() *ssa2.Scope {
 	return fr.block.Scope
 }

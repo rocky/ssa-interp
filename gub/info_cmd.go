@@ -5,7 +5,9 @@
 
 package gub
 
-import ("github.com/rocky/ssa-interp")
+import (
+	"github.com/rocky/ssa-interp"
+)
 
 func init() {
 	name := "info"
@@ -23,11 +25,11 @@ Generic command for showing things about the program being debugged.
 
 func InfoFrameSubcmd() {
 	msg("goroutine number: %d", curFrame.GoNum())
-	msg("frame: %s", StackLocation(curFrame))
+	msg("frame: %s", curFrame.FnAndParamString())
 }
 
 func InfoProgramSubcmd() {
-	msg("instruction pc: %d", curFrame.PC())
+	msg("instruction pc: 0x%x", curFrame.PC())
 	block := curFrame.Block()
 	msg("basic block: %d", block.Index)
 	msg("scope: %d", block.Scope.ScopeNum())

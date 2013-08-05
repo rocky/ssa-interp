@@ -104,6 +104,10 @@ func TestInterp(t *testing.T) {
 
 	var failures []string
 
+	// The panic test assumes GOTRACEBACK != 0. I think we
+	// want tracebacks anyway.
+	os.Setenv("GOTRACEBACK", "2")
+
 	for _, test := range testData {
 		if !run(t, test) {
 			failures = append(failures, test.baseName)

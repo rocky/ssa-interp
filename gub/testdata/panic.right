@@ -9,6 +9,9 @@ Step over...
 --- main()
 testdata/panic.go:4:2-21
 Step over...
+main()
+	testdata/panic.go:3 0x10002
+	panic("Game over!")
 oX  main()
 testdata/panic.go:4:2-21
 # Should see panic icon now

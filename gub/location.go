@@ -4,8 +4,6 @@
 package gub
 
 import (
-	"fmt"
-
 	"go/token"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
@@ -35,20 +33,6 @@ func init() {
 		ssa2.SWITCH_COND: "sw?",
 		ssa2.STMT_IN_LIST: "---",
 	}
-}
-
-func StackLocation(fr *interp.Frame) string {
-	fn := fr.Fn()
-	s := fmt.Sprintf("%s(", fn.Name())
-	params :=""
-	if len(fn.Params) > 0 {
-		params = fn.Params[0].Name()
-		for i:=1; i<len(fn.Params); i++ {
-			params += ", " + fn.Params[i].Name()
-		}
-	}
-	s += params + ")"
-	return s
 }
 
 func fmtRange(fn *ssa2.Function, start token.Pos, end token.Pos) string {

@@ -8,6 +8,9 @@ func fib(x int) int {
 	if x < 2 {
 		return x
 	}
+	if x > 13 {
+		panic("Too large")
+	}
 	return fib(x-1) + fib(x-2)
 }
 
@@ -25,9 +28,6 @@ func main() {
 	var fibs []int
 	for v := range ch {
 		fibs = append(fibs, v)
-		if len(fibs) > limit / 2 {
-			panic("Too large")
-		}
 		if len(fibs) == limit {
 			break
 		}
