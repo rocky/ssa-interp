@@ -44,6 +44,7 @@ func ext۰debug۰PrintStack(fr *Frame, args []Value) Value {
 	return nil
 }
 
+// Copied almost directly from runtime/debug/stack.go
 func debug۰PrintStack(fr *Frame) Value {
 	buf := new(bytes.Buffer) // the returned data
 	// As we loop, we open files and read them. These variables record the currently
@@ -66,7 +67,7 @@ func debug۰PrintStack(fr *Frame) Value {
 			lastFile = file
 		}
 		line-- // in stack trace, lines are 1-indexed but our array is 0-indexed
-		fmt.Fprintf(buf, "\t%s: %s\n", debug۰Function(fr, pc), source(lines, line))
+		fmt.Fprintf(buf, "\t%s: %s\n", debug۰Function(fr, pc), debug۰source(lines, line))
 	}
 	os.Stderr.Write(buf.Bytes())
 	return nil
@@ -74,7 +75,7 @@ func debug۰PrintStack(fr *Frame) Value {
 
 // source returns a space-trimmed slice of the n'th line.
 // Copied almost directly from runtime/debug/stack.go
-func source(lines [][]byte, n int) []byte {
+func debug۰source(lines [][]byte, n int) []byte {
 	if n < 0 || n >= len(lines) {
 		return []byte("???")
 	}
@@ -99,10 +100,20 @@ func ext۰debug۰function(fr *Frame, args []Value) Value {
 	return debug۰Function(fr, pc)
 }
 
-func encode_pc(fr *Frame) uint {
+// Turn the function name, block number and instruction inside the
+// block into number that we'll use as a PC. If it so happens that
+// there are more than 256 instructions in a block or more than 256
+// basic blocks in a function, the PC is not unique. In cases that the
+// block number is not unique, one could try to disambiguate blocks by
+// discarding those that have fewer instructions than the instruction
+// number. However either way, I think I can live with this
+// limitation. Note: I tried using uint64 and 24 bits, but this causes
+// a range error down the line on 32-bit linux, I think when casting
+// to a uintptr.
+func encodePC(fr *Frame) uint {
 	fnNum := fn2Num(fr.fn)
-	bpc := uint(fr.block.Index) * 0xff + uint(fr.pc)
-	return (fnNum << 16) | (bpc & 0x0000ffff)
+	bpc := uint(fr.block.Index << 8) + uint(fr.pc & 0xff)
+	return uint(fnNum << 16) | (bpc & 0x00ffff)
 }
 
 func runtime۰Caller(fr *Frame, skip int) (pc uintptr, file string, line int, ok bool) {
@@ -123,7 +134,7 @@ func runtime۰Caller(fr *Frame, skip int) (pc uintptr, file string, line int, ok
 	} else {
 		filename = "??"
 	}
-	pc = uintptr(encode_pc(final_fr))
+	pc = uintptr(encodePC(final_fr))
 	line = startP.Line
 	return pc, filename, line, true
 }
@@ -147,7 +158,7 @@ func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
 	}
 	var count int
 	for count = 0; fr != nil && count <= size; fr = fr.caller {
-		pc[count] = encode_pc(fr)
+		pc[count] = encodePC(fr)
 		count++
 	}
 	return count

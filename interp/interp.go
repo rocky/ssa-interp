@@ -159,10 +159,24 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		switch os.Getenv("GOTRACEBACK") {
 		case "0":
 			//do nothing
-		case "1", "2", "crash":
+		case "1":
 			debug۰PrintStack(fr)
+		case "2", "crash":
+			debug۰PrintStack(fr)
+			for _, goTop := range fr.i.goTops {
+				otherFr := goTop.Fr
+				if otherFr == fr { continue }
+				debug۰PrintStack(otherFr)
+			}
 		}
 		TraceHook(fr, &genericInstr, ssa2.PANIC)
+		// Don't know if setting fr.status really does anything, but
+		// just to try to be totally Kosher. We do this *after*
+		// running TraceHook because TraceHook treats panic'd frames
+		// differently and will do less with them. If it needs to
+		// understand that we are in a panic state, it can do that via
+		// the event type passed above.
+		fr.status = StPanic
 		panic(targetPanic{fr.get(instr.X)})
 
 	case *ssa2.Send:
