@@ -1303,13 +1303,13 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 		body := fallthru
 		if body == nil {
 			// first case only
-			body = fn.newBasicBlock("switch.body", astScope(fn, s.Body))
+			body = fn.newBasicBlock("switch.body", switchScope)
 		}
 
 		// Preallocate body block for the next case.
 		fallthru = done
 		if i+1 < ncases {
-			fallthru = fn.newBasicBlock("switch.body", body.Scope)
+			fallthru = fn.newBasicBlock("switch.body", switchScope)
 		}
 
 		cc := clause.(*ast.CaseClause)
@@ -1323,7 +1323,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 
 		var nextCond *BasicBlock
 		for _, cond := range cc.List {
-			nextCond = fn.newBasicBlock("switch.next", body.Scope)
+			nextCond = fn.newBasicBlock("switch.next", switchScope)
 			// TODO(adonovan): opt: when tag==vTrue, we'd
 			// get better much code if we use b.cond(cond)
 			// instead of BinOp(EQL, tag, b.expr(cond))

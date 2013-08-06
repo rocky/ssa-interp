@@ -37,7 +37,12 @@ func EnvLookup(fr *interp.Frame, name string) (ssa2.Value, string, *ssa2.Scope) 
 	for k, v := range fr.Env() {
 		if name == k.Name() {
 			v := deref2Str(v)
-			return k, v, nil
+			switch k := k.(type) {
+			case *ssa2.Alloc:
+				return k, v, k.Scope
+			default:
+				return k, v, nil
+			}
 		}
 	}
 	return nil, "", nil
