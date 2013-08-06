@@ -60,12 +60,15 @@ func computePrompt() string {
 // Call-back hook from interpreter. Contains top-level statement breakout
 // FIXME: remove instr
 func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
-    gubLock.Lock()
+	if !fr.I().TraceEventMask[event] { return }
+	gubLock.Lock()
     defer gubLock.Unlock()
 	if skipEvent(fr, event) { return }
 	frameInit(fr)
-	// FIXME: use
-	// genericInstr = fr.Block().Instrs[ic]
+	// FIXME: use unconditionally
+	if instr == nil {
+		instr = &fr.Block().Instrs[fr.PC()]
+	}
 	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].kind == "Function" {
 		event = ssa2.CALL_ENTER
 	}

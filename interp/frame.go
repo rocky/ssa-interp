@@ -62,6 +62,7 @@ func (fr *Frame) rundefers() {
 		if (fr.i.TraceMode & EnableTracing) != 0 {
 			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
 		}
+		TraceHook(fr, nil, ssa2.DEFER_ENTER)
 		fr.defers[len(fr.defers)-1-i]()
 	}
 	fr.defers = fr.defers[:0]

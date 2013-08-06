@@ -16,6 +16,11 @@ func (i  *interpreter) Global(name string, pkg *ssa2.Package)  (v *Value, ok boo
 
 var i *interpreter
 
+
+func init() {
+	TraceHook = NullTraceHook
+}
+
 func GetInterpreter() *interpreter {
 	return i
 }

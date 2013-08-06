@@ -55,10 +55,6 @@ import (
 	"github.com/rocky/ssa-interp"
 )
 
-func init() {
-	TraceHook = NullTraceHook
-}
-
 type continuation int
 
 const (
@@ -83,6 +79,7 @@ type interpreter struct {
 	globals        map[ssa2.Value]*Value // addresses of global variables (immutable)
 	Mode           Mode                 // interpreter options
 	TraceMode      TraceMode            // interpreter trace options
+	TraceEventMask ssa2.TraceEventMask
 	reflectPackage *ssa2.Package        // the fake reflect package
 	errorMethods   methodSet            // the method set of reflect.error, which implements the error interface.
 	rtypeMethods   methodSet            // the method set of rtype, which implements the reflect.Type interface.
@@ -561,8 +558,14 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		globals: make(map[ssa2.Value]*Value),
 		Mode:    mode,
 		TraceMode: traceMode,
+		TraceEventMask: make(ssa2.TraceEventMask, ssa2.TRACE_EVENT_LAST),
 	}
 
+	// Is there a way to combine the below loop into the above?
+	for event := ssa2.TRACE_EVENT_FIRST; event <= ssa2.TRACE_EVENT_LAST; event++ {
+		i.TraceEventMask[event] = true
+	}
+	i.TraceEventMask[ssa2.DEFER_ENTER] = false
 	if i.TraceMode & EnableInitTracing == 0 {
 		// clear tracing bits in init() functions that occur before
 		// main.main()
@@ -652,6 +655,8 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		// If we didn't set tracing before because EnableInitTracing
 		// was off, we'll set it now.
 		i.TraceMode = traceMode
+		// Allow defer tracing now that we've hit main
+		i.TraceEventMask[ssa2.DEFER_ENTER] = true
 		call(i, 0, nil, token.NoPos, mainFn, nil)
 		exitCode = 0
 	} else {

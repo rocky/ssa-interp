@@ -6,7 +6,7 @@ import (
 )
 
 //-------------------------------
-type TraceEvent int
+type TraceEvent uint8
 const (
 	OTHER TraceEvent = iota
 	ASSIGN_STMT
@@ -15,6 +15,7 @@ const (
 	BREAKPOINT
 	CALL_ENTER
 	CALL_RETURN
+	DEFER_ENTER
 	EXPR
 	IF_INIT
 	IF_COND
@@ -29,6 +30,10 @@ const (
 	SWITCH_COND
 )
 
+const TRACE_EVENT_FIRST = OTHER
+const TRACE_EVENT_LAST  = SWITCH_COND
+
+type TraceEventMask map[TraceEvent]bool
 
 var Event2Name map[TraceEvent]string
 

@@ -51,6 +51,7 @@ var TraceHook TraceHookFunc
 // This gets called for special trace events if tracing is on
 // FIXME: Move elsewhere
 func DefaultTraceHook(fr *Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
+	if ! fr.i.TraceEventMask[event] { return }
 	fset := fr.Fn().Prog.Fset
 	startP := fset.Position(fr.StartP())
 	endP   := fset.Position(fr.EndP())
