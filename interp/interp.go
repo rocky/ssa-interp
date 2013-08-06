@@ -167,6 +167,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 			}
 		}
 		TraceHook(fr, &genericInstr, ssa2.PANIC)
+		fr.rundefers()
 		// Don't know if setting fr.status really does anything, but
 		// just to try to be totally Kosher. We do this *after*
 		// running TraceHook because TraceHook treats panic'd frames
