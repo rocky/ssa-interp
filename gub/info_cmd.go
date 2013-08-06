@@ -29,10 +29,14 @@ func InfoFrameSubcmd() {
 }
 
 func InfoProgramSubcmd() {
-	msg("instruction pc: 0x%x", curFrame.PC())
+	msg("instruction number: %d", curFrame.PC())
 	block := curFrame.Block()
 	msg("basic block: %d", block.Index)
-	msg("scope: %d", block.Scope.ScopeNum())
+	if block.Scope != nil {
+		msg("scope: %d", block.Scope.ScopeNum())
+	} else {
+		msg("unknown scope")
+	}
 	msg("program stop event: %s", ssa2.Event2Name[traceEvent])
 	msg("position: %s", curFrame.PositionRange())
 }

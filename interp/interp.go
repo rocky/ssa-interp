@@ -657,7 +657,8 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		// was off, we'll set it now.
 		i.TraceMode = traceMode
 		// Allow defer tracing now that we've hit main
-		i.TraceEventMask[ssa2.DEFER_ENTER] = true
+		// On second thought. We catch defer enter with a call enter.
+		// i.TraceEventMask[ssa2.DEFER_ENTER] = true
 		call(i, 0, nil, token.NoPos, mainFn, nil)
 		exitCode = 0
 	} else {
