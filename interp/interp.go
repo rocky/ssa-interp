@@ -177,6 +177,8 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		// understand that we are in a panic state, it can do that via
 		// the event type passed above.
 		fr.status = StPanic
+		// We don't need an interpreter tracecback. So turn that off.
+		os.Setenv("GOTRACEBACK", "0")
 		panic(targetPanic{fr.get(instr.X)})
 
 	case *ssa2.Send:
