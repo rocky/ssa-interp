@@ -1730,7 +1730,7 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 // over array, *array or slice value x.
 // The v result is defined only if tv is non-nil.
 //
-func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value, loop, done *BasicBlock) {
+func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, s *ast.RangeStmt) (k, v Value, loop, done *BasicBlock) {
 	//
 	//      length = len(x)
 	//      index = -1
@@ -1744,6 +1744,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	// 	jump loop
 	// done:                                   (target of break)
 
+	rangeIndexedScope := astScope(fn, s)
 	// Determine number of iterations.
 	var length Value
 	if arr, ok := deref(x.Type()).Underlying().(*types.Array); ok {
@@ -1762,10 +1763,10 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 		length = fn.emit(&c)
 	}
 
-	index := fn.addLocal(tInt, token.NoPos, token.NoPos, nil)
+	index := fn.addLocal(tInt, s.Pos(), s.End(), rangeIndexedScope)
 	emitStore(fn, index, intConst(-1))
 
-	loop = fn.newBasicBlock("rangeindex.loop", nil)
+	loop = fn.newBasicBlock("rangeindex.loop", rangeIndexedScope)
 	emitJump(fn, loop)
 	fn.currentBlock = loop
 
@@ -1777,8 +1778,8 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 	incr.setType(tInt)
 	emitStore(fn, index, fn.emit(incr))
 
-	body := fn.newBasicBlock("rangeindex.body", nil)
-	done = fn.newBasicBlock("rangeindex.done", nil)
+	body := fn.newBasicBlock("rangeindex.body", astScope(fn, s.Body))
+	done = fn.newBasicBlock("rangeindex.done", parentScope(fn, rangeIndexedScope))
 	emitIf(fn, emitCompare(fn, token.LSS, incr, length, token.NoPos), body, done)
 	fn.currentBlock = body
 
@@ -1821,7 +1822,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type) (k, v Value
 // tk and tv are the types of the key/value results k and v, or nil
 // if the respective component is not wanted.
 //
-func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.Pos) (k, v Value, loop, done *BasicBlock) {
+func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, s *ast.RangeStmt) (k, v Value, loop, done *BasicBlock) {
 	//
 	//	it = range x
 	// loop:                                   (target of continue)
@@ -1836,6 +1837,7 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 	// done:                                   (target of break)
 	//
 
+	rangeIterScope := astScope(fn, s)
 	if tk == nil {
 		tk = tInvalid
 	}
@@ -1844,11 +1846,12 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 	}
 
 	rng := &Range{X: x}
-	rng.setPos(pos)
+	rng.setPos(s.Pos())
+	rng.setEnd(s.End())
 	rng.setType(tRangeIter)
 	it := fn.emit(rng)
 
-	loop = fn.newBasicBlock("rangeiter.loop", nil)
+	loop = fn.newBasicBlock("rangeiter.loop", rangeIterScope)
 	emitJump(fn, loop)
 	fn.currentBlock = loop
 
@@ -1865,8 +1868,8 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, pos token.
 	))
 	fn.emit(okv)
 
-	body := fn.newBasicBlock("rangeiter.body", nil)
-	done = fn.newBasicBlock("rangeiter.done", nil)
+	body := fn.newBasicBlock("rangeiter.body", astScope(fn, s.Body))
+	done = fn.newBasicBlock("rangeiter.done", parentScope(fn, rangeIterScope))
 	emitIf(fn, emitExtract(fn, okv, 0, tBool), body, done)
 	fn.currentBlock = body
 
@@ -1952,13 +1955,13 @@ func (b *builder) rangeStmt(fn *Function, s *ast.RangeStmt, label *lblock) {
 	var loop, done *BasicBlock
 	switch rt := x.Type().Underlying().(type) {
 	case *types.Slice, *types.Array, *types.Pointer: // *array
-		k, v, loop, done = b.rangeIndexed(fn, x, tv)
+		k, v, loop, done = b.rangeIndexed(fn, x, tv, s)
 
 	case *types.Chan:
 		k, loop, done = b.rangeChan(fn, x, tk)
 
 	case *types.Map, *types.Basic: // string
-		k, v, loop, done = b.rangeIter(fn, x, tk, tv, s.For)
+		k, v, loop, done = b.rangeIter(fn, x, tk, tv, s)
 
 	default:
 		panic("Cannot range over: " + rt.String())
