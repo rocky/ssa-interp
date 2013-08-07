@@ -16,7 +16,7 @@ func DisasmInst(f *ssa2.Function, bnum int, inst int) {
 		Msg(".nil:")
 		return
 	}
-	Msg("%3d: %s",  inst, ssa2.DisasmInst(b.Instrs[inst], maxwidth))
+	Msg("%3d: %s",  inst, ssa2.DisasmInst(b.Instrs[inst], Maxwidth))
 }
 
 func DisasmBlock(f *ssa2.Function, i int) {
@@ -33,6 +33,6 @@ func DisasmBlock(f *ssa2.Function, i int) {
 	}
 	Msg(".%s:", b)
 	for i, instr := range b.Instrs {
-		Msg("%3d: %s",  i, ssa2.DisasmInst(instr, maxwidth))
+		Msg("%3d: %s",  i, ssa2.DisasmInst(instr, Maxwidth))
 	}
 }

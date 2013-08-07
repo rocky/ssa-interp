@@ -59,7 +59,7 @@ func InfoBreakpointSubcmd() {
 	if len(Breakpoints) - BrkptsDeleted == 0 {
 		Msg("No breakpoints.")
 	}
-	section("Num Type          Disp Enb Where")
+	Section("Num Type          Disp Enb Where")
 	for _, bp := range Breakpoints {
 		if bp.deleted { continue }
 		bpprint(*bp)

@@ -111,7 +111,7 @@ func printGoroutine(goNum int, goTops []*interp.GoreState) {
 	}
 	switch fr.Status() {
 	case interp.StRunning:
-		section("Goroutine %d", goNum)
+		Section("Goroutine %d", goNum)
 		PrintStack(fr, MAXSTACKSHOW)
 	case interp.StComplete:
 		Msg("Goroutine %d completed", goNum)

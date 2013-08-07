@@ -15,7 +15,7 @@ type CmdInfo struct {
 
 var Cmds map[string]*CmdInfo  = make(map[string]*CmdInfo)
 var	Aliases map[string]string = make(map[string]string)
-var	categories map[string] []string = make(map[string] []string)
+var	Categories map[string] []string = make(map[string] []string)
 
 func AddAlias(alias string, cmdname string) bool {
 	if unalias := Aliases[alias]; unalias != "" {
@@ -27,12 +27,12 @@ func AddAlias(alias string, cmdname string) bool {
 }
 
 func AddToCategory(category string, cmdname string) {
-	categories[category] = append(categories[category], cmdname)
+	Categories[category] = append(Categories[category], cmdname)
 	// Cmds[cmdname].category = category
 }
 
 
-func lookupCmd(cmd string) (string) {
+func LookupCmd(cmd string) (string) {
 	if Cmds[cmd] == nil {
 		cmd = Aliases[cmd];
 	}

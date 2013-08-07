@@ -118,18 +118,18 @@ func printFuncInfo(fn *ssa2.Function) {
 	}
 
 	if fn.Enclosing != nil {
-		section("Parent: %s\n", fn.Enclosing.Name())
+		Section("Parent: %s\n", fn.Enclosing.Name())
 	}
 
 	if fn.FreeVars != nil {
-		section("Free variables:")
+		Section("Free variables:")
 		for i, fv := range fn.FreeVars {
 			Msg("%3d:\t%s %s", i, fv.Name(), fv.Type())
 		}
 	}
 
 	if len(fn.Locals) > 0 {
-		section("Locals:")
+		Section("Locals:")
 		for i, l := range fn.Locals {
 			Msg(" %3d:\t%s %s", i, l.Name(), deref(l.Type()))
 		}
@@ -173,12 +173,12 @@ func printPackageInfo(name string, pkg *ssa2.Package) {
 		}
 		sort.Strings(members)
 		opts := columnize.DefaultOptions()
-		opts.DisplayWidth = maxwidth
+		opts.DisplayWidth = Maxwidth
 		mems = columnize.Columnize(members, opts)
 	}
 	Msg(s)
 	if len(mems) > 0 {
-		section("Members")
+		Section("Members")
 		Msg(mems)
 	}
 }

@@ -98,7 +98,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 
 		name := args[0]
 		cmdArgstr = strings.TrimLeft(line[len(name):], " ")
-		if newname := lookupCmd(name); newname != "" {
+		if newname := LookupCmd(name); newname != "" {
 			name = newname
 		}
 		cmd := Cmds[name];
