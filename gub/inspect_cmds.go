@@ -28,41 +28,18 @@ func LocalsLookup(fr *interp.Frame, name string) int {
 }
 
 
-func printLocal(fr *interp.Frame, i int) {
+func PrintLocal(fr *interp.Frame, i int) {
 	v := fr.Local(i)
 	l := fr.Fn().Locals[i]
 	Msg("%3d:\t%s %s = %s", i, l.Name(), deref(l.Type()), interp.ToInspect(v))
 }
 
-func printIfLocal(fr *interp.Frame, varname string) bool {
+func PrintIfLocal(fr *interp.Frame, varname string) bool {
 	if i := LocalsLookup(curFrame, varname); i != 0 {
-		printLocal(curFrame, i-1)
+		PrintLocal(curFrame, i-1)
 		return true
 	}
 	return false
-}
-
-func LocalsCommand(args []string) {
-	argc := len(args) - 1
-	if !argCountOK(0, 2, args) { return }
-	if argc == 0 {
-		for i, _ := range curFrame.Locals() {
-			printLocal(curFrame, i)
-		}
-	} else {
-		varname := args[1]
-		if printIfLocal(curFrame, varname) {
-			return
-		}
-		// FIXME: This really shouldn't be needed.
-		for i, v := range curFrame.Locals() {
-			if varname == curFrame.Fn().Locals[i].Name() {
-				Msg("fixme %s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToInspect(v))
-				break
-			}
-		}
-
-	}
 }
 
 func InfoArgsSubcmd(args []string) {
@@ -230,7 +207,7 @@ func WhatisName(name string) {
 	}
 
 	if PrintInEnvironment(curFrame, name) {return}
-	if printIfLocal(curFrame, name)       {return}
+	if PrintIfLocal(curFrame, name)       {return}
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {

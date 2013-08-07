@@ -22,7 +22,7 @@ var gubLock  sync.Mutex
 var InCmdLoop bool
 
 // Some commands like "eval" next the exact text after the command
-var cmdArgstr string
+var CmdArgstr string
 
 // if we are stopped by breakpoint, this is the breakpoint number.
 // Otherwise this is < 0.
@@ -97,7 +97,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		}
 
 		name := args[0]
-		cmdArgstr = strings.TrimLeft(line[len(name):], " ")
+		CmdArgstr = strings.TrimLeft(line[len(name):], " ")
 		if newname := LookupCmd(name); newname != "" {
 			name = newname
 		}
@@ -117,8 +117,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		case "-":
 			fmt.Println("Clearing Instruction Trace")
 			interp.ClearInstTracing()
-		case "lo", "local", "locals":
-			LocalsCommand(args)
 		case "v":
 			VariableCommand(args)
 		default:

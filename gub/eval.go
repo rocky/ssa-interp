@@ -95,7 +95,7 @@ func Val(lit string) exact.Value {
 
 func IndexExpr(e *ast.IndexExpr) exact.Value {
 	// FIXME: clean up this mess
-	val := evalExpr(e.Index)
+	val := EvalExpr(e.Index)
 	if val == nil { return nil }
 	if val.Kind() != exact.Int {
 		Errmsg("Index at pos %d must be an unsigned integer",
@@ -129,14 +129,14 @@ func IndexExpr(e *ast.IndexExpr) exact.Value {
 
 // FIXME: returning exact.Value down the line is probably not going to
 // cut it
-func evalExpr(n ast.Node) exact.Value {
+func EvalExpr(n ast.Node) exact.Value {
 		switch e := n.(type) {
 		case *ast.BasicLit:
 			return Val(e.Value)
 		case *ast.BinaryExpr:
-			x := evalExpr(e.X)
+			x := EvalExpr(e.X)
 			if x == nil { return nil }
-			y := evalExpr(e.Y)
+			y := EvalExpr(e.Y)
 			if y == nil { return nil }
 			switch e.Op {
 			case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
@@ -148,7 +148,7 @@ func evalExpr(n ast.Node) exact.Value {
 				return exact.BinaryOp(x, e.Op, y)
 			}
 		case *ast.UnaryExpr:
-			return exact.UnaryOp(e.Op, evalExpr(e.X), -1)
+			return exact.UnaryOp(e.Op, EvalExpr(e.X), -1)
 		case *ast.CallExpr:
 			Errmsg("Can't handle call (%s) yet at pos %d", e.Fun, e.Pos())
 			return nil
@@ -159,7 +159,7 @@ func evalExpr(n ast.Node) exact.Value {
 			Errmsg("Can't find value for id '%s' here at pos %d", e.Name, e.Pos())
 			return nil
 		case *ast.ParenExpr:
-			return evalExpr(e.X)
+			return EvalExpr(e.X)
 		case *ast.IndexExpr:
 			return IndexExpr(e)
 		default:
