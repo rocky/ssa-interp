@@ -35,7 +35,7 @@ func derefValue(v interp.Value) interp.Value {
 	}
 }
 
-func deref2Str(v interp.Value) string {
+func Deref2Str(v interp.Value) string {
 	return interp.ToInspect(derefValue(v))
 }
 
@@ -63,22 +63,22 @@ func InstructCommand(args []string) {
 	genericInstr := fr.Block().Instrs[ic]
 	switch instr := genericInstr.(type) {
 	case *ssa2.ChangeType:
-		Msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
+		Msg("%s: %s", instr.X.Name(), Deref2Str(fr.Get(instr.X)))
 	case *ssa2.Convert:
-		Msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
+		Msg("%s: %s", instr.X.Name(), Deref2Str(fr.Get(instr.X)))
 	case  *ssa2.MakeInterface:
-		Msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
+		Msg("%s: %s", instr.X.Name(), Deref2Str(fr.Get(instr.X)))
 	case  *ssa2.ChangeInterface:
-		Msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
+		Msg("%s: %s", instr.X.Name(), Deref2Str(fr.Get(instr.X)))
 	case  *ssa2.Range:
-		Msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
+		Msg("%s: %s", instr.X.Name(), Deref2Str(fr.Get(instr.X)))
 	case *ssa2.UnOp:
-		Msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
+		Msg("%s: %s", instr.X.Name(), Deref2Str(fr.Get(instr.X)))
 	case *ssa2.Field:
-		Msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
+		Msg("%s: %s", instr.X.Name(), Deref2Str(fr.Get(instr.X)))
 	case *ssa2.BinOp:
-		Msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.X)))
-		Msg("%s: %s", instr.X.Name(), deref2Str(fr.Get(instr.Y)))
+		Msg("%s: %s", instr.X.Name(), Deref2Str(fr.Get(instr.X)))
+		Msg("%s: %s", instr.X.Name(), Deref2Str(fr.Get(instr.Y)))
 	case *ssa2.Trace:
 	default:
 		Msg("Don't know how to deal with %s yet", instr)

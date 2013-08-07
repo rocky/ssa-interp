@@ -12,7 +12,7 @@ import (
 	"github.com/rocky/ssa-interp/interp"
 )
 
-func printInEnvironment(fr *interp.Frame, name string) bool {
+func PrintInEnvironment(fr *interp.Frame, name string) bool {
 	if k, v, scope := EnvLookup(fr, name); k != nil {
 		envStr := ""
 		if scope != nil {
@@ -31,12 +31,12 @@ func EnvLookup(fr *interp.Frame, name string) (ssa2.Value, string, *ssa2.Scope) 
 	fn := fr.Fn()
 	if i := fn.LocalsByName[name]; i > 0 {
 		k := fn.Locals[i-1]
-		v := deref2Str(fr.Env()[k])
+		v := Deref2Str(fr.Env()[k])
 		return k, v, k.Scope
 	}
 	for k, v := range fr.Env() {
 		if name == k.Name() {
-			v := deref2Str(v)
+			v := Deref2Str(v)
 			switch k := k.(type) {
 			case *ssa2.Alloc:
 				return k, v, k.Scope

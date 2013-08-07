@@ -229,7 +229,7 @@ func WhatisName(name string) {
 		}
 	}
 
-	if printInEnvironment(curFrame, name) {return}
+	if PrintInEnvironment(curFrame, name) {return}
 	if printIfLocal(curFrame, name)       {return}
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
