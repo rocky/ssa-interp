@@ -1,5 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
-package gub
+package gubcmd
 
 import (
 	"fmt"
@@ -10,27 +10,28 @@ import (
 
 
 	"github.com/rocky/ssa-interp"
+	"github.com/rocky/ssa-interp/gub"
 	"github.com/rocky/ssa-interp/interp"
 )
 
 func init() {
 	name := "globals"
-	Cmds[name] = &CmdInfo{
+	gub.Cmds[name] = &gub.CmdInfo{
 		Fn: GlobalsCommand,
-		Help: "global [*name*]: show global variable info",
+		Help: "globals [*name*]: show global variable info",
 		Min_args: 0,
 		Max_args: 1,
 	}
-	AddToCategory("inspecting", name)
+	gub.AddToCategory("inspecting", name)
 	// Down the line we'll have abbrevs
-	Aliases["global"] = name
-	Aliases["gl"] = name
+	gub.Aliases["global"] = name
+	gub.Aliases["gl"] = name
 }
 
 func GlobalsCommand(args []string) {
 	argc := len(args) - 1
 	if argc == 0 {
-		for k, v := range curFrame.I().Globals() {
+		for k, v := range gub.CurFrame().I().Globals() {
 			if v == nil {
 				fmt.Printf("%s: nil\n")
 			} else {
@@ -39,7 +40,7 @@ func GlobalsCommand(args []string) {
 				if fmt.Sprintf("%s", k) == "reflect.lookupCache" {
 					continue
 				}
-				Msg("%s: %s", k, interp.ToInspect(*v))
+				gub.Msg("%s: %s", k, interp.ToInspect(*v))
 			}
 		}
 	} else {
@@ -48,16 +49,16 @@ func GlobalsCommand(args []string) {
 			vv := ssa2.NewConst(exact.MakeString(args[i]),
 				types.Typ[types.String], token.NoPos, token.NoPos)
 			// fmt.Println(vv, "vs", interp.ToInspect(vv))
-			v, ok := curFrame.I().Globals()[vv]
+			v, ok := gub.CurFrame().I().Globals()[vv]
 			if ok {
-				Msg("%s: %s", vv, interp.ToInspect(*v))
+				gub.Msg("%s: %s", vv, interp.ToInspect(*v))
 			}
 		}
 
 		// This is ugly, but I don't know how to turn a string into
 		// a ssa2.Value.
 		globals := make(map[string]*interp.Value)
-		for k, v := range curFrame.I().Globals() {
+		for k, v := range gub.CurFrame().I().Globals() {
 			globals[fmt.Sprintf("%s", k)] = v
 		}
 
@@ -65,7 +66,7 @@ func GlobalsCommand(args []string) {
 			vv := args[i]
 			v, ok := globals[vv]
 			if ok {
-				Msg("%s: %s", vv, interp.ToInspect(*v))
+				gub.Msg("%s: %s", vv, interp.ToInspect(*v))
 			}
 		}
 	}

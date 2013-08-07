@@ -2,9 +2,10 @@
 
 // Restarts program..
 
-package gub
+package gubcmd
 
 import (
+	"github.com/rocky/ssa-interp/gub"
 	"os"
 	"strings"
 	"syscall"
@@ -12,7 +13,7 @@ import (
 
 func init() {
 	name := "run"
-	Cmds[name] = &CmdInfo{
+	gub.Cmds[name] = &gub.CmdInfo{
 		Fn: RunCommand,
 		Help: `run
 
@@ -23,17 +24,17 @@ termintation code.
 		Min_args: 0,
 		Max_args: 0,
 	}
-	AddToCategory("running", name)
-	Aliases["R"] = name
-	Aliases["restart"] = name
+	gub.AddToCategory("running", name)
+	gub.Aliases["R"] = name
+	gub.Aliases["restart"] = name
 }
 
 func RunCommand(args []string) {
-	if GUB_RESTART_CMD == "" {
-		Errmsg("restart string in environment GUB_RESTART_CMD has nothing")
+	if gub.GUB_RESTART_CMD == "" {
+		gub.Errmsg("restart string in environment GUB_RESTART_CMD has nothing")
 		return
 	}
-	Msg("gub: restarting: %s", GUB_RESTART_CMD)
-	restartCmd := strings.Split(GUB_RESTART_CMD, " ")
+	gub.Msg("gub: restarting: %s", gub.GUB_RESTART_CMD)
+	restartCmd := strings.Split(gub.GUB_RESTART_CMD, " ")
 	syscall.Exec(restartCmd[0], restartCmd, os.Environ());
 }

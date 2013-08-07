@@ -17,9 +17,9 @@ var traceEvent ssa2.TraceEvent
 
 var gubLock  sync.Mutex
 
-// Commands set inCmdLoop to "false" break out of debugger's read
+// Commands set InCmdLoop to "false" break out of debugger's read
 // command loop.
-var inCmdLoop bool
+var InCmdLoop bool
 
 // Some commands like "eval" next the exact text after the command
 var cmdArgstr string
@@ -77,7 +77,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 
 	line := ""
 	var err error
-	for inCmdLoop = true; err == nil && inCmdLoop; cmdCount++ {
+	for InCmdLoop = true; err == nil && InCmdLoop; cmdCount++ {
 		if inputReader != nil {
 			line, err = inputReader.ReadString('\n')
 		} else {

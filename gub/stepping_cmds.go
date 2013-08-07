@@ -28,7 +28,7 @@ func ContinueCommand(args []string) {
 	for fr := topFrame; fr != nil; fr = fr.Caller(0) {
 		interp.SetStepOff(fr)
 	}
-	inCmdLoop = false
+	InCmdLoop = false
 	Msg("Continuing...")
 }
 
@@ -57,7 +57,7 @@ Sometimes this is called 'step out'.
 func FinishCommand(args []string) {
 	interp.SetStepOut(topFrame)
 	Msg("Continuing until return...")
-	inCmdLoop = false
+	InCmdLoop = false
 }
 
 func init() {
@@ -81,7 +81,7 @@ Sometimes this is called 'step over'.
 func NextCommand(args []string) {
 	interp.SetStepOver(topFrame)
 	fmt.Println("Step over...")
-	inCmdLoop = false
+	InCmdLoop = false
 }
 
 func init() {
@@ -104,5 +104,5 @@ is called 'step into'.
 func StepCommand(args []string) {
 	fmt.Println("Stepping...")
 	interp.SetStepIn(curFrame)
-	inCmdLoop = false
+	InCmdLoop = false
 }
