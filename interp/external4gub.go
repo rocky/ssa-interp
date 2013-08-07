@@ -42,6 +42,10 @@ func ext۰debug۰PrintStack(fr *Frame, args []Value) Value {
 	return nil
 }
 
+func ext۰runtime۰Stack(fr *Frame, args []Value) Value {
+	return runtime۰Stack(fr)
+}
+
 // FIXME: this isn't used because it is internally called
 // from runtime/stack. But it should be publically callable
 // want
