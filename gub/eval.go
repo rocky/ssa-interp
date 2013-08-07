@@ -12,6 +12,21 @@ import (
 	"github.com/rocky/ssa-interp/interp"
 )
 
+func DerefValue(v interp.Value) interp.Value {
+	switch v := v.(type) {
+	case *interp.Value:
+		if v == nil { return nil }
+		return *v
+	default:
+		return v
+	}
+}
+
+func Deref2Str(v interp.Value) string {
+	return interp.ToInspect(DerefValue(v))
+}
+
+
 func PrintInEnvironment(fr *interp.Frame, name string) bool {
 	if k, v, scope := EnvLookup(fr, name); k != nil {
 		envStr := ""
@@ -19,7 +34,7 @@ func PrintInEnvironment(fr *interp.Frame, name string) bool {
 			envStr = fmt.Sprintf(" at scope %d", scope.ScopeNum())
 		}
 		Msg("%s is in the environment%s", name, envStr)
-		Msg("\t%s = %s", k, derefValue(v))
+		Msg("\t%s = %s", k, DerefValue(v))
 		return true
 	} else {
 		Errmsg("Name %s not found in environment", name)
@@ -97,7 +112,7 @@ func IndexExpr(e *ast.IndexExpr) exact.Value {
 	switch id := e.X.(type) {
 	case *ast.Ident:
 		if k, _, _ := EnvLookup(curFrame, id.Name); k != nil {
-			val := derefValue(curFrame.Get(k))
+			val := DerefValue(curFrame.Get(k))
 			ary := val.([]interp.Value)
 			if index < 0 || index >= uint64(len(ary)) {
 				Errmsg("index %d out of bounds (0..%d)",
