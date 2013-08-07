@@ -32,10 +32,10 @@ With a positive number, print at most many entries.`,
 		Max_args: 1,
 	}
 	AddToCategory("stack", name)
-	aliases["where"] = name
-	aliases["T"] = name  // for perl5db hackers
+	Aliases["where"] = name
+	Aliases["T"] = name  // for perl5db hackers
 	// Down the line we'll have abbrevs
-	aliases["bt"] = name
+	Aliases["bt"] = name
 }
 
 func BacktraceCommand(args []string) {
@@ -134,10 +134,10 @@ is given only that goroutine stack trace is shown. The main (first) goroutine is
 		Max_args: 1,
 	}
 	AddToCategory("stack", name)
-	aliases["gore"] = name
+	Aliases["gore"] = name
 	// Down the line we'll have abbrevs
-	aliases["gor"] = name
-	aliases["goroutine"] = name
+	Aliases["gor"] = name
+	Aliases["goroutine"] = name
 }
 
 // shows stack of all goroutines

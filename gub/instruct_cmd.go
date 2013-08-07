@@ -20,9 +20,9 @@ Print information about instruction
 	}
 	AddToCategory("inspecting", name)
 	// Down the line we'll have abbrevs
-	aliases["inst"] = name
-	aliases["instr"] = name
-	aliases["instruct"] = name
+	Aliases["inst"] = name
+	Aliases["instr"] = name
+	Aliases["instruct"] = name
 }
 
 func derefValue(v interp.Value) interp.Value {

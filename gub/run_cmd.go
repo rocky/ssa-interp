@@ -24,8 +24,8 @@ termintation code.
 		Max_args: 0,
 	}
 	AddToCategory("running", name)
-	aliases["R"] = name
-	aliases["restart"] = name
+	Aliases["R"] = name
+	Aliases["restart"] = name
 }
 
 func RunCommand(args []string) {

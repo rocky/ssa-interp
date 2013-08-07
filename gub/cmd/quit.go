@@ -7,17 +7,18 @@
 // for the program. Zero (normal termination) is used if no
 // termintation code.
 
-package gub
+package gubcmd
 
 import (
 	"os"
 	"strconv"
 	"code.google.com/p/go-gnureadline"
+	"github.com/rocky/ssa-interp/gub"
 )
 
 func init() {
 	name := "quit"
-	Cmds[name] = &CmdInfo{
+	gub.Cmds[name] = &gub.CmdInfo{
 		Fn: QuitCommand,
 		Help: `quit [exit-code]
 
@@ -28,10 +29,10 @@ termintation code.
 		Min_args: 0,
 		Max_args: 1,
 	}
-	AddToCategory("support", name)
-	aliases["exit"] = name
+	gub.AddToCategory("support", name)
+	gub.Aliases["exit"] = name
 	// Down the line we'll have abbrevs
-	aliases["q"] = name
+	gub.Aliases["q"] = name
 }
 
 func QuitCommand(args []string) {
@@ -39,14 +40,14 @@ func QuitCommand(args []string) {
 	if len(args) == 2 {
 		new_rc, ok := strconv.Atoi(args[1])
 		if ok == nil { rc = new_rc } else {
-			Errmsg("Expecting integer return code; got %s. Ignoring",
+			gub.Errmsg("Expecting integer return code; got %s. Ignoring",
 				args[1])
 		}
 	}
-	Msg("gub: That's all folks...")
+	gub.Msg("gub: That's all folks...")
 
 	// FIXME: determine under which conditions we've used term
-	gnureadline.Rl_reset_terminal(term)
+	gnureadline.Rl_reset_terminal(gub.Term)
 
 	os.Exit(rc)
 

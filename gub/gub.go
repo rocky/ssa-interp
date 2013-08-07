@@ -25,13 +25,13 @@ const (
 	version string = "0.1"
 )
 
-var term string
+var Term string
 var maxwidth int
 var initial_cwd string
 var GUB_RESTART_CMD string
 
 func termInit() {
-	term = os.Getenv("TERM")
+	Term = os.Getenv("TERM")
 	gnureadline.StifleHistory(30)
 }
 

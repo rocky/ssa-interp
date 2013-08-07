@@ -1,8 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 package gubcmd
-import (
-	"github.com/rocky/ssa-interp/gub"
-)
+import "github.com/rocky/ssa-interp/gub"
 
 
 func init() {

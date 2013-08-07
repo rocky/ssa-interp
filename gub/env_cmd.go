@@ -18,8 +18,8 @@ If *name* is supplied, only show that name.
 	}
 	AddToCategory("inspecting", name)
 	// Down the line we'll have abbrevs
-	aliases["env"] = name
-	aliases["environ"] = name
+	Aliases["env"] = name
+	Aliases["environ"] = name
 }
 
 func EnvironmentCommand(args []string) {

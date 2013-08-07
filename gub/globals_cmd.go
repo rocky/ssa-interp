@@ -23,8 +23,8 @@ func init() {
 	}
 	AddToCategory("inspecting", name)
 	// Down the line we'll have abbrevs
-	aliases["global"] = name
-	aliases["gl"] = name
+	Aliases["global"] = name
+	Aliases["gl"] = name
 }
 
 func GlobalsCommand(args []string) {
