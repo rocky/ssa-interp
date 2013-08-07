@@ -6,7 +6,7 @@ import (
 	"github.com/rocky/ssa-interp/interp"
 )
 
-func printStack(fr *interp.Frame, count int) {
+func PrintStack(fr *interp.Frame, count int) {
 	if (fr == nil) { return }
 	for i:=0; fr !=nil && i < count; fr = fr.Caller(0) {
 		pointer := "   "
@@ -46,7 +46,7 @@ func BacktraceCommand(args []string) {
 			0, MAXSTACKSHOW)
 		if err != nil { return }
 	}
-	printStack(topFrame, count)
+	PrintStack(topFrame, count)
 }
 
 func init() {
@@ -112,7 +112,7 @@ func printGoroutine(goNum int, goTops []*interp.GoreState) {
 	switch fr.Status() {
 	case interp.StRunning:
 		section("Goroutine %d", goNum)
-		printStack(fr, MAXSTACKSHOW)
+		PrintStack(fr, MAXSTACKSHOW)
 	case interp.StComplete:
 		Msg("Goroutine %d completed", goNum)
 	case interp.StPanic:

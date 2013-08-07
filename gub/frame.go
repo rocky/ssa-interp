@@ -14,6 +14,7 @@ var frameIndex int  // frame index we are focused on
 const MAXSTACKSHOW = 50  // maximum number of frame entries to show
 
 func CurFrame() *interp.Frame { return curFrame }
+func TopFrame() *interp.Frame { return topFrame }
 
 func frameInit(fr *interp.Frame) {
 	topFrame = fr
@@ -61,7 +62,7 @@ func adjustFrame(frameNum int, absolutePos bool) {
 	frameIndex = frameNum
 	event := ssa2.CALL_ENTER
 	if (0 == frameIndex) {
-		event = traceEvent
+		event = TraceEvent
 	}
 	printLocInfo(curFrame, nil, event)
 }

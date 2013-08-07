@@ -13,7 +13,7 @@ import (
 )
 
 var cmdCount int = 0
-var traceEvent ssa2.TraceEvent
+var TraceEvent ssa2.TraceEvent
 
 var gubLock  sync.Mutex
 
@@ -72,7 +72,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].kind == "Function" {
 		event = ssa2.CALL_ENTER
 	}
-	traceEvent = event
+	TraceEvent = event
 	printLocInfo(topFrame, instr, event)
 
 	line := ""
