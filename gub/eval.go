@@ -18,11 +18,11 @@ func printInEnvironment(fr *interp.Frame, name string) bool {
 		if scope != nil {
 			envStr = fmt.Sprintf(" at scope %d", scope.ScopeNum())
 		}
-		msg("%s is in the environment%s", name, envStr)
-		msg("\t%s = %s", k, derefValue(v))
+		Msg("%s is in the environment%s", name, envStr)
+		Msg("\t%s = %s", k, derefValue(v))
 		return true
 	} else {
-		errmsg("Name %s not found in environment", name)
+		Errmsg("Name %s not found in environment", name)
 		return false
 	}
 }
@@ -83,14 +83,14 @@ func IndexExpr(e *ast.IndexExpr) exact.Value {
 	val := evalExpr(e.Index)
 	if val == nil { return nil }
 	if val.Kind() != exact.Int {
-		errmsg("Index at pos %d must be an unsigned integer",
+		Errmsg("Index at pos %d must be an unsigned integer",
 			e.Index.Pos())
 		return nil
 	}
 	var index uint64
 	var ok bool
 	if index, ok = exact.Uint64Val(val); !ok {
-		errmsg("Index at pos %d must be an unsigned integer",
+		Errmsg("Index at pos %d must be an unsigned integer",
 			e.Index.Pos())
 		return nil
 	}
@@ -100,14 +100,14 @@ func IndexExpr(e *ast.IndexExpr) exact.Value {
 			val := derefValue(curFrame.Get(k))
 			ary := val.([]interp.Value)
 			if index < 0 || index >= uint64(len(ary)) {
-				errmsg("index %d out of bounds (0..%d)",
+				Errmsg("index %d out of bounds (0..%d)",
 					index, len(ary))
 				return nil
 			}
 			return Val(interp.ToInspect(ary[index]))
 		}
 	default:
-		errmsg("Can't handle index without a simple id before [] at pos %d", id.Pos())
+		Errmsg("Can't handle index without a simple id before [] at pos %d", id.Pos())
 	}
 	return nil
 }
@@ -135,13 +135,13 @@ func evalExpr(n ast.Node) exact.Value {
 		case *ast.UnaryExpr:
 			return exact.UnaryOp(e.Op, evalExpr(e.X), -1)
 		case *ast.CallExpr:
-			errmsg("Can't handle call (%s) yet at pos %d", e.Fun, e.Pos())
+			Errmsg("Can't handle call (%s) yet at pos %d", e.Fun, e.Pos())
 			return nil
 		case *ast.Ident:
 			if k, val, _ := EnvLookup(curFrame, e.Name); k != nil {
 				return Val(val)
 			}
-			errmsg("Can't find value for id '%s' here at pos %d", e.Name, e.Pos())
+			Errmsg("Can't find value for id '%s' here at pos %d", e.Name, e.Pos())
 			return nil
 		case *ast.ParenExpr:
 			return evalExpr(e.X)

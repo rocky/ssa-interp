@@ -89,10 +89,10 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		line = strings.TrimRight(line, "\n")
 		args  := strings.Split(line, " ")
 		if len(args) == 0 {
-			msg("Empty line skipped")
+			Msg("Empty line skipped")
 			continue
 		} else if args[0][0] == '#' {
-			msg(line) // echo line but do nothing
+			Msg(line) // echo line but do nothing
 			continue
 		}
 
@@ -101,11 +101,11 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		if newname := lookupCmd(name); newname != "" {
 			name = newname
 		}
-		cmd := cmds[name];
+		cmd := Cmds[name];
 
 		if cmd != nil {
-			if argCountOK(cmd.min_args, cmd.max_args, args) {
-				cmds[name].fn(args)
+			if argCountOK(cmd.Min_args, cmd.Max_args, args) {
+				Cmds[name].Fn(args)
 			}
 			continue
 		}
@@ -125,7 +125,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			if len(args) > 0 {
 				WhatisName(args[0])
 			} else {
-				errmsg("Unknown command %s\n", cmd)
+				Errmsg("Unknown command %s\n", cmd)
 			}
 		}
 	}

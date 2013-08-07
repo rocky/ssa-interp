@@ -13,23 +13,23 @@ func printStack(fr *interp.Frame, count int) {
 		if fr == curFrame {
 			pointer = "=> "
 		}
-		msg("%s#%d %s", pointer, i, fr.FnAndParamString())
+		Msg("%s#%d %s", pointer, i, fr.FnAndParamString())
 		i++
 	}
 }
 
 func init() {
 	name := "backtrace"
-	cmds[name] = &CmdInfo{
-		fn: BacktraceCommand,
-		help: `backtrace [*count*]
+	Cmds[name] = &CmdInfo{
+		Fn: BacktraceCommand,
+		Help: `backtrace [*count*]
 
 Print a stack trace, with the most recent frame at the top.
 
 With a positive number, print at most many entries.`,
 
-		min_args: 0,
-		max_args: 1,
+		Min_args: 0,
+		Max_args: 1,
 	}
 	AddToCategory("stack", name)
 	aliases["where"] = name
@@ -42,7 +42,7 @@ func BacktraceCommand(args []string) {
 	count := MAXSTACKSHOW
 	var err error
 	if len(args) > 1 {
-		count, err = getInt(args[1], "maximum count",
+		count, err = GetInt(args[1], "maximum count",
 			0, MAXSTACKSHOW)
 		if err != nil { return }
 	}
@@ -51,17 +51,17 @@ func BacktraceCommand(args []string) {
 
 func init() {
 	name := "down"
-	cmds[name] = &CmdInfo{
-		fn: DownCommand,
-		help: `down [*count*]
+	Cmds[name] = &CmdInfo{
+		Fn: DownCommand,
+		Help: `down [*count*]
 
 Move the current frame down in the stack trace (to a newer frame). 0
 is the most recent frame. If no count is given, move down 1.
 
 See also 'up' and 'frame'.
 `,
-		min_args: 0,
-		max_args: 1,
+		Min_args: 0,
+		Max_args: 1,
 	}
 	AddToCategory("stack", name)
 }
@@ -70,7 +70,7 @@ func DownCommand(args []string) {
 	count := 1
 	if len(args) == 2 {
 		var err error
-		count, err = getInt(args[1],
+		count, err = GetInt(args[1],
 			"count", -MAXSTACKSHOW, MAXSTACKSHOW)
 		if err != nil { return }
 	}
@@ -80,23 +80,23 @@ func DownCommand(args []string) {
 
 func init() {
 	name := "frame"
-	cmds[name] = &CmdInfo{
-		fn: FrameCommand,
-		help: `frame *num*
+	Cmds[name] = &CmdInfo{
+		Fn: FrameCommand,
+		Help: `frame *num*
 
 Change the current frame to frame *num*
 
 See also 'up' and 'down'.
 `,
-		min_args: 1,
-		max_args: 1,
+		Min_args: 1,
+		Max_args: 1,
 	}
 	AddToCategory("stack", name)
 }
 
 func FrameCommand(args []string) {
 	if !argCountOK(1, 1, args) { return }
-	i, err := getInt(args[1],
+	i, err := GetInt(args[1],
 		"frame number", -MAXSTACKSHOW, MAXSTACKSHOW)
 	if err != nil { return }
 	adjustFrame(i, true)
@@ -106,7 +106,7 @@ func FrameCommand(args []string) {
 func printGoroutine(goNum int, goTops []*interp.GoreState) {
 	fr := goTops[goNum].Fr
 	if fr == nil {
-		msg("Goroutine %d exited", goNum)
+		Msg("Goroutine %d exited", goNum)
 		return
 	}
 	switch fr.Status() {
@@ -114,24 +114,24 @@ func printGoroutine(goNum int, goTops []*interp.GoreState) {
 		section("Goroutine %d", goNum)
 		printStack(fr, MAXSTACKSHOW)
 	case interp.StComplete:
-		msg("Goroutine %d completed", goNum)
+		Msg("Goroutine %d completed", goNum)
 	case interp.StPanic:
-		msg("Goroutine %d panic", goNum)
+		Msg("Goroutine %d panic", goNum)
 	}
 }
 
 
 func init() {
 	name := "goroutines"
-	cmds[name] = &CmdInfo{
-		fn: GoroutinesCommand,
-		help: `goroutines [*id*]
+	Cmds[name] = &CmdInfo{
+		Fn: GoroutinesCommand,
+		Help: `goroutines [*id*]
 
 Without a parameter, list stack traces for each active goroutine. If an id
 is given only that goroutine stack trace is shown. The main (first) goroutine is 0.
 `,
-		min_args: 0,
-		max_args: 1,
+		Min_args: 0,
+		Max_args: 1,
 	}
 	AddToCategory("stack", name)
 	aliases["gore"] = name
@@ -146,7 +146,7 @@ func GoroutinesCommand(args []string) {
 	var goNum int
 	var err error
 	if len(args) > 1 {
-		goNum, err = getInt(args[1],
+		goNum, err = GetInt(args[1],
 			"goroutine number", 0, len(goTops)-1)
 		if err != nil { return }
 		printGoroutine(goNum, goTops)
@@ -159,17 +159,17 @@ func GoroutinesCommand(args []string) {
 
 func init() {
 	name := "up"
-	cmds[name] = &CmdInfo{
-		fn: UpCommand,
-		help: `up [*count*]
+	Cmds[name] = &CmdInfo{
+		Fn: UpCommand,
+		Help: `up [*count*]
 
 Move the current frame up in the stack trace (to a older frame). 0
 is the most-recent frame. If no count is given, move down 1.
 
 See also 'down' and 'frame'.
 `,
-		min_args: 0,
-		max_args: 1,
+		Min_args: 0,
+		Max_args: 1,
 	}
 	AddToCategory("stack", name)
 }
@@ -178,7 +178,7 @@ func UpCommand(args []string) {
 	count := 1
 	if len(args) == 2 {
 		var err error
-		count, err = getInt(args[1],
+		count, err = GetInt(args[1],
 			"count", -MAXSTACKSHOW, MAXSTACKSHOW)
 		if err != nil { return }
 	}

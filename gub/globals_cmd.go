@@ -15,11 +15,11 @@ import (
 
 func init() {
 	name := "globals"
-	cmds[name] = &CmdInfo{
-		fn: GlobalsCommand,
-		help: "global [*name*]: show global variable info",
-		min_args: 0,
-		max_args: 1,
+	Cmds[name] = &CmdInfo{
+		Fn: GlobalsCommand,
+		Help: "global [*name*]: show global variable info",
+		Min_args: 0,
+		Max_args: 1,
 	}
 	AddToCategory("inspecting", name)
 	// Down the line we'll have abbrevs
@@ -39,7 +39,7 @@ func GlobalsCommand(args []string) {
 				if fmt.Sprintf("%s", k) == "reflect.lookupCache" {
 					continue
 				}
-				msg("%s: %s", k, interp.ToInspect(*v))
+				Msg("%s: %s", k, interp.ToInspect(*v))
 			}
 		}
 	} else {
@@ -50,7 +50,7 @@ func GlobalsCommand(args []string) {
 			// fmt.Println(vv, "vs", interp.ToInspect(vv))
 			v, ok := curFrame.I().Globals()[vv]
 			if ok {
-				msg("%s: %s", vv, interp.ToInspect(*v))
+				Msg("%s: %s", vv, interp.ToInspect(*v))
 			}
 		}
 
@@ -65,7 +65,7 @@ func GlobalsCommand(args []string) {
 			vv := args[i]
 			v, ok := globals[vv]
 			if ok {
-				msg("%s: %s", vv, interp.ToInspect(*v))
+				Msg("%s: %s", vv, interp.ToInspect(*v))
 			}
 		}
 	}

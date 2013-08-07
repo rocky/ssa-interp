@@ -27,10 +27,10 @@ If a level is given, we go up that many levels.
 func InfoScopeSubcmd(args []string) {
 	scope := curFrame.Scope()
 	if scope == nil {
-		errmsg("No scope recorded here")
+		Errmsg("No scope recorded here")
 		return
 	}
 	section("scope number %d", scope.ScopeNum())
-	msg("%s", scope.Scope)
+	Msg("%s", scope.Scope)
 	ast.Print(curFrame.Fset(), scope.Scope.Node())
 }

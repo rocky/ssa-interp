@@ -12,16 +12,16 @@ import (
 
 func init() {
 	name := "run"
-	cmds[name] = &CmdInfo{
-		fn: RunCommand,
-		help: `run
+	Cmds[name] = &CmdInfo{
+		Fn: RunCommand,
+		Help: `run
 
 Terminates program. If an exit code is given, that is the exit code
 for the program. Zero (normal termination) is used if no
 termintation code.
 `,
-		min_args: 0,
-		max_args: 0,
+		Min_args: 0,
+		Max_args: 0,
 	}
 	AddToCategory("running", name)
 	aliases["R"] = name
@@ -30,10 +30,10 @@ termintation code.
 
 func RunCommand(args []string) {
 	if GUB_RESTART_CMD == "" {
-		errmsg("restart string in environment GUB_RESTART_CMD has nothing")
+		Errmsg("restart string in environment GUB_RESTART_CMD has nothing")
 		return
 	}
-	msg("gub: restarting: %s", GUB_RESTART_CMD)
+	Msg("gub: restarting: %s", GUB_RESTART_CMD)
 	restartCmd := strings.Split(GUB_RESTART_CMD, " ")
 	syscall.Exec(restartCmd[0], restartCmd, os.Environ());
 }

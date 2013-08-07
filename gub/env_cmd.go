@@ -6,15 +6,15 @@ import "github.com/rocky/ssa-interp"
 
 func init() {
 	name := "environment"
-	cmds[name] = &CmdInfo{
-		fn: EnvironmentCommand,
-		help: `environment [*name*]
+	Cmds[name] = &CmdInfo{
+		Fn: EnvironmentCommand,
+		Help: `environment [*name*]
 
 print current runtime environment values.
 If *name* is supplied, only show that name.
 `,
-		min_args: 0,
-		max_args: 1,
+		Min_args: 0,
+		Max_args: 1,
 	}
 	AddToCategory("inspecting", name)
 	// Down the line we'll have abbrevs
@@ -31,13 +31,13 @@ func EnvironmentCommand(args []string) {
 		switch k := k.(type) {
 		case *ssa2.Alloc:
 			if scope := k.Scope; scope != nil {
-				msg("%s: %s = %s (scope %d)", k.Name(), k, deref2Str(v),
+				Msg("%s: %s = %s (scope %d)", k.Name(), k, deref2Str(v),
 					scope.ScopeNum())
 			} else {
-				msg("%s: %s = %s", k.Name(), k, deref2Str(v))
+				Msg("%s: %s = %s", k.Name(), k, deref2Str(v))
 			}
 		default:
-			msg("%s: %s = %s", k.Name(), k, deref2Str(v))
+			Msg("%s: %s = %s", k.Name(), k, deref2Str(v))
 		}
 	}
 }

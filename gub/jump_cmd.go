@@ -5,14 +5,14 @@ package gub
 
 func init() {
 	name := "jump"
-	cmds[name] = &CmdInfo{
-		fn: JumpCommand,
-		help: `jump *num*
+	Cmds[name] = &CmdInfo{
+		Fn: JumpCommand,
+		Help: `jump *num*
 
 Jumps to instruction *num* inside the current basic block.
 `,
-		min_args: 1,
-		max_args: 1,
+		Min_args: 1,
+		Max_args: 1,
 	}
 	AddToCategory("running", name)
 }
@@ -20,7 +20,7 @@ Jumps to instruction *num* inside the current basic block.
 func JumpCommand(args []string) {
 	fr := curFrame
 	b := fr.Block()
-	ic, err := getInt(args[1],
+	ic, err := GetInt(args[1],
 		"instruction number", 0, len(b.Instrs)-1)
 	if err != nil { return }
 	// compensate for interpreter loop which does ic++ at end of loop body

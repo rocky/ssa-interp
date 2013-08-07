@@ -9,16 +9,16 @@ import (
 
 func init() {
 	name := "continue"
-	cmds[name] = &CmdInfo{
-		fn: ContinueCommand,
-		help: `continue
+	Cmds[name] = &CmdInfo{
+		Fn: ContinueCommand,
+		Help: `continue
 
 Leave the debugger loop and continue execution. Subsequent entry to
 the debugger however may occur via breakpoints or explicit calls, or
 exceptions.
 `,
-		min_args: 0,
-		max_args: 0,
+		Min_args: 0,
+		Max_args: 0,
 	}
 	AddAlias("c", name)
 	AddToCategory("running", name)
@@ -29,14 +29,14 @@ func ContinueCommand(args []string) {
 		interp.SetStepOff(fr)
 	}
 	inCmdLoop = false
-	msg("Continuing...")
+	Msg("Continuing...")
 }
 
 func init() {
 	name := "finish"
-	cmds[name] = &CmdInfo{
-		fn: FinishCommand,
-		help: `finish
+	Cmds[name] = &CmdInfo{
+		Fn: FinishCommand,
+		Help: `finish
 
 Continue execution until the program is about to:
 
@@ -46,8 +46,8 @@ Continue execution until the program is about to:
 
 Sometimes this is called 'step out'.
 `,
-		min_args: 0,
-		max_args: 0,
+		Min_args: 0,
+		Max_args: 0,
 	}
 	AddToCategory("running", name)
 	// Down the line we'll have abbrevs
@@ -56,22 +56,22 @@ Sometimes this is called 'step out'.
 
 func FinishCommand(args []string) {
 	interp.SetStepOut(topFrame)
-	msg("Continuing until return...")
+	Msg("Continuing until return...")
 	inCmdLoop = false
 }
 
 func init() {
 	name := "next"
-	cmds[name] = &CmdInfo{
-		fn: NextCommand,
-		help: `next
+	Cmds[name] = &CmdInfo{
+		Fn: NextCommand,
+		Help: `next
 
 Step one statement ignoring steps into function calls at this level.
 
 Sometimes this is called 'step over'.
 `,
-		min_args: 0,
-		max_args: 0,
+		Min_args: 0,
+		Max_args: 0,
 	}
 	AddToCategory("running", name)
 	// Down the line we'll have abbrevs
@@ -86,15 +86,15 @@ func NextCommand(args []string) {
 
 func init() {
 	name := "step"
-	cmds[name] = &CmdInfo{
-		fn: StepCommand,
-		help: `step
+	Cmds[name] = &CmdInfo{
+		Fn: StepCommand,
+		Help: `step
 
 Execute the current line, stopping at the next event.  Sometimes this
 is called 'step into'.
 `,
-		min_args: 0,
-		max_args: 0,
+		Min_args: 0,
+		Max_args: 0,
 	}
 	AddToCategory("running", name)
 	// Down the line we'll have abbrevs

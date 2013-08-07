@@ -31,7 +31,7 @@ func LocalsLookup(fr *interp.Frame, name string) int {
 func printLocal(fr *interp.Frame, i int) {
 	v := fr.Local(i)
 	l := fr.Fn().Locals[i]
-	msg("%3d:\t%s %s = %s", i, l.Name(), deref(l.Type()), interp.ToInspect(v))
+	Msg("%3d:\t%s %s = %s", i, l.Name(), deref(l.Type()), interp.ToInspect(v))
 }
 
 func printIfLocal(fr *interp.Frame, varname string) bool {
@@ -57,7 +57,7 @@ func LocalsCommand(args []string) {
 		// FIXME: This really shouldn't be needed.
 		for i, v := range curFrame.Locals() {
 			if varname == curFrame.Fn().Locals[i].Name() {
-				msg("fixme %s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToInspect(v))
+				Msg("fixme %s %s: %s", varname, curFrame.Fn().Locals[i], interp.ToInspect(v))
 				break
 			}
 		}
@@ -70,13 +70,13 @@ func InfoArgsSubcmd(args []string) {
 	if !argCountOK(1, 2, args) { return }
 	if argc == 0 {
 		for i, p := range curFrame.Fn().Params {
-			msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))
+			Msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))
 		}
 	} else {
 		varname := args[2]
 		for i, p := range curFrame.Fn().Params {
 			if varname == curFrame.Fn().Params[i].Name() {
-				msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))
+				Msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))
 				break
 			}
 		}
@@ -96,25 +96,25 @@ func VariableCommand(args []string) {
 func printConstantInfo(c *ssa2.NamedConst, name string, pkg *ssa2.Package) {
 	mem := pkg.Members[name]
 	position := pkg.Prog.Fset.Position(mem.Pos())
-	msg("Constant %s is a constant at:", mem.Name())
-	msg("  " + ssa2.PositionRange(position, position))
-	msg("  %s %s", mem.Type(), interp.ToInspect(c.Value))
+	Msg("Constant %s is a constant at:", mem.Name())
+	Msg("  " + ssa2.PositionRange(position, position))
+	Msg("  %s %s", mem.Type(), interp.ToInspect(c.Value))
 }
 
 func printFuncInfo(fn *ssa2.Function) {
-	msg("%s is a function at:", fn.String())
+	Msg("%s is a function at:", fn.String())
 	ps := fn.PositionRange()
 	if ps == "-" {
-		msg("\tsynthetic function (no position)")
+		Msg("\tsynthetic function (no position)")
 	} else {
-		msg("\t%s", ps)
+		Msg("\t%s", ps)
 	}
 
 	for _, p := range fn.Params {
-		msg("\t%s", p)
+		Msg("\t%s", p)
 	}
 	for _, r := range fn.NamedResults() {
-		msg("\t%s", r)
+		Msg("\t%s", r)
 	}
 
 	if fn.Enclosing != nil {
@@ -124,21 +124,21 @@ func printFuncInfo(fn *ssa2.Function) {
 	if fn.FreeVars != nil {
 		section("Free variables:")
 		for i, fv := range fn.FreeVars {
-			msg("%3d:\t%s %s", i, fv.Name(), fv.Type())
+			Msg("%3d:\t%s %s", i, fv.Name(), fv.Type())
 		}
 	}
 
 	if len(fn.Locals) > 0 {
 		section("Locals:")
 		for i, l := range fn.Locals {
-			msg(" %3d:\t%s %s", i, l.Name(), deref(l.Type()))
+			Msg(" %3d:\t%s %s", i, l.Name(), deref(l.Type()))
 		}
 	}
 
 	// writeSignature(w, f.Name(), f.Signature, f.Params)
 
 	if fn.Blocks == nil {
-		msg("\t(external)")
+		Msg("\t(external)")
 	}
 }
 
@@ -176,19 +176,19 @@ func printPackageInfo(name string, pkg *ssa2.Package) {
 		opts.DisplayWidth = maxwidth
 		mems = columnize.Columnize(members, opts)
 	}
-	msg(s)
+	Msg(s)
 	if len(mems) > 0 {
 		section("Members")
-		msg(mems)
+		Msg(mems)
 	}
 }
 
 // func printTypeInfo(name string, pkg *ssa2.Package) {
 // 	mem := pkg.Members[name]
-// 	msg("Type %s at:", mem.Type())
+// 	Msg("Type %s at:", mem.Type())
 // 	position := pkg.Prog.Fset.Position(mem.Pos())
-// 	msg("  " + ssa2.PositionRange(position, position))
-// 	msg("  %s", mem.Type().Underlying())
+// 	Msg("  " + ssa2.PositionRange(position, position))
+// 	Msg("  %s", mem.Type().Underlying())
 
 // 	// We display only mset(*T) since its keys
 // 	// are a superset of mset(T)'s keys, though the
@@ -204,7 +204,7 @@ func printPackageInfo(name string, pkg *ssa2.Package) {
 // 	for _, id := range keys {
 // 		method := mset[id]
 // 		// TODO(adonovan): show pointerness of receiver of declared method, not the index
-// 		msg("    method %s %s", id, method.Signature)
+// 		Msg("    method %s %s", id, method.Signature)
 // 	}
 // }
 
@@ -216,13 +216,13 @@ func WhatisName(name string) {
 		varname := ids[0]
 		// local lookup needs to take precedence over package lookup
 		if i := LocalsLookup(curFrame, varname); i != 0 {
-			errmsg("Sorry, dotted variable lookup for local %s not supported yet", varname)
+			Errmsg("Sorry, dotted variable lookup for local %s not supported yet", varname)
 		} else {
 			try_pkg := curFrame.I().Program().PackageByName(varname)
 			if try_pkg != nil { pkg = try_pkg }
 			m := pkg.Members[ids[1]]
 			if m == nil {
-				errmsg("%s is not a member of %s", ids[1], pkg)
+				Errmsg("%s is not a member of %s", ids[1], pkg)
 				return
 			}
 			name = ids[1]
@@ -234,11 +234,11 @@ func WhatisName(name string) {
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {
-		msg("%s is a variable at:", name)
-		msg("  %s", fmtPos(myfn, v.Pos()))
-		msg("  %s", v.Type())
+		Msg("%s is a variable at:", name)
+		Msg("  %s", fmtPos(myfn, v.Pos()))
+		Msg("  %s", v.Type())
 		if g, ok := curFrame.I().Global(name, pkg); ok {
-			msg("  %s", *g)
+			Msg("  %s", *g)
 		}
 	} else if c := pkg.Const(name); c != nil {
 		printConstantInfo(c, name, pkg)
@@ -247,6 +247,6 @@ func WhatisName(name string) {
 	} else if pkg := curFrame.I().Program().PackageByName(name); pkg != nil {
 		printPackageInfo(name, pkg)
 	} else {
-		errmsg("Can't find name: %s", name)
+		Errmsg("Can't find name: %s", name)
 	}
 }

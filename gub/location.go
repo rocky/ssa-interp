@@ -57,30 +57,30 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 		s += fr.Fn().Name() + "()"
 	}
 	if *terse {
-		msg(s)
+		Msg(s)
 	} else {
-		msg("%s block %d insn %d", s, fr.Block().Index, fr.PC())
+		Msg("%s block %d insn %d", s, fr.Block().Index, fr.PC())
 	}
 	switch event {
 	case ssa2.CALL_RETURN:
 		fn := fr.Fn()
 		if fn.Signature.Results() == nil {
-			msg("return void")
+			Msg("return void")
 		} else {
-			msg("return type: %s", fn.Signature.Results())
-			msg("return value: %s", deref2Str(fr.Result()))
+			Msg("return type: %s", fn.Signature.Results())
+			Msg("return value: %s", deref2Str(fr.Result()))
 		}
 	case ssa2.CALL_ENTER:
 		for i, p := range fr.Fn().Params {
 			if val := fr.Env()[p]; val != nil {
-				msg("%s %s", fr.Fn().Params[i], deref2Str(val))
+				Msg("%s %s", fr.Fn().Params[i], deref2Str(val))
 			} else {
-				msg("%s nil", fr.Fn().Params[i])
+				Msg("%s nil", fr.Fn().Params[i])
 			}
 		}
 	case ssa2.PANIC:
 		// fmt.Printf("panic arg: %s\n", fr.Get(instr.X))
 	}
 
-	msg(fr.PositionRange())
+	Msg(fr.PositionRange())
 }

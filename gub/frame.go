@@ -13,6 +13,8 @@ var stackSize int  // Size of call stack
 var frameIndex int  // frame index we are focused on
 const MAXSTACKSHOW = 50  // maximum number of frame entries to show
 
+func CurFrame() *interp.Frame { return curFrame }
+
 func frameInit(fr *interp.Frame) {
 	topFrame = fr
 	curFrame = fr
@@ -25,11 +27,11 @@ func frameInit(fr *interp.Frame) {
 func getFrame(frameNum int, absolutePos bool) (*interp.Frame, int) {
       if absolutePos {
 		  if frameNum >= stackSize {
-			  errmsg("Frame number %d too large. Max is %d.",
+			  Errmsg("Frame number %d too large. Max is %d.",
 				  frameNum, stackSize-1)
 			  return nil, 0
 		  } else if frameNum < -stackSize {
-			  errmsg("Frame number %d too small. Min is %d.",
+			  Errmsg("Frame number %d too small. Min is %d.",
 				  frameNum, -stackSize)
 			  return nil, 0
 		  }
@@ -37,10 +39,10 @@ func getFrame(frameNum int, absolutePos bool) (*interp.Frame, int) {
       } else {
 		  frameNum += frameIndex
 		  if frameNum >= stackSize {
-			  errmsg("Adjusting would put us beyond the oldest frame.")
+			  Errmsg("Adjusting would put us beyond the oldest frame.")
 			  return nil, 0
 		  } else if frameNum < 0 {
-			  errmsg("Adjusting would put us beyond the newest frame.")
+			  Errmsg("Adjusting would put us beyond the newest frame.")
 			  return nil, 0
 		  }
       }

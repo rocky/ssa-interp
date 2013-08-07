@@ -5,15 +5,15 @@ package gub
 type CmdFunc func([]string)
 
 type CmdInfo struct {
-	help string
-	category string
-	min_args int
-	max_args int
-	fn CmdFunc
-	aliases []string
+	Help string
+	Category string
+	Min_args int
+	Max_args int
+	Fn CmdFunc
+	Aliases []string
 }
 
-var cmds map[string]*CmdInfo  = make(map[string]*CmdInfo)
+var Cmds map[string]*CmdInfo  = make(map[string]*CmdInfo)
 var	aliases map[string]string = make(map[string]string)
 var	categories map[string] []string = make(map[string] []string)
 
@@ -22,18 +22,18 @@ func AddAlias(alias string, cmdname string) bool {
 		return false
 	}
 	aliases[alias] = cmdname
-	cmds[cmdname].aliases = append(cmds[cmdname].aliases, alias)
+	Cmds[cmdname].Aliases = append(Cmds[cmdname].Aliases, alias)
 	return true
 }
 
 func AddToCategory(category string, cmdname string) {
 	categories[category] = append(categories[category], cmdname)
-	// cmds[cmdname].category = category
+	// Cmds[cmdname].category = category
 }
 
 
 func lookupCmd(cmd string) (string) {
-	if cmds[cmd] == nil {
+	if Cmds[cmd] == nil {
 		cmd = aliases[cmd];
 	}
 	return cmd
@@ -41,11 +41,11 @@ func lookupCmd(cmd string) (string) {
 
 func init() {
 	name := "locations"
-	cmds[name] = &CmdInfo{
-		fn: LocsCommand,
-		help: "show possible breakpoint locations",
-		min_args: 0,
-		max_args: 1,
+	Cmds[name] = &CmdInfo{
+		Fn: LocsCommand,
+		Help: "show possible breakpoint locations",
+		Min_args: 0,
+		Max_args: 1,
 	}
 	AddToCategory("status", name)
 	// Down the line we'll have abbrevs
@@ -57,6 +57,6 @@ func LocsCommand(args []string) {
 	pkg := fn.Pkg
 	for _, l := range pkg.Locs() {
 		// FIXME: ? turn into true range
-		msg("\t%s", fmtPos(fn, l.Pos))
+		Msg("\t%s", fmtPos(fn, l.Pos))
 	}
 }

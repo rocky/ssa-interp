@@ -20,7 +20,7 @@ func bpprint(bp Breakpoint) {
 	loc  := fmtPos(curFrame.Fn(), bp.pos)
     mess := fmt.Sprintf("%3d breakpoint    %s  %sat %s",
 		bp.id, disp, enabled, loc)
-	msg(mess)
+	Msg(mess)
 
     // line_loc = '%s:%d' %
     //   [iseq.source_container.join(' '),
@@ -32,20 +32,20 @@ func bpprint(bp Breakpoint) {
     //   else # 'offset' == bp.type
     //     [vm_loc, line_loc]
     //   end
-    // msg(mess + loc)
-    // msg("\t#{other_loc}") if verbose
+    // Msg(mess + loc)
+    // Msg("\t#{other_loc}") if verbose
 
     // if bp.condition && bp.condition != 'true'
-    //   msg("\tstop %s %s" %
+    //   Msg("\tstop %s %s" %
     //       [bp.negate ? "unless" : "only if", bp.condition])
     // end
     if bp.ignore > 0 {
-		msg("\tignore next %d hits", bp.ignore)
+		Msg("\tignore next %d hits", bp.ignore)
 	}
     if bp.hits > 0 {
 		ss := ""
 		if bp.hits > 1 { ss = "s" }
-		msg("\tbreakpoint already hit %d time%s",
+		Msg("\tbreakpoint already hit %d time%s",
 			bp.hits, ss)
 	}
 }
@@ -53,11 +53,11 @@ func bpprint(bp Breakpoint) {
 
 func InfoBreakpointSubcmd() {
 	if IsBreakpointEmpty() {
-		msg("No breakpoints set")
+		Msg("No breakpoints set")
 		return
 	}
 	if len(Breakpoints) - BrkptsDeleted == 0 {
-		msg("No breakpoints.")
+		Msg("No breakpoints.")
 	}
 	section("Num Type          Disp Enb Where")
 	for _, bp := range Breakpoints {
@@ -68,17 +68,17 @@ func InfoBreakpointSubcmd() {
 
 func init() {
 	name := "breakpoint"
-	cmds[name] = &CmdInfo{
-		fn: BreakpointCommand,
-		help: `breakpoint [*fn* | line [column]]
+	Cmds[name] = &CmdInfo{
+		Fn: BreakpointCommand,
+		Help: `breakpoint [*fn* | line [column]]
 
 Set a breakpoint. The target can either be a function name as fn pkg.fn
 or a line and and optional column number. Specifying a column number
 may be useful if there is more than one statement on a line or if you
 want to distinguish parts of a compound statement`,
 
-		min_args: 0,
-		max_args: 2,
+		Min_args: 0,
+		Max_args: 2,
 	}
 	AddToCategory("breakpoints", name)
 	AddAlias("break", name)
@@ -94,7 +94,7 @@ func BreakpointCommand(args []string) {
 	fn := GetFunction(name)
 	if fn != nil {
 		if ext := interp.Externals()[name]; ext != nil {
-			msg("Sorry, %s is a built-in external function.", name)
+			Msg("Sorry, %s is a built-in external function.", name)
 			return
 		}
 		interp.SetFnBreakpoint(fn)
@@ -109,13 +109,13 @@ func BreakpointCommand(args []string) {
 			enabled: true,
 		}
 		bpnum := BreakpointAdd(bp)
-		msg(" Breakpoint %d set in function %s at %s", bpnum, name,
+		Msg(" Breakpoint %d set in function %s at %s", bpnum, name,
 			fmtPos(fn, fn.Pos()))
 		return
 	}
 	line, ok := strconv.Atoi(args[1])
 	if ok != nil {
-		errmsg("Don't know yet how to deal with a break that doesn't start with a function or integer")
+		Errmsg("Don't know yet how to deal with a break that doesn't start with a function or integer")
 		return
 	}
 
@@ -123,7 +123,7 @@ func BreakpointCommand(args []string) {
 	if len(args) == 3 {
 		foo, ok := strconv.Atoi(args[2])
 		if ok != nil {
-			errmsg("Don't know how to deal a non-int argument as 2nd parameter yet")
+			Errmsg("Don't know how to deal a non-int argument as 2nd parameter yet")
 			return
 		}
 		column = foo
@@ -155,31 +155,31 @@ func BreakpointCommand(args []string) {
 						l.Fn.Breakpoint = true
 						bp.kind = "Function"
 					} else {
-						errmsg("Internal error setting in file %s line %d, column %d",
+						Errmsg("Internal error setting in file %s line %d, column %d",
 							bpnum, filename, line, try.Column)
 						return
 					}
-					msg("Breakpoint %d set in file %s line %d, column %d", bpnum, filename, line, try.Column)
+					Msg("Breakpoint %d set in file %s line %d, column %d", bpnum, filename, line, try.Column)
 					return
 				}
 			}
 		}
 		suffix := ""
 		if column != -1 { suffix = ", column " + args[2] }
-		errmsg("Can't find statement in file %s at line %d%s", filename, line, suffix)
+		Errmsg("Can't find statement in file %s at line %d%s", filename, line, suffix)
 	}
 }
 
 func init() {
 	name := "delete"
-	cmds[name] = &CmdInfo{
-		fn: DeleteCommand,
-		help: `Delete [bpnum1 ...]
+	Cmds[name] = &CmdInfo{
+		Fn: DeleteCommand,
+		Help: `Delete [bpnum1 ...]
 
 Delete a breakpoint by the number assigned to it.`,
 
-		min_args: 0,
-		max_args: -1,
+		Min_args: 0,
+		Max_args: -1,
 	}
 	AddToCategory("breakpoints", name)
 	// Down the line we'll have abbrevs
@@ -191,31 +191,31 @@ func DeleteCommand(args []string) {
 	for i:=1; i<len(args); i++ {
 		bpnum, ok := strconv.Atoi(args[i])
 		if ok != nil {
-			errmsg("Expecting integer breakpoint for argument %d; got %s", i, args[i])
+			Errmsg("Expecting integer breakpoint for argument %d; got %s", i, args[i])
 			continue
 		}
 		if BreakpointExists(bpnum) {
 			if BreakpointDelete(bpnum) {
-				msg(" Deleted breakpoint %d", bpnum)
+				Msg(" Deleted breakpoint %d", bpnum)
 			} else {
-				errmsg("Trouble deleting breakpoint %d", bpnum)
+				Errmsg("Trouble deleting breakpoint %d", bpnum)
 			}
 		} else {
-			errmsg("Breakpoint %d doesn't exist", bpnum)
+			Errmsg("Breakpoint %d doesn't exist", bpnum)
 		}
 	}
 }
 
 func init() {
 	name := "disable"
-	cmds[name] = &CmdInfo{
-		fn: DisableCommand,
-		help: `Disable [bpnum1 ...]
+	Cmds[name] = &CmdInfo{
+		Fn: DisableCommand,
+		Help: `Disable [bpnum1 ...]
 
 Disable a breakpoint by the number assigned to it.`,
 
-		min_args: 0,
-		max_args: -1,
+		Min_args: 0,
+		Max_args: -1,
 	}
 	AddToCategory("breakpoints", name)
 }
@@ -226,35 +226,35 @@ func DisableCommand(args []string) {
 	for i:=1; i<len(args); i++ {
 		bpnum, ok := strconv.Atoi(args[i])
 		if ok != nil {
-			errmsg("Expecting integer breakpoint for argument %d; got %s", i, args[i])
+			Errmsg("Expecting integer breakpoint for argument %d; got %s", i, args[i])
 			continue
 		}
 		if BreakpointExists(bpnum) {
 			if !BreakpointIsEnabled(bpnum) {
-				msg("Breakpoint %d is already disabled", bpnum)
+				Msg("Breakpoint %d is already disabled", bpnum)
 				continue
 			}
 			if BreakpointDisable(bpnum) {
-				msg("Breakpoint %d disabled", bpnum)
+				Msg("Breakpoint %d disabled", bpnum)
 			} else {
-				errmsg("Trouble disabling breakpoint %d", bpnum)
+				Errmsg("Trouble disabling breakpoint %d", bpnum)
 			}
 		} else {
-			errmsg("Breakpoint %d doesn't exist", bpnum)
+			Errmsg("Breakpoint %d doesn't exist", bpnum)
 		}
 	}
 }
 
 func init() {
 	name := "enable"
-	cmds[name] = &CmdInfo{
-		fn: EnableCommand,
-		help: `enable [bpnum1 ...]
+	Cmds[name] = &CmdInfo{
+		Fn: EnableCommand,
+		Help: `enable [bpnum1 ...]
 
 Enable a breakpoint by the number assigned to it.`,
 
-		min_args: 0,
-		max_args: -1,
+		Min_args: 0,
+		Max_args: -1,
 	}
 	AddToCategory("breakpoints", name)
 }
@@ -264,21 +264,21 @@ func EnableCommand(args []string) {
 	for i:=1; i<len(args); i++ {
 		bpnum, ok := strconv.Atoi(args[i])
 		if ok != nil {
-			errmsg("Expecting integer breakpoint for argument %d; got %s", i, args[i])
+			Errmsg("Expecting integer breakpoint for argument %d; got %s", i, args[i])
 			continue
 		}
 		if BreakpointExists(bpnum) {
 			if BreakpointIsEnabled(bpnum) {
-				msg("Breakpoint %d is already enabled", bpnum)
+				Msg("Breakpoint %d is already enabled", bpnum)
 				continue
 			}
 			if BreakpointEnable(bpnum) {
-				msg("Breakpoint %d enabled", bpnum)
+				Msg("Breakpoint %d enabled", bpnum)
 			} else {
-				errmsg("Trouble enabling breakpoint %d", bpnum)
+				Errmsg("Trouble enabling breakpoint %d", bpnum)
 			}
 		} else {
-			errmsg("Breakpoint %d doesn't exist", bpnum)
+			Errmsg("Breakpoint %d doesn't exist", bpnum)
 		}
 	}
 }

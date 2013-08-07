@@ -21,6 +21,7 @@ interp: builder
 #: Build the debugger
 gub: interp
 	(cd gub && go install)
+	(cd gub/cmd && go install)
 
 #: Same as "check"
 test: check

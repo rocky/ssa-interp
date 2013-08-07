@@ -14,6 +14,7 @@ import (
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 	"github.com/rocky/ssa-interp/gub"
+	"github.com/rocky/ssa-interp/gub/cmd"
 )
 
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
@@ -132,6 +133,7 @@ func main() {
 	if *runFlag {
 		fmt.Println("Running....")
 		if interpTraceMode & interp.EnableStmtTracing != 0 {
+			gubcmd.Init()
 			gub.Install(gubFlag)
 		}
 		interp.Interpret(prog.Package(info.Pkg), interpMode, interpTraceMode,
