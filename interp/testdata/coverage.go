@@ -10,7 +10,7 @@ package main
 import (
 	"fmt"
 	"reflect"
-	"runtime"
+	"runtime/debug"
 )
 
 const zero int = 1
@@ -249,6 +249,7 @@ func main() {
 	switch {
 	default:
 		fallthrough
+	case false:
 	}
 
 	// string -> []rune conversion.
@@ -361,8 +362,7 @@ func init() {
 	defer func() {
 		r := recover()
 		if r != "interface conversion: interface is nil, not main.I" {
-			_, file, line := runtime.Caller(0)
-			fmt.Printf("Backtrace: %s:%d\n", file, line)
+			debug.PrintStack()
 			panic("I->I type assertion succeeed for nil value")
 		}
 	}()
