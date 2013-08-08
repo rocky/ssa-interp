@@ -38,24 +38,3 @@ func LookupCmd(cmd string) (string) {
 	}
 	return cmd
 }
-
-func init() {
-	name := "locations"
-	Cmds[name] = &CmdInfo{
-		Fn: LocsCommand,
-		Help: "show possible breakpoint locations",
-		Min_args: 0,
-		Max_args: 1,
-	}
-	AddToCategory("status", name)
-	// Down the line we'll have abbrevs
-	AddAlias("locs", name)
-}
-
-func LocsCommand(args []string) {
-	fn  := curFrame.Fn()
-	pkg := fn.Pkg
-	for _, l := range pkg.Locs() {
-		Msg("\t%s", fmtRange(fn, l.Pos(), l.EndP()))
-	}
-}

@@ -86,10 +86,23 @@ type Trace struct {
 func PositionRange(start token.Position, end token.Position) string {
 	s := ""
 	if start.IsValid() {
-		s = start.Filename
-		if s != "" {
-			s += ":"
+		s = start.Filename + ":" + PositionRangeSansFile(start, end)
+	} else if end.IsValid() {
+		s = "-"
+		if end.Filename != "" {
+			s += end.Filename + ":"
 		}
+		s += fmt.Sprintf("%d:%d", end.Line, end.Column)
+	}
+	if s == "" {
+		s = "-"
+	}
+	return s
+}
+
+func PositionRangeSansFile(start token.Position, end token.Position) string {
+	s := ""
+	if start.IsValid() {
 		s += fmt.Sprintf("%d:%d", start.Line, start.Column)
 		if start.Filename == end.Filename && end.IsValid() {
 			// this is what we expect
@@ -104,15 +117,22 @@ func PositionRange(start token.Position, end token.Position) string {
 
 	} else if end.IsValid() {
 		s = "-"
-		if end.Filename != "" {
-			s += end.Filename + ":"
-		}
 		s += fmt.Sprintf("%d:%d", end.Line, end.Column)
 	}
 	if s == "" {
 		s = "-"
 	}
 	return s
+}
+func FmtRangeWithFset(fset *token.FileSet, start token.Pos, end token.Pos) string {
+	startP := fset.Position(start)
+	endP   := fset.Position(end)
+	return PositionRange(startP, endP)
+}
+
+func FmtRange(fn *Function, start token.Pos, end token.Pos) string {
+	fset := fn.Fset()
+	return FmtRangeWithFset(fset, start, end)
 }
 
 func (t *Trace) String() string {

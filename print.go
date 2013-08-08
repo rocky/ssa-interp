@@ -355,14 +355,17 @@ func (s *MapUpdate) String() string {
 }
 
 func (s *DebugRef) String() string {
-	p := s.Parent().Prog.Fset.Position(s.Pos())
 	var descr interface{}
 	if s.object != nil {
 		descr = s.object // e.g. "var x int"
 	} else {
 		descr = reflect.TypeOf(s.Expr) // e.g. "*ast.CallExpr"
 	}
-	return fmt.Sprintf("; %s is %s @ %d:%d", s.X.Name(), descr, p.Line, p.Column)
+	fset := s.Parent().Prog.Fset
+	startP := fset.Position(s.Pos())
+	endP   := fset.Position(s.Expr.End())
+	return fmt.Sprintf("; %s is %s @ %s", s.X.Name(), descr,
+		PositionRangeSansFile(startP, endP))
 }
 
 func (p *Package) String() string {
