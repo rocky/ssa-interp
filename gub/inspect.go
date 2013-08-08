@@ -1,5 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
-// Debugger commands
+// Inspection routines
 package gub
 
 import (
@@ -72,16 +72,6 @@ func InfoArgsSubcmd(args []string) {
 			}
 		}
 	}
-}
-
-func VariableCommand(args []string) {
-	if !argCountOK(1, 1, args) { return }
-	fn := curFrame.Fn()
-	varname := args[1]
-	for _, p := range fn.Locals {
-		if varname == p.Name() { break }
-	}
-
 }
 
 func printConstantInfo(c *ssa2.NamedConst, name string, pkg *ssa2.Package) {

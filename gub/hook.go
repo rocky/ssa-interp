@@ -117,8 +117,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		case "-":
 			fmt.Println("Clearing Instruction Trace")
 			interp.ClearInstTracing()
-		case "v":
-			VariableCommand(args)
 		default:
 			if len(args) > 0 {
 				WhatisName(args[0])
