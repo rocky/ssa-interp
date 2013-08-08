@@ -135,7 +135,7 @@ func makeWrapper(prog *Program, typ types.Type, meth *types.Selection) *Function
 		Synthetic: description,
 		Breakpoint: false,
 		Scope      : nil,
-		LocalsByName: make(map[string]int),
+		LocalsByName: make(map[NameScope]uint),
 		Prog:      prog,
 		pos:       obj.Pos(),
 	}
@@ -245,7 +245,7 @@ func interfaceMethodWrapper(prog *Program, typ types.Type, obj *types.Func) *Fun
 			Prog:      prog,
 			Breakpoint: false,
 			Scope     : nil,
-			LocalsByName: make(map[string]int),
+			LocalsByName: make(map[NameScope]uint),
 		}
 		fn.startBody(nil)
 		fn.addParam("recv", typ, token.NoPos)
@@ -301,7 +301,7 @@ func boundMethodWrapper(prog *Program, obj *types.Func) *Function {
 			Synthetic: description,
 			Prog:      prog,
 			Breakpoint: false,
-			LocalsByName: make(map[string]int),
+			LocalsByName: make(map[NameScope]uint),
 			Scope       : nil,
 			pos:       obj.Pos(),
 		}

@@ -275,7 +275,7 @@ type Function struct {
        means not found. FIXME: this is not right. There can be several
        locals with the same name. We need to disambiguate with some
        sort of environment setting.  */
-	LocalsByName map[string]int
+	LocalsByName map[NameScope]uint
 
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
 	AnonFuncs []*Function   // anonymous functions directly beneath this one

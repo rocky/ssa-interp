@@ -507,7 +507,7 @@ func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 		}
 	block:
 		// rocky: changed to allow for debugger "jump" command
-		for fr.pc = 0; fr.pc < len(fr.block.Instrs); fr.pc++ {
+		for fr.pc = 0; fr.pc < uint(len(fr.block.Instrs)); fr.pc++ {
 			instr = fr.block.Instrs[fr.pc]
 			if InstTracing() {
 				fmt.Fprint(os.Stderr, fr.block.Index, fr.pc, "\t")

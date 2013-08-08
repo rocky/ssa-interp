@@ -7,6 +7,6 @@ func astScope(fn *Function, node ast.Node) *Scope {
 	return fn.Pkg.Ast2Scope[node]
 }
 
-func parentScope(fn *Function, scope *Scope) *Scope {
+func ParentScope(fn *Function, scope *Scope) *Scope {
 	return fn.Pkg.TypeScope2Scope[scope.Scope.Parent()]
 }

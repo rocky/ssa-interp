@@ -23,7 +23,7 @@ type Frame struct {
 	goNum            int         // Goroutine number
 
 	// For tracking where we are
-	pc               int         // Instruction index of basic block
+	pc               uint        // Instruction index of basic block
 	startP           token.Pos   // Start Position from last trace instr run
 	endP             token.Pos   // End Postion from last trace instr run
 }
@@ -101,11 +101,11 @@ func (fr *Frame) Env() map[ssa2.Value]Value { return fr.env }
 func (fr *Frame) Fn() *ssa2.Function { return fr.fn }
 func (fr *Frame) GoNum() int { return fr.goNum }
 func (fr *Frame) I() *interpreter { return fr.i }
-func (fr *Frame) Local(i int) Value { return fr.locals[i] }
+func (fr *Frame) Local(i uint) Value { return fr.locals[i] }
 func (fr *Frame) Locals() []Value { return fr.locals }
-func (fr *Frame) PC() int { return fr.pc }
+func (fr *Frame) PC() uint { return fr.pc }
 func (fr *Frame) PrevBlock() *ssa2.BasicBlock { return fr.prevBlock }
 func (fr *Frame) Result() Value { return fr.result }
-func (fr *Frame) SetPC(newpc int) { fr.pc = newpc }
+func (fr *Frame) SetPC(newpc uint) { fr.pc = newpc }
 func (fr *Frame) StartP() token.Pos { return fr.startP }
 func (fr *Frame) Status() RunStatusType { return fr.status }

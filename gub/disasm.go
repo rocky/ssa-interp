@@ -4,7 +4,7 @@ import (
 	"github.com/rocky/ssa-interp"
 )
 
-func DisasmInst(f *ssa2.Function, bnum int, inst int) {
+func DisasmInst(f *ssa2.Function, bnum int, inst uint64) {
 	if bnum < 0 || bnum >= len(f.Blocks) {
 		Errmsg("Block number %d is out of range. Should be between 0..%d",
 			bnum, len(f.Blocks)-1)

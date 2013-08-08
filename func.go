@@ -201,7 +201,11 @@ func (f *Function) addSpilledParam(obj types.Object) {
 	spill.Scope = f.Scope
 	f.objects[obj] = spill
 	f.Locals = append(f.Locals, spill)
-	f.LocalsByName[obj.Name()] = len(f.Locals)
+	nameScope := NameScope{
+		Name: obj.Name(),
+		Scope: f.Scope,
+	}
+	f.LocalsByName[nameScope] = uint(len(f.Locals))
 	f.emit(spill)
 	f.emit(&Store{Addr: spill, Val: param})
 }
@@ -388,9 +392,13 @@ func (f *Function) debugInfo() bool {
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 	l := f.addLocal(obj.Type(), obj.Pos(), obj.Pos(), nil)
 	l.Comment = obj.Name()
-	f.objects[obj] = l
-	f.LocalsByName[obj.Name()] = len(f.Locals)
 	l.Scope = f.Pkg.TypeScope2Scope[obj.Parent()]
+	f.objects[obj] = l
+	nameScope := NameScope{
+		Name: obj.Name(),
+		Scope: l.Scope,
+	}
+	f.LocalsByName[nameScope] = uint(len(f.Locals))
 	return l
 }
 
@@ -643,6 +651,6 @@ func NewFunction(name string, sig *types.Signature, provenance string) *Function
 		Synthetic: provenance,
 		Breakpoint: false,
 		Scope: nil,
-		LocalsByName: make(map[string]int),
+		LocalsByName: make(map[NameScope]uint),
 	}
 }

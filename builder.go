@@ -502,7 +502,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) (result Value) {
 			Prog:       fn.Prog,
 			Breakpoint: false,
 			Scope     : nil,
-			LocalsByName: make(map[string]int),
+			LocalsByName: make(map[NameScope]uint),
 			endP:       e.Body.End(),
 			syntax: &funcSyntax{
 				functype: e.Type,
@@ -1277,7 +1277,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 	// More efficient strategies (e.g. multiway dispatch)
 	// are possible if all cases are free of side effects.
 	switchScope := astScope(fn, s)
-	parent      := parentScope(fn, switchScope)
+	parent      := ParentScope(fn, switchScope)
 	if s.Init != nil {
 		b.stmt(fn, s.Init, parent)
 	}
@@ -1424,7 +1424,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 		x = b.expr(fn, unparen(ass.Rhs[0]).(*ast.TypeAssertExpr).X)
 	}
 
-	done := fn.newBasicBlock("typeswitch.done", parentScope(fn, typeSwitchScope))
+	done := fn.newBasicBlock("typeswitch.done", ParentScope(fn, typeSwitchScope))
 	if label != nil {
 		label._break = done
 	}
@@ -1687,7 +1687,7 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	body := fn.newBasicBlock("for.body", astScope(fn, s.Body))
 
 	// target of 'break'
-	done := fn.newBasicBlock("for.done", parentScope(fn, forScope))
+	done := fn.newBasicBlock("for.done", ParentScope(fn, forScope))
 
 	loop := body                         // target of back-edge
 	if s.Cond != nil {
@@ -1779,7 +1779,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, s *ast.Rang
 	emitStore(fn, index, fn.emit(incr))
 
 	body := fn.newBasicBlock("rangeindex.body", astScope(fn, s.Body))
-	done = fn.newBasicBlock("rangeindex.done", parentScope(fn, rangeIndexedScope))
+	done = fn.newBasicBlock("rangeindex.done", ParentScope(fn, rangeIndexedScope))
 	emitIf(fn, emitCompare(fn, token.LSS, incr, length, token.NoPos), body, done)
 	fn.currentBlock = body
 
@@ -1869,7 +1869,7 @@ func (b *builder) rangeIter(fn *Function, x Value, tk, tv types.Type, s *ast.Ran
 	fn.emit(okv)
 
 	body := fn.newBasicBlock("rangeiter.body", astScope(fn, s.Body))
-	done = fn.newBasicBlock("rangeiter.done", parentScope(fn, rangeIterScope))
+	done = fn.newBasicBlock("rangeiter.done", ParentScope(fn, rangeIterScope))
 	emitIf(fn, emitExtract(fn, okv, 0, tBool), body, done)
 	fn.currentBlock = body
 
@@ -2169,7 +2169,7 @@ start:
 			b.stmt(fn, s.Init, ifScope)
 		}
 		then := fn.newBasicBlock("if.then", astScope(fn, s.Body))
-		done := fn.newBasicBlock("if.done", parentScope(fn, ifScope))
+		done := fn.newBasicBlock("if.done", ParentScope(fn, ifScope))
 		els := done
 		if s.Else != nil {
 			els = fn.newBasicBlock("if.else", astScope(fn, s.Else))

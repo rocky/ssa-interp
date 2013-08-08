@@ -23,19 +23,23 @@ func deref(typ types.Type) types.Type {
 }
 
 
-func LocalsLookup(fr *interp.Frame, name string) int {
-	return fr.Fn().LocalsByName[name]
+func LocalsLookup(fr *interp.Frame, name string, scope *ssa2.Scope) uint {
+	nameScope := ssa2.NameScope{
+		Name: name,
+		Scope: scope,
+	}
+	return fr.Fn().LocalsByName[nameScope]
 }
 
 
-func PrintLocal(fr *interp.Frame, i int) {
+func PrintLocal(fr *interp.Frame, i uint) {
 	v := fr.Local(i)
 	l := fr.Fn().Locals[i]
 	Msg("%3d:\t%s %s = %s", i, l.Name(), deref(l.Type()), interp.ToInspect(v))
 }
 
 func PrintIfLocal(fr *interp.Frame, varname string) bool {
-	if i := LocalsLookup(curFrame, varname); i != 0 {
+	if i := LocalsLookup(curFrame, varname, curScope); i != 0 {
 		PrintLocal(curFrame, i-1)
 		return true
 	}
@@ -192,7 +196,7 @@ func WhatisName(name string) {
 	if len(ids) > 1 {
 		varname := ids[0]
 		// local lookup needs to take precedence over package lookup
-		if i := LocalsLookup(curFrame, varname); i != 0 {
+		if i := LocalsLookup(curFrame, varname, curScope); i != 0 {
 			Errmsg("Sorry, dotted variable lookup for local %s not supported yet", varname)
 		} else {
 			try_pkg := curFrame.I().Program().PackageByName(varname)

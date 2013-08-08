@@ -28,7 +28,7 @@ func Deref2Str(v interp.Value) string {
 
 
 func PrintInEnvironment(fr *interp.Frame, name string) bool {
-	if k, v, scope := EnvLookup(fr, name); k != nil {
+	if k, v, scope := EnvLookup(fr, name, curScope); k != nil {
 		envStr := ""
 		if scope != nil {
 			envStr = fmt.Sprintf(" at scope %d", scope.ScopeId())
@@ -42,22 +42,18 @@ func PrintInEnvironment(fr *interp.Frame, name string) bool {
 	}
 }
 
-func EnvLookup(fr *interp.Frame, name string) (ssa2.Value, string, *ssa2.Scope) {
+func EnvLookup(fr *interp.Frame, name string,
+	scope *ssa2.Scope) (ssa2.Value, string, *ssa2.Scope) {
 	fn := fr.Fn()
-	if i := fn.LocalsByName[name]; i > 0 {
-		k := fn.Locals[i-1]
-		v := Deref2Str(fr.Env()[k])
-		return k, v, k.Scope
-	}
-	for k, v := range fr.Env() {
-		if name == k.Name() {
-			v := Deref2Str(v)
-			switch k := k.(type) {
-			case *ssa2.Alloc:
-				return k, v, k.Scope
-			default:
-				return k, v, nil
-			}
+	for ; scope != nil;  scope = ssa2.ParentScope(fn, scope) {
+		nameScope := ssa2.NameScope{
+			Name: name,
+			Scope: scope,
+		}
+		if i := fn.LocalsByName[nameScope]; i > 0 {
+			k := fn.Locals[i-1]
+			v := Deref2Str(fr.Env()[k])
+			return k, v, k.Scope
 		}
 	}
 	return nil, "", nil
@@ -111,7 +107,7 @@ func IndexExpr(e *ast.IndexExpr) exact.Value {
 	}
 	switch id := e.X.(type) {
 	case *ast.Ident:
-		if k, _, _ := EnvLookup(curFrame, id.Name); k != nil {
+		if k, _, _ := EnvLookup(curFrame, id.Name, curScope); k != nil {
 			val := DerefValue(curFrame.Get(k))
 			ary := val.([]interp.Value)
 			if index < 0 || index >= uint64(len(ary)) {
@@ -153,7 +149,7 @@ func EvalExpr(n ast.Node) exact.Value {
 			Errmsg("Can't handle call (%s) yet at pos %d", e.Fun, e.Pos())
 			return nil
 		case *ast.Ident:
-			if k, val, _ := EnvLookup(curFrame, e.Name); k != nil {
+			if k, val, _ := EnvLookup(curFrame, e.Name, curScope); k != nil {
 				return Val(val)
 			}
 			Errmsg("Can't find value for id '%s' here at pos %d", e.Name, e.Pos())

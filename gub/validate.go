@@ -43,3 +43,23 @@ func GetInt(arg string, what string, min int, max int) (int, error) {
 	}
 	return i, nil
 }
+
+
+func GetUInt(arg string, what string, min uint64, max uint64) (uint64, error) {
+	errmsg_fmt := "Expecting integer " + what + "; got '%s'."
+	i, err := strconv.ParseUint(arg, 10, 0)
+	if err != nil {
+		Errmsg(errmsg_fmt, arg)
+		return 0, err
+	}
+	if i < min {
+		Errmsg("Expecting integer value %s to be at least %d; got %d.",
+			what, min, i)
+        return 0, genericError
+	} else if max > 0 && i > max {
+        Errmsg("Expecting integer value %s to be at most %d; got %d.",
+			what, max, i)
+        return 0, genericError
+	}
+	return i, nil
+}

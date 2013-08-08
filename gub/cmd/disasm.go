@@ -45,8 +45,8 @@ func DisassembleCommand(args []string) {
 			if err == nil {
 				b := myfn.Blocks[bnum]
 				if len(args) == 3 {
-					ic, err := gub.GetInt(args[2],
-						"instruction number", 0, len(b.Instrs)-1)
+					ic, err := gub.GetUInt(args[2],
+						"instruction number", 0, uint64(len(b.Instrs)-1))
 					if err == nil {
 						gub.DisasmInst(myfn, bnum, ic)
 					}

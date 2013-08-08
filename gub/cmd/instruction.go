@@ -27,10 +27,10 @@ Print information about instruction
 
 func InstructionCommand(args []string) {
 	fr := gub.CurFrame()
-	ic := fr.PC()
+	ic := uint64(fr.PC())
 	if len(args) >= 2 {
-		new_ic, ok := gub.GetInt(args[1], "instruction number", 0,
-			len(gub.CurFrame().Block().Instrs))
+		new_ic, ok := gub.GetUInt(args[1], "instruction number", 0,
+			uint64(len(gub.CurFrame().Block().Instrs)))
 		if ok == nil {
 			ic = new_ic
 		} else {

@@ -9,6 +9,7 @@ import (
 
 var topFrame *interp.Frame
 var curFrame *interp.Frame
+var curScope *ssa2.Scope
 var stackSize int  // Size of call stack
 var frameIndex int  // frame index we are focused on
 const MAXSTACKSHOW = 50  // maximum number of frame entries to show
@@ -23,6 +24,7 @@ func frameInit(fr *interp.Frame) {
 	for stackSize=0; fr !=nil; fr = fr.Caller(0) {
 		stackSize++
 	}
+	curScope = curFrame.Scope()
 }
 
 func getFrame(frameNum int, absolutePos bool) (*interp.Frame, int) {

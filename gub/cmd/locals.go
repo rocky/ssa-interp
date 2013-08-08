@@ -24,7 +24,7 @@ func LocalsCommand(args []string) {
 	argc := len(args) - 1
 	if argc == 0 {
 		for i, _ := range gub.CurFrame().Locals() {
-			gub.PrintLocal(gub.CurFrame(), i)
+			gub.PrintLocal(gub.CurFrame(), uint(i))
 		}
 	} else {
 		varname := args[1]
