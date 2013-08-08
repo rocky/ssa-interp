@@ -105,8 +105,15 @@ func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa2.Functi
 func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 	switch instr := genericInstr.(type) {
 	case *ssa2.DebugRef:
-		// no-op
-
+		if instr.Object != nil {
+			regName := instr.X.Name()
+			varName := instr.Object.Name()
+			if regName != varName && regName[0] == 't' {
+				// fmt.Printf("+++%s is register\t%s\n", varName, regName)
+				fr.Var2Reg[varName] = regName
+				fr.Reg2Var[regName] = varName
+			}
+		}
 	case *ssa2.UnOp:
 		fr.env[instr] = unop(instr, fr.get(instr.X))
 
@@ -443,14 +450,16 @@ func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ss
 		}
 	}
 	fr := &Frame{
-		i:      i,
-		caller: caller,
-		fn:     fn,
-		env:    make(map[ssa2.Value]Value),
-		block:  fn.Blocks[0],
-		locals: make([]Value, len(fn.Locals)),
-		tracing: TRACE_STEP_NONE,
-		goNum  : goNum,
+		i:       i,
+		caller  : caller,
+		fn      : fn,
+		env     : make(map[ssa2.Value]Value),
+		block   : fn.Blocks[0],
+		locals  : make([]Value, len(fn.Locals)),
+		tracing : TRACE_STEP_NONE,
+		goNum   : goNum,
+		Var2Reg : make(map[string]string),
+		Reg2Var : make(map[string]string),
 	}
 	i.goTops[goNum].Fr = fr
 
@@ -643,13 +652,15 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	call(i, 0, nil, token.NoPos, mainpkg.Func("init"), nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
 		// fr := &Frame{
-		// 	i: i,
-		// 	caller: nil,
-		// 	env:    make(map[ssa2.Value]Value),
-		// 	block:  mainFn.Blocks[0],
-		// 	locals: make([]Value, len(mainFn.Locals)),
-		//  start : mainFn.Pos()
-		//  end   : mainFn.Pos()
+		// 	i      : i,
+		// 	caller : nil,
+		// 	env    : make(map[ssa2.Value]Value),
+		// 	block  : mainFn.Blocks[0],
+		// 	locals : make([]Value, len(mainFn.Locals)),
+		//  start  : mainFn.Pos(),
+		//  end    : mainFn.Pos(),
+		//  goNum  : 0 ,
+		//  Var2Reg: make(map[string]string),
 		// }
 		// TraceHook(fr, nil&mainFn.Blocks[0].Instrs[0], ssa2.MAIN)
 

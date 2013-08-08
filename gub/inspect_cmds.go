@@ -33,11 +33,19 @@ func LocalsLookup(fr *interp.Frame, name string, scope *ssa2.Scope) uint {
 
 
 func PrintLocal(fr *interp.Frame, i uint) {
-	fn := fr.Fn()
-	v  := fr.Local(i)
-	l  := fn.Locals[i]
-	Msg("%3d:\t%s %s = %s scope %d %s", i, l.Name(), deref(l.Type()),
-		interp.ToInspect(v), l.Scope.ScopeId(), ssa2.FmtRange(fn, l.Pos(), l.EndP()))
+	fn   := fr.Fn()
+	v    := fr.Local(i)
+	l    := fn.Locals[i]
+	name := l.Name()
+	if name[0] == 't' && fr.Reg2Var[name] != "" {
+		Msg("%3d:\t%s %s (%s) = %s scope %d %s", i, fr.Reg2Var[name], name,
+			deref(l.Type()), interp.ToInspect(v), l.Scope.ScopeId(),
+			ssa2.FmtRange(fn, l.Pos(), l.EndP()))
+	} else {
+		Msg("%3d:\t%s %s = %s scope %d %s", i, l.Name(), deref(l.Type()),
+			interp.ToInspect(v), l.Scope.ScopeId(), ssa2.FmtRange(fn, l.Pos(),
+				l.EndP()))
+	}
 }
 
 func PrintIfLocal(fr *interp.Frame, varname string) bool {

@@ -356,8 +356,8 @@ func (s *MapUpdate) String() string {
 
 func (s *DebugRef) String() string {
 	var descr interface{}
-	if s.object != nil {
-		descr = s.object // e.g. "var x int"
+	if s.Object != nil {
+		descr = s.Object // e.g. "var x int"
 	} else {
 		descr = reflect.TypeOf(s.Expr) // e.g. "*ast.CallExpr"
 	}

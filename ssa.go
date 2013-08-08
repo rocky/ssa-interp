@@ -1170,7 +1170,7 @@ type DebugRef struct {
 	anInstruction
 	X      Value        // the value whose position we're declaring
 	Expr   ast.Expr     // the referring expression
-	object types.Object // the identity of the source var/const/func
+	Object types.Object // the identity of the source var/const/func
 }
 
 // Embeddable mix-ins and helpers for common parts of other structs. -----------

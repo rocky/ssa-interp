@@ -22,20 +22,24 @@ func init() {
 
 func LocalsCommand(args []string) {
 	argc := len(args) - 1
+	fr := gub.CurFrame()
 	if argc == 0 {
-		for i, _ := range gub.CurFrame().Locals() {
-			gub.PrintLocal(gub.CurFrame(), uint(i))
+		for i, _ := range fr.Locals() {
+			gub.PrintLocal(fr, uint(i))
+		}
+		for reg, v := range fr.Reg2Var {
+			gub.Msg("reg %s, var %s", reg, v)
 		}
 	} else {
 		varname := args[1]
-		if gub.PrintIfLocal(gub.CurFrame(), varname) {
+		if gub.PrintIfLocal(fr, varname) {
 			return
 		}
 		// FIXME: This really shouldn't be needed.
-		for i, v := range gub.CurFrame().Locals() {
-			if varname == gub.CurFrame().Fn().Locals[i].Name() {
+		for i, v := range fr.Locals() {
+			if varname == fr.Fn().Locals[i].Name() {
 				gub.Msg("fixme %s %s: %s",
-					varname, gub.CurFrame().Fn().Locals[i], interp.ToInspect(v))
+					varname, fr.Fn().Locals[i], interp.ToInspect(v))
 				break
 			}
 		}

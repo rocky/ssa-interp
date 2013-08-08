@@ -21,6 +21,12 @@ type Frame struct {
 	panic            interface{}
 
 	goNum            int         // Goroutine number
+	Var2Reg          map[string] string // Turns an SSA
+										// register/variable into its
+										// local name
+	Reg2Var         map[string] string  // Turns an SSA
+										// register/variable into its
+										// local name
 
 	// For tracking where we are
 	pc               uint        // Instruction index of basic block

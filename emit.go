@@ -58,7 +58,7 @@ func emitDebugRef(f *Function, e ast.Expr, v Value) {
 	f.emit(&DebugRef{
 		X:      v,
 		Expr:   unparen(e),
-		object: obj,
+		Object: obj,
 	})
 }
 

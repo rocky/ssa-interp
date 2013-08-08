@@ -45,6 +45,7 @@ func PrintInEnvironment(fr *interp.Frame, name string) bool {
 func EnvLookup(fr *interp.Frame, name string,
 	scope *ssa2.Scope) (ssa2.Value, string, *ssa2.Scope) {
 	fn := fr.Fn()
+	reg := fr.Var2Reg[name]
 	for ; scope != nil;  scope = ssa2.ParentScope(fn, scope) {
 		nameScope := ssa2.NameScope{
 			Name: name,
@@ -54,6 +55,20 @@ func EnvLookup(fr *interp.Frame, name string,
 			k := fn.Locals[i-1]
 			v := Deref2Str(fr.Env()[k])
 			return k, v, k.Scope
+		}
+	}
+	names := []string{name, reg}
+	for _, name := range names {
+		for k, v := range fr.Env() {
+			if name == k.Name() {
+				v := Deref2Str(v)
+				switch k := k.(type) {
+				case *ssa2.Alloc:
+					return k, v, k.Scope
+				default:
+					return k, v, nil
+				}
+			}
 		}
 	}
 	return nil, "", nil
