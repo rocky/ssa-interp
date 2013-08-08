@@ -28,9 +28,16 @@ type LocInst struct {
 // the scope tree for a package. Scope number should be reset for each
 // function, but that's more work. I, rocky, believe this really
 // should be in ast.scope, but it is what it is.
+
+type ScopeId uint
 type Scope struct {
 	*types.Scope
-	scopeNum int
+	scopeId ScopeId
+}
+
+type NameScope struct {
+	Name     string
+	Scope    *Scope
 }
 
 func (s *Alloc)     EndP() token.Pos            { return s.endP }
@@ -56,4 +63,4 @@ func (prog *Program) PackageByName(name string) *Package {
 }
 
 
-func (s *Scope) ScopeNum() int { return s.scopeNum }
+func (s *Scope) ScopeId() ScopeId { return s.scopeId }

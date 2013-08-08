@@ -34,7 +34,7 @@ func InfoProgramSubcmd() {
 	block := gub.CurFrame().Block()
 	gub.Msg("basic block: %d", block.Index)
 	if block.Scope != nil {
-		gub.Msg("scope: %d", block.Scope.ScopeNum())
+		gub.Msg("scope: %d", block.Scope.ScopeId())
 	} else {
 		gub.Msg("unknown scope")
 	}

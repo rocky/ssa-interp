@@ -36,7 +36,7 @@ func EnvironmentCommand(args []string) {
 		case *ssa2.Alloc:
 			if scope := k.Scope; scope != nil {
 				gub.Msg("%s: %s = %s (scope %d)", k.Name(), k, gub.Deref2Str(v),
-					scope.ScopeNum())
+					scope.ScopeId())
 			} else {
 				gub.Msg("%s: %s = %s", k.Name(), k, gub.Deref2Str(v))
 			}

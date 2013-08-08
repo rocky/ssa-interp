@@ -91,7 +91,7 @@ func (v *Phi) String() string {
 		blockname := "?"
 		if v.block != nil {
 			if v.block.Scope != nil {
-				str := fmt.Sprintf("# scope: %d\n", v.block.Scope.scopeNum)
+				str := fmt.Sprintf("# scope: %d\n", v.block.Scope.ScopeId)
 				b.WriteString(str)
 			}
 			if i < len(v.block.Preds) {

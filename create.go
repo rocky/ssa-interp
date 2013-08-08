@@ -208,10 +208,10 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 	}
 
 	// 0 scope number is pkg init function
-	scope    := assignScopeNum(info.Pkg.Scope(), 0)
+	scope    := assignScopeId(info.Pkg.Scope(), 0)
 	p.Ast2Scope[scope.Node()] = scope
-	scopeNum := 1
-	AssignScopeNums(p, info.Pkg.Scope(), &scopeNum)
+	scopeId := ScopeId(1)
+	AssignScopeIds(p, info.Pkg.Scope(), &scopeId)
 
 	// Add init() function.
 	p.Init = &Function{

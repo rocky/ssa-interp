@@ -30,7 +30,7 @@ func InfoScopeSubcmd(args []string) {
 		Errmsg("No scope recorded here")
 		return
 	}
-	Section("scope number %d", scope.ScopeNum())
+	Section("scope number %d", scope.ScopeId())
 	Msg("%s", scope.Scope)
 	ast.Print(curFrame.Fset(), scope.Scope.Node())
 }

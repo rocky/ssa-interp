@@ -590,7 +590,7 @@ func (f *Function) DumpTo(w io.Writer) {
 			continue
 		}
 		if b.Scope != nil {
-			fmt.Fprintf(w, "# scope: %d\n", b.Scope.scopeNum)
+			fmt.Fprintf(w, "# scope: %d\n", b.Scope.scopeId)
 		}
 		n, _ := fmt.Fprintf(w, ".%s:", b)
 		fmt.Fprintf(w, "%*sP:%d S:%d\n", punchcard-1-n-len("P:n S:n"), "", len(b.Preds), len(b.Succs))

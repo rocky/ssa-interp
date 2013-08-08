@@ -4,17 +4,17 @@ import (
 	"code.google.com/p/go.tools/go/types"
 )
 
-func assignScopeNum(typesScope *types.Scope, scopeNum int) *Scope{
+func assignScopeId(typesScope *types.Scope, scopeId ScopeId) *Scope{
 	scope := &Scope {
 		Scope: typesScope,
-		scopeNum: scopeNum,
+		scopeId: scopeId,
 	}
 	return scope
 }
 
-func AssignScopeNums(pkg *Package, typesScope *types.Scope, scopeNum *int) {
+func AssignScopeIds(pkg *Package, typesScope *types.Scope, scopeId *ScopeId) {
 	node  := typesScope.Node()
-	scope := assignScopeNum(typesScope, *scopeNum)
+	scope := assignScopeId(typesScope, *scopeId)
 	pkg.Ast2Scope[node] = scope
 	pkg.TypeScope2Scope[typesScope] = scope
 	// num2scope = append(num2scope, scope)
@@ -23,10 +23,10 @@ func AssignScopeNums(pkg *Package, typesScope *types.Scope, scopeNum *int) {
 	// 	fmt.Println("+++FuncType")
 	// }
 
-	*scopeNum++
+	*scopeId++
 	n := scope.NumChildren()
 	for i:=0; i<n; i++ {
 		child := typesScope.Child(i)
-		if child != nil { AssignScopeNums(pkg, child, scopeNum) }
+		if child != nil { AssignScopeIds(pkg, child, scopeId) }
 	}
 }

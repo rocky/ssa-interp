@@ -31,7 +31,7 @@ func PrintInEnvironment(fr *interp.Frame, name string) bool {
 	if k, v, scope := EnvLookup(fr, name); k != nil {
 		envStr := ""
 		if scope != nil {
-			envStr = fmt.Sprintf(" at scope %d", scope.ScopeNum())
+			envStr = fmt.Sprintf(" at scope %d", scope.ScopeId())
 		}
 		Msg("%s is in the environment%s", name, envStr)
 		Msg("\t%s = %s", k, DerefValue(v))
