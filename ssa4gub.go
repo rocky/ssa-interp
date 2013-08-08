@@ -16,7 +16,8 @@ import (
 
 
 type LocInst struct {
-	Pos    token.Pos
+	pos    token.Pos
+	endP    token.Pos
 	// Fixme: I don't know how to do a C union "Instruction" typecast
 	Trace  *Trace
 	Fn     *Function
@@ -53,10 +54,12 @@ func (v *Function)  EndP() token.Pos            { return v.endP }
 func (v *Function)  Fset() *token.FileSet       { return v.Prog.Fset }
 func (v *Function)  NamedResults() []*Alloc     { return v.namedResults }
 func (v *Global)    EndP() token.Pos            { return v.endP }
+func (v *LocInst)   EndP() token.Pos            { return v.endP }
 func (v *Parameter) EndP() token.Pos            { return v.endP }
-func (v *Register) setEnd(pos token.Pos)       { v.endP = pos }
+func (v *Register)  setEnd(pos token.Pos)       { v.endP = pos }
 
-func (p *Package) Locs() []LocInst { return p.locs }
+func (v *LocInst)   Pos() token.Pos             { return v.pos }
+func (p *Package)   Locs() []LocInst { return p.locs }
 
 func (prog *Program) PackageByName(name string) *Package {
 	return prog.PackagesByPath[name]

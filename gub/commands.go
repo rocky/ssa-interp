@@ -56,7 +56,6 @@ func LocsCommand(args []string) {
 	fn  := curFrame.Fn()
 	pkg := fn.Pkg
 	for _, l := range pkg.Locs() {
-		// FIXME: ? turn into true range
-		Msg("\t%s", fmtPos(fn, l.Pos))
+		Msg("\t%s", fmtRange(fn, l.Pos(), l.EndP()))
 	}
 }

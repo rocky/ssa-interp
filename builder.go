@@ -2246,7 +2246,8 @@ func (b *builder) buildFunction(fn *Function) {
 	if fn.Prog.mode&LogSource != 0 {
 		defer logStack("build function %s @ %s", fn, fn.Prog.Fset.Position(fn.pos))()
 	}
-	pkg.locs = append(pkg.locs, LocInst{Pos: fn.pos, Trace: nil, Fn: fn})
+	pkg.locs = append(pkg.locs, LocInst{pos: fn.pos, endP: fn.endP,
+		Trace: nil, Fn: fn})
 	fn.startBody(scope)
 	fn.createSyntacticParams()
 	b.stmt(fn, fn.syntax.body, scope)

@@ -135,14 +135,14 @@ func BreakpointCommand(args []string) {
 	if position.IsValid() {
 		filename := position.Filename
 		for _, l := range fn.Pkg.Locs() {
-			try := fset.Position(l.Pos)
+			try := fset.Position(l.Pos())
 			if try.Filename == filename && line == try.Line {
 				if column == -1 || column == try.Column {
 					bp := &Breakpoint {
 						hits: 0,
 						id: len(Breakpoints),
-						pos: l.Pos,
-						endP: l.Pos,
+						pos: l.Pos(),
+						endP: l.Pos(),
 						ignore: 0,
 						kind: "Statement",
 						temp: false,
