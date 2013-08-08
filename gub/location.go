@@ -36,7 +36,7 @@ func init() {
 	}
 }
 
-func fmtPos(fn *ssa2.Function, start token.Pos) string {
+func FmtPos(fn *ssa2.Function, start token.Pos) string {
 	if start == token.NoPos { return "-" }
 	fset := fn.Fset()
 	startP := fset.Position(start)

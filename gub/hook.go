@@ -34,10 +34,10 @@ func skipEvent(fr *interp.Frame, event ssa2.TraceEvent) bool {
 		bps := BreakpointFindByPos(fr.StartP())
 		for _, bpnum := range bps {
 			bp := Breakpoints[bpnum]
-			if !bp.enabled { continue }
+			if !bp.Enabled { continue }
 			// FIXME: check things like the condition
 			curBpnum = bpnum
-			bp.hits ++
+			bp.Hits ++
 			break
 		}
 	}
@@ -69,7 +69,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	if instr == nil {
 		instr = &fr.Block().Instrs[fr.PC()]
 	}
-	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].kind == "Function" {
+	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].Kind == "Function" {
 		event = ssa2.CALL_ENTER
 	}
 	TraceEvent = event

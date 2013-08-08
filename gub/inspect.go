@@ -216,7 +216,7 @@ func WhatisName(name string) {
 		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {
 		Msg("%s is a variable at:", name)
-		Msg("  %s", fmtPos(myfn, v.Pos()))
+		Msg("  %s", FmtPos(myfn, v.Pos()))
 		Msg("  %s", v.Type())
 		if g, ok := curFrame.I().Global(name, pkg); ok {
 			Msg("  %s", *g)
