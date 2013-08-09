@@ -390,13 +390,13 @@ func (f *Function) debugInfo() bool {
 // Precondition: f.syntax != nil (i.e. a Go source function).
 //
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
-	scope := f.Pkg.TypeScope2Scope[obj.Parent()]
-	l := f.addLocal(obj.Type(), obj.Pos(), obj.Pos(), scope)
+	l := f.addLocal(obj.Type(), obj.Pos(), obj.Pos(), nil)
 	l.Comment = obj.Name()
+	l.Scope = f.Pkg.TypeScope2Scope[obj.Parent()]
 	f.objects[obj] = l
 	nameScope := NameScope{
 		Name: obj.Name(),
-		Scope: scope,
+		Scope: l.Scope,
 	}
 	f.LocalsByName[nameScope] = uint(len(f.Locals))
 	return l
