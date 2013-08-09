@@ -371,11 +371,13 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 
 	case *ast.CompositeLit:
 		t := deref(fn.Pkg.typeOf(e))
+		// obj := fn.Pkg.objectOf(e)  // ?? FIXME figure out how to do
+		// scope := fn.Pkg.TypeScope2Scope[obj.Parent()]
 		var v *Alloc
 		if escaping {
 			v = emitNew(fn, t, e.Pos(), e.End())
 		} else {
-			v = fn.addLocal(t, e.Pos(), e.End(), nil)
+			v = fn.addLocal(t, e.Pos(), e.End(), nil) // scope
 		}
 		v.Comment = "complit"
 		b.compLit(fn, v, e, t) // initialize in place
