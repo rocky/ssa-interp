@@ -46,7 +46,6 @@ package interp
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
 	"os"
 	"reflect"
 	"runtime"
@@ -122,7 +121,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.Call:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.env[instr] = call(fr.i, fr.goNum, fr, instr.Pos(), fn, args)
+		fr.env[instr] = call(fr.i, fr.goNum, fr, fn, args)
 
 	case *ssa2.ChangeInterface:
 		fr.env[instr] = fr.get(instr.X)
@@ -206,11 +205,11 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.Defer:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.defers = append(fr.defers, func() { call(fr.i, fr.goNum, fr, instr.Pos(), fn, args) })
+		fr.defers = append(fr.defers, func() { call(fr.i, fr.goNum, fr, fn, args) })
 
 	case *ssa2.Go:
 		fn, args := prepareCall(fr, &instr.Call)
-		go call(fr.i, i.nGoroutines, nil, instr.Pos(), fn, args)
+		go call(fr.i, i.nGoroutines, nil, fn, args)
 
 	case *ssa2.MakeChan:
 		fr.env[instr] = make(chan Value, asInt(fr.get(instr.Size)))
@@ -399,8 +398,7 @@ func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
 // fn with arguments args, returning its result.
 // callpos is the position of the callsite.
 //
-func call(i *interpreter, goNum int, caller *Frame, callpos token.Pos,
-	fn Value, args []Value) Value {
+func call(i *interpreter, goNum int, caller *Frame,	fn Value, args []Value) Value {
 	switch fn := fn.(type) {
 	case *ssa2.Function:
 		if fn == nil {
@@ -644,7 +642,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	}()
 
 	// Run!
-	call(i, 0, nil, token.NoPos, mainpkg.Func("init"), nil)
+	call(i, 0, nil, mainpkg.Func("init"), nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
 		// fr := &Frame{
 		// 	i      : i,
@@ -665,7 +663,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		// Allow defer tracing now that we've hit main
 		// On second thought. We catch defer enter with a call enter.
 		// i.TraceEventMask[ssa2.DEFER_ENTER] = true
-		call(i, 0, nil, token.NoPos, mainFn, nil)
+		call(i, 0, nil, mainFn, nil)
 		exitCode = 0
 	} else {
 		fmt.Fprintln(os.Stderr, "No main function.")
