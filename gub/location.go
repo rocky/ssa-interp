@@ -4,6 +4,7 @@
 package gub
 
 import (
+	"fmt"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 )
@@ -37,10 +38,21 @@ func init() {
 
 func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	event ssa2.TraceEvent) {
-	s := Event2Icon[event] + " "
-	if len(fr.Fn().Name()) > 0 {
-		s += fr.Fn().Name() + "()"
+	s    := Event2Icon[event] + " "
+	fn   := fr.Fn()
+	sig  := fn.Signature
+	name := fn.Name()
+
+	if fn.Signature.Recv() != nil {
+		if len(fn.Params) == 0 {
+			panic("Receiver method "+name+" should have at least 1 param. Has 0.")
+		}
+		s += fmt.Sprintf("(%s).%s()", fn.Params[0].Type(), name)
+	} else {
+		s += name
+		if len(name) > 0 { s += "()" }
 	}
+
 	if *terse {
 		Msg(s)
 	} else {
@@ -48,19 +60,18 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	}
 	switch event {
 	case ssa2.CALL_RETURN:
-		fn := fr.Fn()
-		if fn.Signature.Results() == nil {
+		if sig.Results() == nil {
 			Msg("return void")
 		} else {
-			Msg("return type: %s", fn.Signature.Results())
+			Msg("return type: %s", sig.Results())
 			Msg("return value: %s", Deref2Str(fr.Result()))
 		}
 	case ssa2.CALL_ENTER:
-		for i, p := range fr.Fn().Params {
+		for i, p := range fn.Params {
 			if val := fr.Env()[p]; val != nil {
-				Msg("%s %s", fr.Fn().Params[i], Deref2Str(val))
+				Msg("%s %s", fn.Params[i], Deref2Str(val))
 			} else {
-				Msg("%s nil", fr.Fn().Params[i])
+				Msg("%s nil", fn.Params[i])
 			}
 		}
 	case ssa2.PANIC:

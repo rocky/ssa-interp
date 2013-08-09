@@ -31,11 +31,22 @@ func (f *Function) PositionRange() string {
 }
 
 func (fn *Function) FnAndParamString() string {
-	s := fmt.Sprintf("%s(", fn.Name())
-	params :=""
-	if len(fn.Params) > 0 {
-		params = fn.Params[0].Name()
-		for i:=1; i<len(fn.Params); i++ {
+	var s string
+	i := 0
+	name := fn.Name()
+	if fn.Signature.Recv() != nil {
+		if len(fn.Params) == 0 {
+			panic("Receiver method "+name+" should have at least 1 param. Has 0.")
+		}
+		s = fmt.Sprintf("(%s).%s(", fn.Params[0].Type(), name)
+		i++
+	} else {
+		s = fmt.Sprintf("%s(", fn.Name())
+	}
+	params := ""
+	if len(fn.Params) > i {
+		params = fn.Params[i].Name()
+		for i+=1; i<len(fn.Params); i++ {
 			params += ", " + fn.Params[i].Name()
 		}
 	}
