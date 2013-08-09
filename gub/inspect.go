@@ -78,8 +78,8 @@ func printConstantInfo(c *ssa2.NamedConst, name string, pkg *ssa2.Package) {
 	mem := pkg.Members[name]
 	position := pkg.Prog.Fset.Position(mem.Pos())
 	Msg("Constant %s is a constant at:", mem.Name())
-	Msg("  " + ssa2.PositionRange(position, position))
-	Msg("  %s %s", mem.Type(), interp.ToInspect(c.Value))
+	Msg("\t" + ssa2.PositionRange(position, position))
+	Msg("\t%s", DerefValue(c.Value))
 }
 
 func printFuncInfo(fn *ssa2.Function) {
@@ -199,8 +199,11 @@ func WhatisName(name string) {
 		if i := LocalsLookup(curFrame, varname, curScope); i != 0 {
 			Errmsg("Sorry, dotted variable lookup for local %s not supported yet", varname)
 		} else {
-			try_pkg := curFrame.I().Program().PackageByName(varname)
-			if try_pkg != nil { pkg = try_pkg }
+			try_pkg := curFrame.I().Program().PackagesByName[varname]
+			if try_pkg != nil {
+				fmt.Printf("Got %s\n", try_pkg)
+				pkg = try_pkg
+			}
 			m := pkg.Members[ids[1]]
 			if m == nil {
 				Errmsg("%s is not a member of %s", ids[1], pkg)
@@ -210,7 +213,10 @@ func WhatisName(name string) {
 		}
 	}
 
-	if PrintInEnvironment(curFrame, name) {return}
+	if k, _, _ := EnvLookup(curFrame, name, curScope); k != nil {
+		PrintInEnvironment(curFrame, name)
+		return
+	}
 	if PrintIfLocal(curFrame, name)       {return}
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
@@ -225,7 +231,7 @@ func WhatisName(name string) {
 		printConstantInfo(c, name, pkg)
 	// } else if t := pkg.Type(name); t != nil {
 	// 	printTypeInfo(name, pkg)
-	} else if pkg := curFrame.I().Program().PackageByName(name); pkg != nil {
+	} else if pkg := curFrame.I().Program().PackagesByName[name]; pkg != nil {
 		printPackageInfo(name, pkg)
 	} else {
 		Errmsg("Can't find name: %s", name)

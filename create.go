@@ -38,6 +38,7 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 	prog := &Program{
 		Fset:                fset,
 		PackagesByPath:      make(map[string]*Package),
+		PackagesByName:      make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
 		builtins:            make(map[types.Object]*Builtin),
 		boundMethodWrappers: make(map[*types.Func]*Function),
@@ -70,21 +71,35 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		pkg.Members[name] = &Type{object: obj}
 
 	case *types.Const:
+		pos  := obj.Pos()
+		endP := obj.Pos()
+		if syntax != nil {
+			// if try := syntax.Pos(); try != token.NoPos { pos = try }
+			if try := syntax.End(); try != token.NoPos { endP = try }
+		}
 		c := &NamedConst{
 			object: obj,
-			Value:  NewConst(obj.Val(), obj.Type(), token.NoPos, token.NoPos),
+			Value:  NewConst(obj.Val(), obj.Type(), pos, endP),
+			// Value:  NewConst(obj.Val(), obj.Type(), syntax.Pos(), syntax.End()),
 		}
 		pkg.values[obj] = c.Value
 		pkg.Members[name] = c
 
 	case *types.Var:
 		spec, _ := syntax.(*ast.ValueSpec)
+		pos  := obj.Pos()
+		endP := obj.Pos()
+		if syntax != nil {
+			// if try := syntax.Pos(); try != token.NoPos { pos = try }
+			if try := syntax.End(); try != token.NoPos { endP = try }
+		}
 		g := &Global{
 			Pkg:    pkg,
 			name:   name,
 			object: obj,
 			typ:    types.NewPointer(obj.Type()), // address
-			pos:    obj.Pos(),
+			pos:    pos,
+			endP:   endP,
 			spec:   spec,
 		}
 		pkg.values[obj] = g
@@ -103,12 +118,19 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			}
 			scope = pkg.Ast2Scope[decl.Type]
 		}
+		pos  := obj.Pos()
+		endP := obj.Pos()
+		if syntax != nil {
+			// if try := syntax.Pos(); try != token.NoPos { pos = try }
+			if try := syntax.End(); try != token.NoPos { endP = try }
+		}
 		fn := &Function{
 			name:      name,
 			object:    obj,
 			Signature: obj.Type().(*types.Signature),
 			Synthetic: synthetic,
-			pos:       obj.Pos(), // (iff syntax)
+			pos:       pos,
+			endP:      endP,
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
 			syntax:     fs,
@@ -265,6 +287,7 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 	}
 
 	prog.PackagesByPath[info.Pkg.Path()] = p
+	prog.PackagesByName[p.Object.Name()] = p
 	prog.packages[p.Object] = p
 
 	if prog.mode&SanityCheckFunctions != 0 {

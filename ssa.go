@@ -20,6 +20,7 @@ import (
 type Program struct {
 	Fset           *token.FileSet              // position information for the files of this Program
 	PackagesByPath map[string]*Package         // all loaded Packages, keyed by import path
+	PackagesByName map[string]*Package         // all loaded Packages, package name
 	packages       map[*types.Package]*Package // all loaded Packages, keyed by object
 	builtins       map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
 	mode           BuilderMode                 // set of mode bits for SSA construction

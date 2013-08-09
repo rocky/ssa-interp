@@ -185,7 +185,7 @@ func GetFunction(name string) *ssa2.Function {
 	pkg := curFrame.Fn().Pkg
 	ids := strings.Split(name, ".")
 	if len(ids) > 1 {
-		try_pkg := curFrame.I().Program().PackageByName(ids[0])
+		try_pkg := curFrame.I().Program().PackagesByName[ids[0]]
 		if try_pkg != nil { pkg = try_pkg }
 		m := pkg.Members[ids[1]]
 		if m == nil { return nil }

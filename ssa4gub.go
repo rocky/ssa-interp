@@ -61,9 +61,4 @@ func (v *Register)  setEnd(pos token.Pos)       { v.endP = pos }
 func (v *LocInst)   Pos() token.Pos             { return v.pos }
 func (p *Package)   Locs() []LocInst { return p.locs }
 
-func (prog *Program) PackageByName(name string) *Package {
-	return prog.PackagesByPath[name]
-}
-
-
 func (s *Scope) ScopeId() ScopeId { return s.scopeId }
