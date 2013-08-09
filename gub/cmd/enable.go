@@ -32,7 +32,7 @@ func EnableCommand(args []string) {
 				gub.Msg("Breakpoint %d is already enabled", bpnum)
 				continue
 			}
-			if gub.BreakpointEnsable(bpnum) {
+			if gub.BreakpointEnable(bpnum) {
 				gub.Msg("Breakpoint %d enabled", bpnum)
 			} else {
 				gub.Errmsg("Trouble enabling breakpoint %d", bpnum)
