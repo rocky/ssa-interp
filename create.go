@@ -74,13 +74,12 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		pos  := obj.Pos()
 		endP := obj.Pos()
 		if syntax != nil {
-			// if try := syntax.Pos(); try != token.NoPos { pos = try }
+			if try := syntax.Pos(); try != token.NoPos { pos = try }
 			if try := syntax.End(); try != token.NoPos { endP = try }
 		}
 		c := &NamedConst{
 			object: obj,
 			Value:  NewConst(obj.Val(), obj.Type(), pos, endP),
-			// Value:  NewConst(obj.Val(), obj.Type(), syntax.Pos(), syntax.End()),
 		}
 		pkg.values[obj] = c.Value
 		pkg.Members[name] = c

@@ -18,7 +18,7 @@ testdata/gcd.go:24:6
 # down
 ** Adjusting would put us beyond the newest frame.
 # break gcd
- Breakpoint 0 set in function gcd at testdata/gcd.go:10:6
+ Breakpoint 0 set in function gcd at testdata/gcd.go:10:6-22:2
 Continuing...
 ->  gcd()
 parameter a : int 5

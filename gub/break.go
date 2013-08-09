@@ -2,6 +2,8 @@ package gub
 
 import (
 	"go/token"
+	"github.com/rocky/ssa-interp"
+	"fmt"
 )
 
 type Breakpoint struct {
@@ -90,4 +92,46 @@ func BreakpointIsEnabled(bpnum int) bool {
 
 func IsBreakpointEmpty() bool {
 	return len(Breakpoints) == 0
+}
+
+func Bpprint(bp Breakpoint) {
+
+	disp := "keep "
+	if bp.Temp {
+		disp  = "del  "
+	}
+	enabled := "n "
+	if bp.Enabled { enabled = "y " }
+
+	loc  := ssa2.FmtRange(curFrame.Fn(), bp.Pos, bp.EndP)
+    mess := fmt.Sprintf("%3d breakpoint    %s  %sat %s",
+		bp.Id, disp, enabled, loc)
+	Msg(mess)
+
+    // line_loc = '%s:%d' %
+    //   [iseq.source_container.join(' '),
+    //    iseq.offset2lines(bp.offset).join(', ')]
+
+    // loc, other_loc =
+    //   if 'line' == bp.type
+    //     [line_loc, vm_loc]
+    //   else # 'offset' == bp.type
+    //     [vm_loc, line_loc]
+    //   end
+    // Msg(mess + loc)
+    // Msg("\t#{other_loc}") if verbose
+
+    // if bp.condition && bp.condition != 'true'
+    //   Msg("\tstop %s %s" %
+    //       [bp.negate ? "unless" : "only if", bp.condition])
+    // end
+    if bp.Ignore > 0 {
+		Msg("\tignore next %d hits", bp.Ignore)
+	}
+    if bp.Hits > 0 {
+		ss := ""
+		if bp.Hits > 1 { ss = "s" }
+		Msg("\tbreakpoint already hit %d time%s",
+			bp.Hits, ss)
+	}
 }

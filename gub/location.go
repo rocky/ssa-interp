@@ -4,7 +4,6 @@
 package gub
 
 import (
-	"go/token"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 )
@@ -34,13 +33,6 @@ func init() {
 		ssa2.SWITCH_COND: "sw?",
 		ssa2.STMT_IN_LIST: "---",
 	}
-}
-
-func FmtPos(fn *ssa2.Function, start token.Pos) string {
-	if start == token.NoPos { return "-" }
-	fset := fn.Fset()
-	startP := fset.Position(start)
-	return ssa2.PositionRange(startP, startP)
 }
 
 func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,

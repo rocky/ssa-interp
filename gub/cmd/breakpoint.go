@@ -4,6 +4,7 @@ package gubcmd
 
 import (
 	"strconv"
+	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 	"github.com/rocky/ssa-interp/gub"
 )
@@ -52,7 +53,7 @@ func BreakpointCommand(args []string) {
 		}
 		bpnum := gub.BreakpointAdd(bp)
 		gub.Msg(" Breakpoint %d set in function %s at %s", bpnum, name,
-			gub.FmtPos(fn, fn.Pos()))
+			ssa2.FmtRange(fn, fn.Pos(), fn.EndP()))
 		return
 	}
 	line, ok := strconv.Atoi(args[1])

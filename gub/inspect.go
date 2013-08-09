@@ -37,13 +37,18 @@ func PrintLocal(fr *interp.Frame, i uint) {
 	v    := fr.Local(i)
 	l    := fn.Locals[i]
 	name := l.Name()
+	scope := l.Scope
+	scopeStr := ""
+	if scope != nil {
+		scopeStr = fmt.Sprintf(" scope %d", scope.ScopeId())
+	}
 	if name[0] == 't' && fr.Reg2Var[name] != "" {
-		Msg("%3d:\t%s %s (%s) = %s scope %d %s", i, fr.Reg2Var[name], name,
-			deref(l.Type()), interp.ToInspect(v), l.Scope.ScopeId(),
+		Msg("%3d:\t%s %s (%s) = %s%s %s", i, fr.Reg2Var[name], name,
+			deref(l.Type()), interp.ToInspect(v), scopeStr,
 			ssa2.FmtRange(fn, l.Pos(), l.EndP()))
 	} else {
-		Msg("%3d:\t%s %s = %s scope %d %s", i, l.Name(), deref(l.Type()),
-			interp.ToInspect(v), l.Scope.ScopeId(), ssa2.FmtRange(fn, l.Pos(),
+		Msg("%3d:\t%s %s = %s%s %s", i, l.Name(), deref(l.Type()),
+			interp.ToInspect(v), scopeStr, ssa2.FmtRange(fn, l.Pos(),
 				l.EndP()))
 	}
 }
@@ -222,7 +227,7 @@ func WhatisName(name string) {
 		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {
 		Msg("%s is a variable at:", name)
-		Msg("  %s", FmtPos(myfn, v.Pos()))
+		Msg("  %s", ssa2.FmtRange(myfn, v.Pos(), v.EndP()))
 		Msg("  %s", v.Type())
 		if g, ok := curFrame.I().Global(name, pkg); ok {
 			Msg("  %s", *g)

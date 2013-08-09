@@ -124,6 +124,13 @@ func PositionRangeSansFile(start token.Position, end token.Position) string {
 	}
 	return s
 }
+
+func FmtPos(fset *token.FileSet, start token.Pos) string {
+	if start == token.NoPos { return "-" }
+	startP := fset.Position(start)
+	return PositionRange(startP, startP)
+}
+
 func FmtRangeWithFset(fset *token.FileSet, start token.Pos, end token.Pos) string {
 	startP := fset.Position(start)
 	endP   := fset.Position(end)
