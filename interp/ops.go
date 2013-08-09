@@ -868,7 +868,7 @@ func typeAssert(i *interpreter, instr *ssa2.TypeAssert, itf iface) Value {
 
 // callBuiltin interprets a call to builtin fn with arguments args,
 // returning its result.
-func callBuiltin(caller *Frame, callpos token.Pos, fn *ssa2.Builtin, args []Value) Value {
+func callBuiltin(caller *Frame, fn *ssa2.Builtin, args []Value) Value {
 	switch fn.Name() {
 	case "append":
 		if len(args) == 1 {

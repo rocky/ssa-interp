@@ -410,7 +410,7 @@ func call(i *interpreter, goNum int, caller *Frame, callpos token.Pos,
 	case *closure:
 		return callSSA(i, goNum, caller, fn.fn, args, fn.env)
 	case *ssa2.Builtin:
-		return callBuiltin(caller, callpos, fn, args)
+		return callBuiltin(caller, fn, args)
 	}
 	panic(fmt.Sprintf("cannot call %T", fn))
 }
