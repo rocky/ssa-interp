@@ -406,34 +406,29 @@ func call(i *interpreter, goNum int, caller *Frame, callpos token.Pos,
 		if fn == nil {
 			panic("call of nil function") // nil of func type
 		}
-		return callSSA(i, goNum, caller, callpos, fn, args, nil)
+		return callSSA(i, goNum, caller, fn, args, nil)
 	case *closure:
-		return callSSA(i, goNum, caller, callpos, fn.fn, args, fn.env)
+		return callSSA(i, goNum, caller, fn.fn, args, fn.env)
 	case *ssa2.Builtin:
 		return callBuiltin(caller, callpos, fn, args)
 	}
 	panic(fmt.Sprintf("cannot call %T", fn))
 }
 
-func loc(fset *token.FileSet, pos token.Pos) string {
-	if pos == token.NoPos {
-		return ""
-	}
-	return " at " + fset.Position(pos).String()
-}
-
 // callSSA interprets a call to function fn with arguments args,
 // and lexical environment env, returning its result.
 // callpos is the position of the callsite.
 //
-func callSSA(i *interpreter, goNum int, caller *Frame, callpos token.Pos, fn *ssa2.Function, args []Value, env []Value) Value {
+func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args []Value, env []Value) Value {
 	if InstTracing() {
 		fset := fn.Prog.Fset
-		// TODO(adonovan): fix: loc() lies for external functions.
-		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn, loc(fset, fn.Pos()))
+		// TODO: fix: FmtRangeWithFset lies for external functions?
+		loc := ssa2.FmtRangeWithFset(fset, caller.startP, caller.endP)
+		fmt.Fprintf(os.Stderr, "Entering %s at %s.\n", fn, loc)
 		suffix := ""
 		if caller != nil {
-			suffix = ", resuming " + caller.fn.String() + loc(fset, callpos)
+			suffix = fmt.Sprintf(", resuming %s at %s", caller.fn.String(),
+				loc)
 		}
 		defer fmt.Fprintf(os.Stderr, "Leaving %s%s.\n", fn, suffix)
 	}
