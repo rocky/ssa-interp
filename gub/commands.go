@@ -11,6 +11,7 @@ type CmdInfo struct {
 	Max_args int
 	Fn CmdFunc
 	Aliases []string
+	SubcmdMgr *SubcmdMgr
 }
 
 var Cmds map[string]*CmdInfo  = make(map[string]*CmdInfo)

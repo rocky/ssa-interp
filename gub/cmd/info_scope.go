@@ -16,7 +16,7 @@ import (
 
 func init() {
 	parent := "info"
-	gub.Subcmds[parent] = &gub.SubcmdInfo{
+	gub.AddSubCommand(parent, &gub.SubcmdInfo{
 		Fn: InfoScopeSubcmd,
 		Help: `info scope [level]
 
@@ -25,7 +25,9 @@ If a level is given, we go up that many levels.
 `,
 		Min_args: 1,
 		Max_args: 2,
-	}
+		Short_help: "Scope information",
+		Name: "scope",
+	})
 }
 
 func InfoScopeSubcmd(args []string) {

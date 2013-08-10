@@ -26,7 +26,7 @@ shown. For a list of categories, enter "help categories".
 `,
 
 		Min_args: 0,
-		Max_args: 1,
+		Max_args: 2,
 	}
 	gub.AddToCategory("support", name)
 	gub.AddAlias("?", name)
@@ -58,6 +58,12 @@ func HelpCommand(args []string) {
 				gub.Msg("\t %s", k)
 			}
 		} else if info := gub.Cmds[cmd]; info != nil {
+			if len(args) > 2 {
+				if info.SubcmdMgr != nil {
+					gub.HelpSubCommand(info.SubcmdMgr, args)
+					return
+				}
+			}
 			gub.Msg(info.Help)
 			if len(info.Aliases) > 0 {
 				gub.Msg("Aliases: %s",

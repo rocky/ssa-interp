@@ -6,15 +6,17 @@ import 	"github.com/rocky/ssa-interp/gub"
 
 func init() {
 	parent := "info"
-	gub.Subcmds[parent] = &gub.SubcmdInfo{
+	gub.AddSubCommand(parent, &gub.SubcmdInfo{
 		Fn: InfoScopeSubcmd,
 		Help: `info breakpoint
 
 Show status of user-settable breakpoints.
 `,
-		Min_args: 0,
-		Max_args: 0,
-	}
+		Min_args: 1,
+		Max_args: 2,
+		Short_help: "Status of user-settable breakpoints",
+		Name: "breakpoint",
+	})
 }
 
 func InfoBreakpointSubcmd() {
