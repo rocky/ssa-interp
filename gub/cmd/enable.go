@@ -1,7 +1,7 @@
 // Copyright 2013 Rocky Bernstein.
 package gubcmd
 import (
-	"strconv"
+	"fmt"
 	"github.com/rocky/ssa-interp/gub"
 )
 
@@ -19,14 +19,13 @@ Enable a breakpoint by the number assigned to it.`,
 	gub.AddToCategory("breakpoints", name)
 }
 
-// FIXME: DRY with Disnable?
+// FIXME: DRY with Disable and Delete?
 func EnableCommand(args []string) {
 	for i:=1; i<len(args); i++ {
-		bpnum, ok := strconv.Atoi(args[i])
-		if ok != nil {
-			gub.Errmsg("Expecting integer breakpoint for argument %d; got %s", i, args[i])
-			continue
-		}
+		msg := fmt.Sprintf("breakpoint number for argument %d", i)
+		val, err := gub.GetUInt(args[i], msg, 0, uint64(len(gub.Breakpoints)-1))
+		if err != nil { continue }
+		bpnum := gub.BpId(val)
 		if gub.BreakpointExists(bpnum) {
 			if gub.BreakpointIsEnabled(bpnum) {
 				gub.Msg("Breakpoint %d is already enabled", bpnum)

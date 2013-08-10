@@ -5,11 +5,11 @@ package gub
 type SubcmdFunc func([]string)
 
 type SubcmdInfo struct {
-	help string
-	short_help string
-	min_args int
-	max_args int
-	fn SubcmdFunc
+	Help string
+	Short_help string
+	Min_args int
+	Max_args int
+	Fn SubcmdFunc
 }
 
-var subcmds map[string]*SubcmdInfo  = make(map[string]*SubcmdInfo)
+var Subcmds map[string]*SubcmdInfo  = make(map[string]*SubcmdInfo)

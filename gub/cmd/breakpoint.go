@@ -30,7 +30,7 @@ want to distinguish parts of a compound statement`,
 
 func BreakpointCommand(args []string) {
 	if len(args) == 1 {
-		gub.InfoBreakpointSubcmd()
+		InfoBreakpointSubcmd()
 		return
 	}
 	name := args[1]
@@ -43,7 +43,7 @@ func BreakpointCommand(args []string) {
 		interp.SetFnBreakpoint(fn)
 		bp := &gub.Breakpoint {
 			Hits: 0,
-			Id: len(gub.Breakpoints),
+			Id: gub.BreakpointNext(),
 			Pos: fn.Pos(),
 			EndP: fn.EndP(),
 			Ignore: 0,
@@ -83,7 +83,7 @@ func BreakpointCommand(args []string) {
 				if column == -1 || column == try.Column {
 					bp := &gub.Breakpoint {
 						Hits: 0,
-						Id: len(gub.Breakpoints),
+						Id: gub.BreakpointNext(),
 						Pos: l.Pos(),
 						EndP: l.Pos(),
 						Ignore: 0,

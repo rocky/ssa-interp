@@ -42,6 +42,11 @@ func InfoProgramSubcmd() {
 	gub.Msg("position: %s", gub.CurFrame().PositionRange())
 }
 
+func InfoPCSubcmd() {
+	fr := gub.CurFrame()
+	gub.Msg("instruction number: %d of block %d", fr.PC(), fr.Block().Index)
+}
+
 func InfoCommand(args []string) {
 	if len(args) == 2 {
 		switch args[1] {
@@ -51,10 +56,12 @@ func InfoCommand(args []string) {
 			InfoFrameSubcmd()
 		case "program":
 			InfoProgramSubcmd()
+		case "PC", "pc":
+			InfoPCSubcmd()
 		case "breakpoint", "break":
-			gub.InfoBreakpointSubcmd()
+			InfoBreakpointSubcmd()
 		case "scope":
-			gub.InfoScopeSubcmd(args)
+			InfoScopeSubcmd(args)
 		case "stack":
 			gub.PrintStack(gub.TopFrame(), gub.MAXSTACKSHOW)
 		}

@@ -1,40 +1,39 @@
 // Copyright 2013 Rocky Bernstein.
+// Debugger breakpoint delete command
 package gubcmd
+
 import (
 	"fmt"
-	"github.com/rocky/ssa-interp/gub"
+ 	"github.com/rocky/ssa-interp/gub"
 )
 
 func init() {
-	name := "disable"
+	name := "delete"
 	gub.Cmds[name] = &gub.CmdInfo{
-		Fn: DisableCommand,
-		Help: `Disable [bpnum1 ...]
+		Fn: DeleteCommand,
+		Help: `Delete [bpnum1 ...]
 
-Disable a breakpoint by the number assigned to it.`,
+Delete a breakpoint by the number assigned to it.`,
 
 		Min_args: 0,
 		Max_args: -1,
 	}
 	gub.AddToCategory("breakpoints", name)
+	// Down the line we'll have abbrevs
+	gub.AddAlias("del", name)
 }
 
-// FIXME: DRY with Enable and Delete?
-func DisableCommand(args []string) {
+func DeleteCommand(args []string) {
 	for i:=1; i<len(args); i++ {
 		msg := fmt.Sprintf("breakpoint number for argument %d", i)
 		val, err := gub.GetUInt(args[i], msg, 0, uint64(len(gub.Breakpoints)-1))
 		if err != nil { continue }
 		bpnum := gub.BpId(val)
 		if gub.BreakpointExists(bpnum) {
-			if !gub.BreakpointIsEnabled(bpnum) {
-				gub.Msg("Breakpoint %d is already disabled", bpnum)
-				continue
-			}
-			if gub.BreakpointDisable(bpnum) {
-				gub.Msg("Breakpoint %d disabled", bpnum)
+			if gub.BreakpointDelete(bpnum) {
+				gub.Msg(" Deleted breakpoint %d", bpnum)
 			} else {
-				gub.Errmsg("Trouble disabling breakpoint %d", bpnum)
+				gub.Errmsg("Trouble deleting breakpoint %d", bpnum)
 			}
 		} else {
 			gub.Errmsg("Breakpoint %d doesn't exist", bpnum)

@@ -25,11 +25,11 @@ var InCmdLoop bool
 var CmdArgstr string
 
 // if we are stopped by breakpoint, this is the breakpoint number.
-// Otherwise this is < 0.
-var curBpnum int
+const NoBp = 0xfffff
+var curBpnum BpId
 
 func skipEvent(fr *interp.Frame, event ssa2.TraceEvent) bool {
-	curBpnum = -1
+	curBpnum = NoBp
 	if event == ssa2.BREAKPOINT {
 		bps := BreakpointFindByPos(fr.StartP())
 		for _, bpnum := range bps {

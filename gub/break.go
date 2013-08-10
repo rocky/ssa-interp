@@ -6,10 +6,12 @@ import (
 	"fmt"
 )
 
+type BpId uint64
+
 type Breakpoint struct {
 	// condition
 	Hits    int       // How many times hit (with a true condition)
-	Id      int       // Id of breakpoint. Is position inside of Breakpoints
+	Id      BpId      // Id of breakpoint. Is position inside of Breakpoints
 	Deleted bool      // Set when breakpoint is deleted
 	Temp    bool      // Set when one-time breakpoint
 	Enabled bool      // Set when breakpoint is enabled
@@ -26,7 +28,7 @@ var Breakpoints []*Breakpoint
 // of a slice of breakpoint numbers
 type toknum struct {
 	pos token.Pos
-	bpnum int
+	bpnum BpId
 }
 var BrkptLocs []toknum = make([]toknum, 0)
 
@@ -35,20 +37,20 @@ var BrkptLocs []toknum = make([]toknum, 0)
 // We use BrkptDeleted to compensate in breakpoint counts.
 var BrkptsDeleted = 0
 
-func BreakpointAdd(bp *Breakpoint) int {
+func BreakpointAdd(bp *Breakpoint) BpId {
 	Breakpoints = append(Breakpoints, bp)
 	BrkptLocs = append(BrkptLocs, toknum{pos: bp.Pos, bpnum: bp.Id})
-	return len(Breakpoints)-1
+	return BpId(len(Breakpoints)-1)
 }
 
-func BreakpointExists(bpnum int) bool {
-	if bpnum < len(Breakpoints) {
+func BreakpointExists(bpnum BpId) bool {
+	if bpnum < BpId(len(Breakpoints)) {
 		return !Breakpoints[bpnum].Deleted
 	}
 	return false
 }
 
-func BreakpointDelete(bpnum int) bool {
+func BreakpointDelete(bpnum BpId) bool {
 	if BreakpointExists(bpnum) {
 		Breakpoints[bpnum].Deleted = true
 		return true
@@ -56,7 +58,7 @@ func BreakpointDelete(bpnum int) bool {
 	return false
 }
 
-func BreakpointDisable(bpnum int) bool {
+func BreakpointDisable(bpnum BpId) bool {
 	if BreakpointExists(bpnum) {
 		Breakpoints[bpnum].Enabled = false
 		return true
@@ -64,7 +66,7 @@ func BreakpointDisable(bpnum int) bool {
 	return false
 }
 
-func BreakpointEnable(bpnum int) bool {
+func BreakpointEnable(bpnum BpId) bool {
 	if BreakpointExists(bpnum) {
 		Breakpoints[bpnum].Enabled = true
 		return true
@@ -72,8 +74,8 @@ func BreakpointEnable(bpnum int) bool {
 	return false
 }
 
-func BreakpointFindByPos(pos token.Pos) []int {
-	results := make([]int, 0)
+func BreakpointFindByPos(pos token.Pos) []BpId {
+	results := make([]BpId, 0)
 	for _, v := range BrkptLocs {
 		if v.pos == pos && !Breakpoints[v.bpnum].Deleted {
 			results = append(results, v.bpnum)
@@ -82,13 +84,17 @@ func BreakpointFindByPos(pos token.Pos) []int {
 	return results
 }
 
-func BreakpointIsEnabled(bpnum int) bool {
+func BreakpointIsEnabled(bpnum BpId) bool {
 	if BreakpointExists(bpnum) {
 		return Breakpoints[bpnum].Enabled
 	}
 	return false
 }
 
+
+func BreakpointNext() BpId {
+	return BpId(len(Breakpoints))
+}
 
 func IsBreakpointEmpty() bool {
 	return len(Breakpoints) == 0
