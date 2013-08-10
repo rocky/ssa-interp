@@ -1,10 +1,11 @@
 Running....
-Gub version 0.1
+Gub version 0.2
 Type 'h' for help
 ->  main()
 testdata/expr.go:84:6
 # Test of eval
 # Use with expr.go
+Setting highlight off
 Step over...
 --- main()
 testdata/expr.go:86:2-96:3

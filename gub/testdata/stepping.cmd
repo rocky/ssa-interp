@@ -1,5 +1,6 @@
 # Test of "step", "next" and "finish"
 # Use with gcd.go
+set highlight off
 step
 step
 # Should now be in gcd(5,3) - the first time

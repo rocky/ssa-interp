@@ -1,12 +1,25 @@
 package gub
 
 import (
+	"github.com/mgutz/ansi"
 	"fmt"
 	"os"
 )
 
+var	termReset, termBold, termHighlight string
+
+func init() {
+	termReset     = ansi.ColorCode("reset")
+	termBold      = ansi.ColorCode("+b")
+	termHighlight = ansi.ColorCode("+h")
+}
+
 func Errmsg(format string, a ...interface{}) (n int, err error) {
-	format = "** " + format + "\n"
+	if *Highlight {
+		format = termHighlight + format + termReset + "\n"
+	} else {
+		format = "** " + format + "\n"
+	}
 	return fmt.Fprintf(os.Stdout, format, a...)
 }
 
@@ -16,8 +29,11 @@ func Msg(format string, a ...interface{}) (n int, err error) {
 }
 
 // A more emphasized version of msg. For section headings.
-// FIXME: For now this is just a placeholder. Really do something here
 func Section(format string, a ...interface{}) (n int, err error) {
-	format = format + "\n"
+	if *Highlight {
+		format = termBold + format + termReset + "\n"
+	} else {
+		format = format + "\n"
+	}
 	return fmt.Fprintf(os.Stdout, format, a...)
 }

@@ -1,5 +1,6 @@
 # Test of eval
 # Use with expr.go
+set highlight off
 next
 next
 next

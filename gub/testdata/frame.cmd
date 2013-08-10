@@ -1,5 +1,6 @@
 # Test of frame motion
 # Use with gcd.go
+set highlight off
 # frame 0
 frame 0
 # frame 10

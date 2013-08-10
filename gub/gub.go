@@ -15,17 +15,18 @@ import (
 	"github.com/rocky/ssa-interp/interp"
 )
 
-var terse = flag.Bool("terse", true, `abbreviated output`)
+var terse     = flag.Bool("terse", true, `abbreviated output`)
+var Highlight = flag.Bool("highlight", true, `use syntax highlighting in output`)
 var inputFilename = flag.String("cmdfile", "", `cmdfile *commandfile*.`)
 var inputFile *os.File
 var inputReader *bufio.Reader
 var buffer = bytes.NewBuffer(make([]byte, 1024))
 
 const (
-	version string = "0.1"
+	version string = "0.2"
 )
 
-var Term string
+var Term string  // TERM environment variable
 var Maxwidth int
 var initial_cwd string
 var GUB_RESTART_CMD string
