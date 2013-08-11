@@ -39,6 +39,7 @@ import (
 
 	"code.google.com/p/go.tools/go/types"
 	"github.com/rocky/ssa-interp"
+	"runtime/debug"
 )
 
 type Value interface{}
@@ -291,6 +292,7 @@ func hash(x Value) int {
 	case rtype:
 		return x.hash()
 	}
+	debug.PrintStack()
 	panic(fmt.Sprintf("%T is unhashable", x))
 }
 
@@ -330,6 +332,7 @@ func copyVal(v Value) Value {
 	case rtype:
 		return v
 	}
+	debug.PrintStack()
 	panic(fmt.Sprintf("cannot copy %T", v))
 }
 

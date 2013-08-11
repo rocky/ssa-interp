@@ -7,7 +7,9 @@ import (
 
 // Emulated functions from runtime/debug.go
 func debug۰PrintStack(fr *Frame) {
-	fmt.Printf(string(runtime۰Stack(fr)))
+	buf := make([]byte, 5000) // the returned data
+	n := runtime۰Stack(fr, buf)
+	fmt.Printf(string(buf[:n]))
 }
 
 // source returns a space-trimmed slice of the n'th line.

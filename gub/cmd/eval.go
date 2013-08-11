@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"github.com/rocky/ssa-interp/gub"
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/go/exact"
 	// "go/ast"
 	// "fmt"
 )
@@ -33,11 +34,13 @@ func EvalCommand(args []string) {
 		return
 	}
 
-	fr := gub.CurFrame()
-	fset := fr.Fset()
-	typesScope := fr.Scope().Scope
-	typesPkg := fr.Fn().Pkg.Object
-	typ, val, err := types.EvalNode(fset, expr, typesPkg, typesScope)
+	var typ types.Type
+	var val exact.Value
+	// fr := gub.CurFrame()
+	// fset := fr.Fset()
+	// typesScope := fr.Scope().Scope
+	// typesPkg := fr.Fn().Pkg.Object
+	// typ, val, err := types.EvalNode(fset, expr, typesPkg, typesScope)
 	// fmt.Println("typ:", typ, ", val:", val, ", err:", err)
 	// ast.Print(fset, expr)
 	if err == nil {

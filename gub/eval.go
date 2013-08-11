@@ -140,13 +140,13 @@ func IndexExpr(e *ast.IndexExpr) exact.Value {
 }
 
 // FIXME: returning exact.Value down the line is probably not going to
-// cut it
+// cut it. We want an ssa2.Value
 func EvalExprStart(n ast.Node, typ types.Type) exact.Value {
 	return EvalExpr(n)
 }
 
 // FIXME: returning exact.Value down the line is probably not going to
-// cut it
+// cut it. We want an ssa2.Value.
 func EvalExpr(n ast.Node) exact.Value {
 	switch e := n.(type) {
 	case *ast.BasicLit:
@@ -184,7 +184,8 @@ func EvalExpr(n ast.Node) exact.Value {
 		fn := curFrame.Fn()
 		sel := fn.Pkg.Info().Selections[e]
 		if sel == nil {
-			Errmsg("Why is sel nil?")
+			Errmsg("Can't handle selection yet.")
+			fmt.Println(fn.Pkg.Info().Selections[e])
 			return nil
 		}
 		switch sel.Kind() {

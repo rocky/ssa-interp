@@ -25,6 +25,22 @@ func fn2Num(fn *ssa2.Function) uint {
 	return fn2NumMap[fn]
 }
 
+func byteAry2ValueAry(ary[] byte) []Value {
+	var result []Value
+	for _, word := range ary {
+		result = append(result, word)
+	}
+	return result
+}
+
+func ValueAry2byteAry(ary[] Value) []byte {
+	var result []byte
+	for _, word := range ary {
+		result = append(result, word.(byte))
+	}
+	return result
+}
+
 func ext۰os۰Exit(fr *Frame, args []Value) Value {
 	msg := fmt.Sprintf("exit status %d", args[0].(int))
 	io.WriteString(os.Stderr, msg)
@@ -43,7 +59,13 @@ func ext۰debug۰PrintStack(fr *Frame, args []Value) Value {
 }
 
 func ext۰runtime۰Stack(fr *Frame, args []Value) Value {
-	return runtime۰Stack(fr)
+	bufVal := args[0].([]Value)
+	buf := ValueAry2byteAry(bufVal)
+	n := runtime۰Stack(fr, buf)
+	for i, _ := range buf {
+		bufVal[i] = buf[i]
+	}
+	return n
 }
 
 // FIXME: this isn't used because it is internally called
