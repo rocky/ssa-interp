@@ -4,6 +4,9 @@ package gubcmd
 import (
 	"go/parser"
 	"github.com/rocky/ssa-interp/gub"
+	"code.google.com/p/go.tools/go/types"
+	// "go/ast"
+	// "fmt"
 )
 
 func init() {
@@ -29,7 +32,23 @@ func EvalCommand(args []string) {
 		gub.Errmsg("Error parsing %s: %s", gub.CmdArgstr, err.Error())
 		return
 	}
-	if val := gub.EvalExpr(expr); val != nil {
-		gub.Msg("%s", val)
+
+	fr := gub.CurFrame()
+	fset := fr.Fset()
+	typesScope := fr.Scope().Scope
+	typesPkg := fr.Fn().Pkg.Object
+	typ, val, err := types.EvalNode(fset, expr, typesPkg, typesScope)
+	// fmt.Println("typ:", typ, ", val:", val, ", err:", err)
+	// ast.Print(fset, expr)
+	if err == nil {
+		if val != nil {
+			gub.Msg("%s", val)
+		} else {
+			if val := gub.EvalExprStart(expr, typ); val != nil {
+				gub.Msg("%s", val)
+			}
+		}
+	} else {
+		gub.Errmsg("%s", err)
 	}
 }

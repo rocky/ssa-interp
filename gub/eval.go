@@ -10,6 +10,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
+	"code.google.com/p/go.tools/go/types"
 )
 
 func DerefValue(v interp.Value) interp.Value {
@@ -140,45 +141,69 @@ func IndexExpr(e *ast.IndexExpr) exact.Value {
 
 // FIXME: returning exact.Value down the line is probably not going to
 // cut it
+func EvalExprStart(n ast.Node, typ types.Type) exact.Value {
+	return EvalExpr(n)
+}
+
+// FIXME: returning exact.Value down the line is probably not going to
+// cut it
 func EvalExpr(n ast.Node) exact.Value {
-		switch e := n.(type) {
-		case *ast.BasicLit:
-			return Val(e.Value)
-		case *ast.BinaryExpr:
-			x := EvalExpr(e.X)
-			if x == nil { return nil }
-			y := EvalExpr(e.Y)
-			if y == nil { return nil }
-			switch e.Op {
-			case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
-				return exact.MakeBool(exact.Compare(x, e.Op, y))
-			case token.SHL, token.SHR:
-				s, _ := exact.Int64Val(y)
-				return exact.Shift(x, e.Op, uint(s))
-			default:
-				return exact.BinaryOp(x, e.Op, y)
-			}
-		case *ast.UnaryExpr:
-			return exact.UnaryOp(e.Op, EvalExpr(e.X), -1)
-		case *ast.CallExpr:
-			Errmsg("Can't handle call (%s) yet at pos %d", e.Fun, e.Pos())
-			return nil
-		case *ast.Ident:
-			if k, val, _ := EnvLookup(curFrame, e.Name, curScope); k != nil {
-				return Val(val)
-			}
-			Errmsg("Can't find value for id '%s' here at pos %d", e.Name, e.Pos())
-			return nil
-		case *ast.ParenExpr:
-			return EvalExpr(e.X)
-		case *ast.IndexExpr:
-			return IndexExpr(e)
+	switch e := n.(type) {
+	case *ast.BasicLit:
+		return Val(e.Value)
+	case *ast.BinaryExpr:
+		x := EvalExpr(e.X)
+		if x == nil { return nil }
+		y := EvalExpr(e.Y)
+		if y == nil { return nil }
+		switch e.Op {
+		case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
+			return exact.MakeBool(exact.Compare(x, e.Op, y))
+		case token.SHL, token.SHR:
+			s, _ := exact.Int64Val(y)
+			return exact.Shift(x, e.Op, uint(s))
 		default:
-			fmt.Println("Can't handle")
-			fmt.Printf("n: %s, e: %s\n", n, e)
+			return exact.BinaryOp(x, e.Op, y)
+		}
+	case *ast.UnaryExpr:
+		return exact.UnaryOp(e.Op, EvalExpr(e.X), -1)
+	case *ast.CallExpr:
+		Errmsg("Can't handle call (%s) yet at pos %d", e.Fun, e.Pos())
+		return nil
+	case *ast.Ident:
+		if k, val, _ := EnvLookup(curFrame, e.Name, curScope); k != nil {
+			return Val(val)
+		}
+		Errmsg("Can't find value for id '%s' here at pos %d", e.Name, e.Pos())
+		return nil
+	case *ast.ParenExpr:
+		return EvalExpr(e.X)
+	case *ast.IndexExpr:
+		return IndexExpr(e)
+	case *ast.SelectorExpr:
+		fn := curFrame.Fn()
+		sel := fn.Pkg.Info().Selections[e]
+		if sel == nil {
+			Errmsg("Why is sel nil?")
 			return nil
 		}
+		switch sel.Kind() {
+		case types.PackageObj:
+			obj := sel.Obj()
+			Msg("todo: pick up from %s", obj)
+			// Errmsg("undefined package-qualified name: " + obj.Name())
+		case types.FieldVal:
+			Msg("todo: pick up %d, from %s", sel.Index(), sel.Obj)
+		}
+		fmt.Println("Can't handle selector")
+		fmt.Printf("n: %s, e: %s\n", n, e)
+		return nil
+	default:
+		fmt.Println("Can't handle")
+		fmt.Printf("n: %s, e: %s\n", n, e)
+		return nil
 	}
+}
 
 // Could something like this go into interp-ssa?
 func GetFunction(name string) *ssa2.Function {

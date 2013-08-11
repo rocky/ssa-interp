@@ -2417,7 +2417,7 @@ func (p *Package) Build() {
 		}
 	}
 
-	p.info = nil // We no longer need ASTs or go/types deductions.
+	// p.info = nil // We no longer need ASTs or go/types deductions.
 }
 
 // Only valid during p's create and build phases.
