@@ -57,7 +57,7 @@ func getFrame(frameNum int, absolutePos bool) (*interp.Frame, int) {
 	return frame, frameNum
 }
 
-func adjustFrame(frameNum int, absolutePos bool) {
+func AdjustFrame(frameNum int, absolutePos bool) {
 	frame, frameNum := getFrame(frameNum, absolutePos)
 	if frame == nil { return }
 	curFrame = frame
@@ -67,4 +67,33 @@ func adjustFrame(frameNum int, absolutePos bool) {
 		event = TraceEvent
 	}
 	printLocInfo(curFrame, nil, event)
+}
+
+func PrintStack(fr *interp.Frame, count int) {
+	if (fr == nil) { return }
+	for i:=0; fr !=nil && i < count; fr = fr.Caller(0) {
+		pointer := "   "
+		if fr == curFrame {
+			pointer = "=> "
+		}
+		Msg("%s#%d %s", pointer, i, fr.FnAndParamString())
+		i++
+	}
+}
+
+func PrintGoroutine(goNum int, goTops []*interp.GoreState) {
+	fr := goTops[goNum].Fr
+	if fr == nil {
+		Msg("Goroutine %d exited", goNum)
+		return
+	}
+	switch fr.Status() {
+	case interp.StRunning:
+		Section("Goroutine %d", goNum)
+		PrintStack(fr, MAXSTACKSHOW)
+	case interp.StComplete:
+		Msg("Goroutine %d completed", goNum)
+	case interp.StPanic:
+		Msg("Goroutine %d panic", goNum)
+	}
 }
