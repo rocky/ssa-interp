@@ -110,13 +110,10 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			continue
 		}
 
-		switch name {
-		default:
-			if len(args) > 0 {
-				WhatisName(args[0])
-			} else {
-				Errmsg("Unknown command %s\n", cmd)
-			}
+		if len(args) > 0 {
+			WhatisName(args[0])
+		} else {
+			Errmsg("Unknown command %s\n", cmd)
 		}
 	}
 }
