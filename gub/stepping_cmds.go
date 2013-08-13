@@ -8,59 +8,6 @@ import (
 )
 
 func init() {
-	name := "continue"
-	Cmds[name] = &CmdInfo{
-		Fn: ContinueCommand,
-		Help: `continue
-
-Leave the debugger loop and continue execution. Subsequent entry to
-the debugger however may occur via breakpoints or explicit calls, or
-exceptions.
-`,
-		Min_args: 0,
-		Max_args: 0,
-	}
-	AddAlias("c", name)
-	AddToCategory("running", name)
-}
-
-func ContinueCommand(args []string) {
-	for fr := topFrame; fr != nil; fr = fr.Caller(0) {
-		interp.SetStepOff(fr)
-	}
-	InCmdLoop = false
-	Msg("Continuing...")
-}
-
-func init() {
-	name := "finish"
-	Cmds[name] = &CmdInfo{
-		Fn: FinishCommand,
-		Help: `finish
-
-Continue execution until the program is about to:
-
-* leave the current function, or
-* switch context via yielding back or finishing a block which was
-  yielded to.
-
-Sometimes this is called 'step out'.
-`,
-		Min_args: 0,
-		Max_args: 0,
-	}
-	AddToCategory("running", name)
-	// Down the line we'll have abbrevs
-	AddAlias("fin", name)
-}
-
-func FinishCommand(args []string) {
-	interp.SetStepOut(topFrame)
-	Msg("Continuing until return...")
-	InCmdLoop = false
-}
-
-func init() {
 	name := "next"
 	Cmds[name] = &CmdInfo{
 		Fn: NextCommand,
