@@ -2177,6 +2177,7 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 			pos:       decl.Name.NamePos,
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
+			LocalsByName: make(map[NameScope]uint),
 			syntax:    decl,
 		}
 

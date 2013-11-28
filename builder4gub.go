@@ -8,5 +8,7 @@ func astScope(fn *Function, node ast.Node) *Scope {
 }
 
 func ParentScope(fn *Function, scope *Scope) *Scope {
-	return fn.Pkg.TypeScope2Scope[scope.Scope.Parent()]
+	// FIXME: reinstate scope
+	// return fn.Pkg.TypeScope2Scope[scope.Scope.Parent()]
+	return nil
 }
