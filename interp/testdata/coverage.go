@@ -10,7 +10,6 @@ package main
 import (
 	"fmt"
 	"reflect"
-	"runtime/debug"
 )
 
 const zero int = 1
@@ -152,6 +151,8 @@ func init() {
 }
 
 func main() {
+	print() // legal
+
 	if counter != 2*3*5 {
 		panic(counter)
 	}
@@ -189,6 +190,8 @@ func main() {
 	case anint = <-ch:
 	default:
 	}
+	_ = anint
+	_ = ok
 
 	// Anon structs with methods.
 	anon := struct{ T }{T: T{z: 1}}
@@ -270,11 +273,35 @@ func main() {
 	if v, ok := map[string]string{}["foo5"]; v != "" || ok {
 		panic("oops")
 	}
+
+	// Regression test: implicit address-taken struct literal
+	// inside literal map element.
+	_ = map[int]*struct{}{0: {}}
+}
+
+// Parens should not prevent intrinsic treatment of built-ins.
+// (Regression test for a crash.)
+func init() {
+	_ = (new)(int)
+	_ = (make)([]int, 0)
 }
 
 type mybool bool
 
 func (mybool) f() {}
+
+func init() {
+	type mybool bool
+	var b mybool
+	var i interface{} = b || b // result preserves types of operands
+	_ = i.(mybool)
+
+	i = false && b // result preserves type of "typed" operand
+	_ = i.(mybool)
+
+	i = b || true // result preserves type of "typed" operand
+	_ = i.(mybool)
+}
 
 func init() {
 	var x, y int
@@ -359,15 +386,15 @@ func init() {
 
 // An I->I type-assert fails iff the value is nil.
 func init() {
-	defer func() {
-		r := recover()
-		if r != "interface conversion: interface is nil, not main.I" {
-			debug.PrintStack()
-			panic("I->I type assertion succeeed for nil value")
-		}
-	}()
-	var x I
-	_ = x.(I)
+	// TODO(adonovan): temporarily disabled; see comment at bottom of file.
+	// defer func() {
+	// 	r := fmt.Sprint(recover())
+	// 	if r != "interface conversion: interface is nil, not main.I" {
+	// 		panic("I->I type assertion succeeed for nil value")
+	// 	}
+	// }()
+	// var x I
+	// _ = x.(I)
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -485,4 +512,87 @@ func init() {
 	if deferCount != 2 {
 		panic(deferCount) // defer call has not run!
 	}
+}
+
+func init() {
+	// Struct equivalence ignores blank fields.
+	type s struct{ x, _, z int }
+	s1 := s{x: 1, z: 3}
+	s2 := s{x: 1, z: 3}
+	if s1 != s2 {
+		panic("not equal")
+	}
+}
+
+func init() {
+	// A slice var can be compared to const []T nil.
+	var i interface{} = []string{"foo"}
+	var j interface{} = []string(nil)
+	if i.([]string) == nil {
+		panic("expected i non-nil")
+	}
+	if j.([]string) != nil {
+		panic("expected j nil")
+	}
+	// But two slices cannot be compared, even if one is nil.
+	defer func() {
+		r := fmt.Sprint(recover())
+		if r != "runtime error: comparing uncomparable type []string" {
+			panic("want panic from slice comparison, got " + r)
+		}
+	}()
+	_ = i == j // interface comparison recurses on types
+}
+
+// Composite literals
+
+func init() {
+	type M map[int]int
+	m1 := []*M{{1: 1}, &M{2: 2}}
+	want := "map[1:1] map[2:2]"
+	if got := fmt.Sprint(*m1[0], *m1[1]); got != want {
+		panic(got)
+	}
+	m2 := []M{{1: 1}, M{2: 2}}
+	if got := fmt.Sprint(m2[0], m2[1]); got != want {
+		panic(got)
+	}
+}
+
+func init() {
+	// Regression test for SSA renaming bug.
+	var ints []int
+	for _ = range "foo" {
+		var x int
+		x++
+		ints = append(ints, x)
+	}
+	if fmt.Sprint(ints) != "[1 1 1]" {
+		panic(ints)
+	}
+}
+
+func init() {
+	// Regression test for issue 6806.
+	ch := make(chan int)
+	select {
+	case n, _ := <-ch:
+		_ = n
+	default:
+		// The default case disables the simplification of
+		// select to a simple receive statement.
+	}
+
+	// value,ok-form receive where TypeOf(ok) is a named boolean.
+	type mybool bool
+	var x int
+	var y mybool
+	select {
+	case x, y = <-ch:
+	default:
+		// The default case disables the simplification of
+		// select to a simple receive statement.
+	}
+	_ = x
+	_ = y
 }
