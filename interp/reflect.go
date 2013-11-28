@@ -117,7 +117,7 @@ func ext۰reflect۰rtype۰Elem(fn *Frame, args []Value) Value {
 	}).Elem()})
 }
 
-func ext۰reflect۰rtype۰Field(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰rtype۰Field(fr *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype, i int) reflect.StructField
 	st := args[0].(rtype).t.Underlying().(*types.Struct)
 	i := args[1].(int)
@@ -138,12 +138,12 @@ func ext۰reflect۰rtype۰Kind(fn *Frame, args []Value) Value {
 	return uint(reflectKind(args[0].(rtype).t))
 }
 
-func ext۰reflect۰rtype۰NumField(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰rtype۰NumField(fr *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) int
 	return args[0].(rtype).t.Underlying().(*types.Struct).NumFields()
 }
 
-func ext۰reflect۰rtype۰NumMethod(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰rtype۰NumMethod(fr *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) int
 	return args[0].(rtype).t.MethodSet().Len()
 }
@@ -159,7 +159,7 @@ func ext۰reflect۰rtype۰Out(fn *Frame, args []Value) Value {
 	return makeReflectType(rtype{args[0].(rtype).t.(*types.Signature).Results().At(i).Type()})
 }
 
-func ext۰reflect۰rtype۰Size(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰rtype۰Size(fr *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) uintptr
 	// (Assumes no custom Sizeof used during SSA construction.)
 	return uintptr(stdSizes.Sizeof(args[0].(rtype).t))
@@ -170,7 +170,7 @@ func ext۰reflect۰rtype۰String(fn *Frame, args []Value) Value {
 	return args[0].(rtype).t.String()
 }
 
-func ext۰reflect۰New(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰New(fr *Frame, args []Value) Value {
 	// Signature: func (t reflect.Type) reflect.Value
 	t := args[0].(iface).v.(rtype).t
 	alloc := zero(t)
@@ -266,7 +266,7 @@ func ext۰reflect۰Value۰Type(fn *Frame, args []Value) Value {
 	return makeReflectType(rV2T(args[0]))
 }
 
-func ext۰reflect۰Value۰Uint(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰Value۰Uint(fr *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) uint64
 	switch v := rV2V(args[0]).(type) {
 	case uint:
@@ -306,7 +306,7 @@ func ext۰reflect۰Value۰Len(fn *Frame, args []Value) Value {
 	return nil // unreachable
 }
 
-func ext۰reflect۰Value۰MapIndex(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰Value۰MapIndex(fr *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) Value
 	tValue := rV2T(args[0]).t.Underlying().(*types.Map).Key()
 	k := rV2V(args[1])
@@ -327,7 +327,7 @@ func ext۰reflect۰Value۰MapIndex(fn *ssa2.Function, args []Value) Value {
 	return makeReflectValue(nil, nil)
 }
 
-func ext۰reflect۰Value۰MapKeys(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰Value۰MapKeys(fr *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) []Value
 	var keys []Value
 	tKey := rV2T(args[0]).t.Underlying().(*types.Map).Key()
@@ -350,17 +350,17 @@ func ext۰reflect۰Value۰MapKeys(fn *ssa2.Function, args []Value) Value {
 	return keys
 }
 
-func ext۰reflect۰Value۰NumField(fn *Frame, args []Value) Value {
+func ext۰reflect۰Value۰NumField(fr *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) int
 	return len(rV2V(args[0]).(structure))
 }
 
-func ext۰reflect۰Value۰NumMethod(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰Value۰NumMethod(fr *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) int
 	return rV2T(args[0]).t.MethodSet().Len()
 }
 
-func ext۰reflect۰Value۰Pointer(fn *Frame, args []Value) Value {
+func ext۰reflect۰Value۰Pointer(fr *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value) uintptr
 	switch v := rV2V(args[0]).(type) {
 	case *Value:
@@ -433,7 +433,7 @@ func ext۰reflect۰Value۰Field(fn *Frame, args []Value) Value {
 	return makeReflectValue(rV2T(v).t.Underlying().(*types.Struct).Field(i).Type(), rV2V(v).(structure)[i])
 }
 
-func ext۰reflect۰Value۰Float(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰Value۰Float(fr *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) float64
 	switch v := rV2V(args[0]).(type) {
 	case float32:
@@ -500,7 +500,7 @@ func ext۰reflect۰Value۰IsValid(fn *Frame, args []Value) Value {
 	return rV2V(args[0]) != nil
 }
 
-func ext۰reflect۰Value۰Set(fn *ssa2.Function, args []Value) Value {
+func ext۰reflect۰Value۰Set(fr *Frame, args []Value) Value {
 	// TODO(adonovan): implement.
 	return nil
 }

@@ -578,7 +578,7 @@ func (f *Function) DumpTo(w io.Writer) {
 		fmt.Fprintln(w, "# Synthetic:", syn)
 	}
 	if pos := f.Pos(); pos.IsValid() {
-		fmt.Fprintf(w, "# Located at %s\n", f.PositionRange())
+		fmt.Fprintf(w, "# Location: %s\n", f.PositionRange())
 	}
 
 	if f.Enclosing != nil {

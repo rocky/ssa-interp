@@ -24,11 +24,15 @@ type externalFn func(fr *Frame, args []Value) Value
 // Key strings are from Function.FullName().
 // That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
 var externals = map[string]externalFn{
+	"(*runtime.Func).Entry":           ext۰runtime۰Func۰Entry,
+	"(*runtime.Func).FileLine":        ext۰runtime۰Func۰FileLine,
+	"(*runtime.Func).Name":            ext۰runtime۰Func۰Name,
 	"(reflect.Value).Bool":            ext۰reflect۰Value۰Bool,
 	"(reflect.Value).CanAddr":         ext۰reflect۰Value۰CanAddr,
 	"(reflect.Value).CanInterface":    ext۰reflect۰Value۰CanInterface,
 	"(reflect.Value).Elem":            ext۰reflect۰Value۰Elem,
 	"(reflect.Value).Field":           ext۰reflect۰Value۰Field,
+	"(reflect.Value).Float":           ext۰reflect۰Value۰Float,
 	"(reflect.Value).Index":           ext۰reflect۰Value۰Index,
 	"(reflect.Value).Int":             ext۰reflect۰Value۰Int,
 	"(reflect.Value).Interface":       ext۰reflect۰Value۰Interface,
@@ -36,19 +40,31 @@ var externals = map[string]externalFn{
 	"(reflect.Value).IsValid":         ext۰reflect۰Value۰IsValid,
 	"(reflect.Value).Kind":            ext۰reflect۰Value۰Kind,
 	"(reflect.Value).Len":             ext۰reflect۰Value۰Len,
+	"(reflect.Value).MapIndex":        ext۰reflect۰Value۰MapIndex,
+	"(reflect.Value).MapKeys":         ext۰reflect۰Value۰MapKeys,
 	"(reflect.Value).NumField":        ext۰reflect۰Value۰NumField,
+	"(reflect.Value).NumMethod":       ext۰reflect۰Value۰NumMethod,
 	"(reflect.Value).Pointer":         ext۰reflect۰Value۰Pointer,
+	"(reflect.Value).Set":             ext۰reflect۰Value۰Set,
 	"(reflect.Value).String":          ext۰reflect۰Value۰String,
 	"(reflect.Value).Type":            ext۰reflect۰Value۰Type,
+	"(reflect.Value).Uint":            ext۰reflect۰Value۰Uint,
 	"(reflect.error).Error":           ext۰reflect۰error۰Error,
 	"(reflect.rtype).Bits":            ext۰reflect۰rtype۰Bits,
 	"(reflect.rtype).Elem":            ext۰reflect۰rtype۰Elem,
+	"(reflect.rtype).Field":           ext۰reflect۰rtype۰Field,
 	"(reflect.rtype).Kind":            ext۰reflect۰rtype۰Kind,
+	"(reflect.rtype).NumField":        ext۰reflect۰rtype۰NumField,
+	"(reflect.rtype).NumMethod":       ext۰reflect۰rtype۰NumMethod,
 	"(reflect.rtype).NumOut":          ext۰reflect۰rtype۰NumOut,
 	"(reflect.rtype).Out":             ext۰reflect۰rtype۰Out,
+	"(reflect.rtype).Size":            ext۰reflect۰rtype۰Size,
 	"(reflect.rtype).String":          ext۰reflect۰rtype۰String,
 	"bytes.Equal":                     ext۰bytes۰Equal,
 	"bytes.IndexByte":                 ext۰bytes۰IndexByte,
+	"hash/crc32.haveSSE42":            ext۰crc32۰haveSSE42,
+	"math.Abs":                        ext۰math۰Abs,
+	"math.Exp":                        ext۰math۰Exp,
 	"runtime/debug.function":          ext۰debug۰function,
 	"runtime/debug.PrintStack":        ext۰debug۰PrintStack,
 	// "(big.nat).shl":                   ext۰big۰shl,
@@ -59,7 +75,9 @@ var externals = map[string]externalFn{
 	"math.Float32frombits":            ext۰math۰Float32frombits,
 	"math.Float64bits":                ext۰math۰Float64bits,
 	"math.Float64frombits":            ext۰math۰Float64frombits,
+	"math.Min":                        ext۰math۰Min,
 	"os.Exit":                         ext۰os۰Exit,
+	"reflect.New":                     ext۰reflect۰New,
 	"reflect.TypeOf":                  ext۰reflect۰TypeOf,
 	"reflect.ValueOf":                 ext۰reflect۰ValueOf,
 	"reflect.init":                    ext۰reflect۰Init,
@@ -84,7 +102,7 @@ var externals = map[string]externalFn{
 	"sync/atomic.StoreUint32":         ext۰atomic۰StoreUint32,
 	"syscall.Close":                   ext۰syscall۰Close,
 	//"syscall.Exit":                    ext۰syscall۰Exit,
-	"syscall.Exit":                    ext۰os۰Exit,
+	"syscall.Exit":                    ext۰syscall۰Exit,
 	"syscall.Fstat":                   ext۰syscall۰Fstat,
 	"syscall.Getpid":                  ext۰syscall۰Getpid,
 	"syscall.Getwd":                   ext۰syscall۰Getwd,
@@ -92,6 +110,7 @@ var externals = map[string]externalFn{
 	"syscall.Lstat":                   ext۰syscall۰Lstat,
 	"syscall.Open":                    ext۰syscall۰Open,
 	"syscall.ParseDirent":             ext۰syscall۰ParseDirent,
+	"syscall.RawSyscall":              ext۰syscall۰RawSyscall,
 	"syscall.Read":                    ext۰syscall۰Read,
 	"syscall.ReadDirent":              ext۰syscall۰ReadDirent,
 	"syscall.Stat":                    ext۰syscall۰Stat,
@@ -106,6 +125,18 @@ func wrapError(err error) Value {
 		return iface{}
 	}
 	return iface{t: errorType, v: err.Error()}
+}
+
+func ext۰runtime۰Func۰Entry(ff *Frame, args []Value) Value {
+	return 0
+}
+
+func ext۰runtime۰Func۰FileLine(fr *Frame, args []Value) Value {
+	return tuple{"unknown.go", -1}
+}
+
+func ext۰runtime۰Func۰Name(fr *Frame, args []Value) Value {
+	return "unknown"
 }
 
 func ext۰bytes۰Equal(fr *Frame, args []Value) Value {
@@ -135,6 +166,10 @@ func ext۰bytes۰IndexByte(fr *Frame, args []Value) Value {
 	return -1
 }
 
+func ext۰crc32۰haveSSE42(fr *Frame, args []Value) Value {
+	return false
+}
+
 func ext۰math۰Float64frombits(fr *Frame, args []Value) Value {
 	return math.Float64frombits(args[0].(uint64))
 }
@@ -147,8 +182,20 @@ func ext۰math۰Float32frombits(fr *Frame, args []Value) Value {
 	return math.Float32frombits(args[0].(uint32))
 }
 
+func ext۰math۰Abs(fr *Frame, args []Value) Value {
+	return math.Abs(args[0].(float64))
+}
+
+func ext۰math۰Exp(fr *Frame, args []Value) Value {
+	return math.Exp(args[0].(float64))
+}
+
 func ext۰math۰Float32bits(fr *Frame, args []Value) Value {
 	return math.Float32bits(args[0].(float32))
+}
+
+func ext۰math۰Min(fn *Frame, args []Value) Value {
+	return math.Min(args[0].(float64), args[1].(float64))
 }
 
 func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
@@ -158,6 +205,22 @@ func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
 
 func ext۰runtime۰getgoroot(fr *Frame, args []Value) Value {
 	return os.Getenv("GOROOT")
+}
+
+func ext۰strings۰IndexByte(fn *Frame, args []Value) Value {
+	// func IndexByte(s string, c byte) int
+	s := args[0].(string)
+	c := args[1].(byte)
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
+}
+
+func ext۰sync۰runtime_Syncsemcheck(fn *Frame, args []Value) Value {
+	return nil
 }
 
 func ext۰runtime۰GOMAXPROCS(fr *Frame, args []Value) Value {
@@ -227,6 +290,14 @@ func ext۰runtime۰SetFinalizer(fr *Frame, args []Value) Value {
 	return nil // ignore
 }
 
+func ext۰runtime۰funcname_go(fr *Frame, args []Value) Value {
+	// TODO(adonovan): actually inspect the stack.
+	return (*Value)(nil)
+	//tuple{0, "somefile.go", 42, true}
+	//
+	//func FuncForPC(pc uintptr) *Func
+}
+
 func ext۰time۰now(fr *Frame, args []Value) Value {
 	nano := time.Now().UnixNano()
 	return tuple{int64(nano / 1e9), int32(nano % 1e9)}
@@ -248,6 +319,19 @@ func ext۰syscall۰Getwd(fr *Frame, args []Value) Value {
 
 func ext۰syscall۰Getpid(fr *Frame, args []Value) Value {
 	return syscall.Getpid()
+}
+
+func ext۰syscall۰RawSyscall(fr *Frame, args []Value) Value {
+	return tuple{uintptr(0), uintptr(0), uintptr(syscall.ENOSYS)}
+}
+
+func valueToBytes(v Value) []byte {
+	in := v.([]Value)
+	b := make([]byte, len(in))
+	for i := range in {
+		b[i] = in[i].(byte)
+	}
+	return b
 }
 
 // The set of remaining native functions we need to implement (as needed):
@@ -277,7 +361,6 @@ func ext۰syscall۰Getpid(fr *Frame, args []Value) Value {
 // math/big/arith_decl.go:19:func bitLen(x Word) (n int)
 // math/dim.go:13:func Dim(x, y float64) float64
 // math/dim.go:26:func Max(x, y float64) float64
-// math/dim.go:53:func Min(x, y float64) float64
 // math/exp.go:14:func Exp(x float64) float64
 // math/exp.go:135:func Exp2(x float64) float64
 // math/expm1.go:124:func Expm1(x float64) float64

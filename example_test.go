@@ -100,7 +100,7 @@ func main() {
 	//
 	// # Name: main.main
 	// # Package: main
-	// # Located at hello.go:8:6-10:2
+	// # Location: hello.go:8:6-10:2
 	// func main():
 	// .0.entry:                                                               P:0 S:0
 	//	trace <STATEMENT in list> at hello.go:9:2-22
