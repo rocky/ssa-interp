@@ -18,6 +18,7 @@ type Frame struct {
 	result           Value
 	status           RunStatusType
 	tracing			 traceType
+	panicking        bool
 	panic            interface{}
 
 	goNum            int         // Goroutine number
@@ -63,7 +64,7 @@ func (fr *Frame) Scope() *ssa2.Scope {
 	return fr.block.Scope
 }
 
-func (fr *Frame) rundefers() {
+func (fr *Frame) runDefers() {
 	for i := range fr.defers {
 		if (fr.i.TraceMode & EnableTracing) != 0 {
 			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)

@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package interp
 
 // Emulated "reflect" package.
@@ -24,7 +28,7 @@ type opaqueType struct {
 func (t *opaqueType) String() string { return t.name }
 
 // A bogus "reflect" type-checker package.  Shared across interpreters.
-var reflectTypesPackage = types.NewPackage(token.NoPos, "reflect", "reflect", nil, nil, true)
+var reflectTypesPackage = types.NewPackage("reflect", "reflect", nil)
 
 // rtype is the concrete type the interpreter uses to implement the
 // reflect.Type interface.  Since its type is opaque to the target
@@ -113,9 +117,35 @@ func ext۰reflect۰rtype۰Elem(fn *Frame, args []Value) Value {
 	}).Elem()})
 }
 
+func ext۰reflect۰rtype۰Field(fn *ssa2.Function, args []Value) Value {
+	// Signature: func (t reflect.rtype, i int) reflect.StructField
+	st := args[0].(rtype).t.Underlying().(*types.Struct)
+	i := args[1].(int)
+	f := st.Field(i)
+	return structure{
+		f.Name(),
+		f.Pkg().Path(),
+		makeReflectType(rtype{f.Type()}),
+		st.Tag(i),
+		0,         // TODO(adonovan): offset
+		[]Value{}, // TODO(adonovan): indices
+		f.Anonymous(),
+	}
+}
+
 func ext۰reflect۰rtype۰Kind(fn *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) uint
 	return uint(reflectKind(args[0].(rtype).t))
+}
+
+func ext۰reflect۰rtype۰NumField(fn *ssa2.Function, args []Value) Value {
+	// Signature: func (t reflect.rtype) int
+	return args[0].(rtype).t.Underlying().(*types.Struct).NumFields()
+}
+
+func ext۰reflect۰rtype۰NumMethod(fn *ssa2.Function, args []Value) Value {
+	// Signature: func (t reflect.rtype) int
+	return args[0].(rtype).t.MethodSet().Len()
 }
 
 func ext۰reflect۰rtype۰NumOut(fn *Frame, args []Value) Value {
@@ -129,9 +159,22 @@ func ext۰reflect۰rtype۰Out(fn *Frame, args []Value) Value {
 	return makeReflectType(rtype{args[0].(rtype).t.(*types.Signature).Results().At(i).Type()})
 }
 
+func ext۰reflect۰rtype۰Size(fn *ssa2.Function, args []Value) Value {
+	// Signature: func (t reflect.rtype) uintptr
+	// (Assumes no custom Sizeof used during SSA construction.)
+	return uintptr(stdSizes.Sizeof(args[0].(rtype).t))
+}
+
 func ext۰reflect۰rtype۰String(fn *Frame, args []Value) Value {
 	// Signature: func (t reflect.rtype) string
 	return args[0].(rtype).t.String()
+}
+
+func ext۰reflect۰New(fn *ssa2.Function, args []Value) Value {
+	// Signature: func (t reflect.Type) reflect.Value
+	t := args[0].(iface).v.(rtype).t
+	alloc := zero(t)
+	return makeReflectValue(types.NewPointer(t), &alloc)
 }
 
 func ext۰reflect۰TypeOf(fn *Frame, args []Value) Value {
@@ -223,6 +266,25 @@ func ext۰reflect۰Value۰Type(fn *Frame, args []Value) Value {
 	return makeReflectType(rV2T(args[0]))
 }
 
+func ext۰reflect۰Value۰Uint(fn *ssa2.Function, args []Value) Value {
+	// Signature: func (reflect.Value) uint64
+	switch v := rV2V(args[0]).(type) {
+	case uint:
+		return uint64(v)
+	case uint8:
+		return uint64(v)
+	case uint16:
+		return uint64(v)
+	case uint32:
+		return uint64(v)
+	case uint64:
+		return uint64(v)
+	case uintptr:
+		return uint64(v)
+	}
+	panic("reflect.Value.Uint")
+}
+
 func ext۰reflect۰Value۰Len(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) int
 	switch v := rV2V(args[0]).(type) {
@@ -244,9 +306,58 @@ func ext۰reflect۰Value۰Len(fn *Frame, args []Value) Value {
 	return nil // unreachable
 }
 
+func ext۰reflect۰Value۰MapIndex(fn *ssa2.Function, args []Value) Value {
+	// Signature: func (reflect.Value) Value
+	tValue := rV2T(args[0]).t.Underlying().(*types.Map).Key()
+	k := rV2V(args[1])
+	switch m := rV2V(args[0]).(type) {
+	case map[Value]Value:
+		if v, ok := m[k]; ok {
+			return makeReflectValue(tValue, v)
+		}
+
+	case *hashmap:
+		if v := m.lookup(k.(hashable)); v != nil {
+			return makeReflectValue(tValue, v)
+		}
+
+	default:
+		panic(fmt.Sprintf("(reflect.Value).MapIndex(%T, %T)", m, k))
+	}
+	return makeReflectValue(nil, nil)
+}
+
+func ext۰reflect۰Value۰MapKeys(fn *ssa2.Function, args []Value) Value {
+	// Signature: func (reflect.Value) []Value
+	var keys []Value
+	tKey := rV2T(args[0]).t.Underlying().(*types.Map).Key()
+	switch v := rV2V(args[0]).(type) {
+	case map[Value]Value:
+		for k := range v {
+			keys = append(keys, makeReflectValue(tKey, k))
+		}
+
+	case *hashmap:
+		for _, e := range v.table {
+			for ; e != nil; e = e.next {
+				keys = append(keys, makeReflectValue(tKey, e.key))
+			}
+		}
+
+	default:
+		panic(fmt.Sprintf("(reflect.Value).MapKeys(%T)", v))
+	}
+	return keys
+}
+
 func ext۰reflect۰Value۰NumField(fn *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) int
 	return len(rV2V(args[0]).(structure))
+}
+
+func ext۰reflect۰Value۰NumMethod(fn *ssa2.Function, args []Value) Value {
+	// Signature: func (reflect.Value) int
+	return rV2T(args[0]).t.MethodSet().Len()
 }
 
 func ext۰reflect۰Value۰Pointer(fn *Frame, args []Value) Value {
@@ -322,6 +433,17 @@ func ext۰reflect۰Value۰Field(fn *Frame, args []Value) Value {
 	return makeReflectValue(rV2T(v).t.Underlying().(*types.Struct).Field(i).Type(), rV2V(v).(structure)[i])
 }
 
+func ext۰reflect۰Value۰Float(fn *ssa2.Function, args []Value) Value {
+	// Signature: func (reflect.Value) float64
+	switch v := rV2V(args[0]).(type) {
+	case float32:
+		return float64(v)
+	case float64:
+		return float64(v)
+	}
+	panic("reflect.Value.Float")
+}
+
 func ext۰reflect۰Value۰Interface(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value) interface{}
 	return ext۰reflect۰valueInterface(fn, args)
@@ -378,6 +500,11 @@ func ext۰reflect۰Value۰IsValid(fn *Frame, args []Value) Value {
 	return rV2V(args[0]) != nil
 }
 
+func ext۰reflect۰Value۰Set(fn *ssa2.Function, args []Value) Value {
+	// TODO(adonovan): implement.
+	return nil
+}
+
 func ext۰reflect۰valueInterface(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value, safe bool) interface{}
 	v := args[0].(structure)
@@ -409,12 +536,16 @@ func initReflect(i *interpreter) {
 	}
 
 	i.rtypeMethods = methodSet{
-		"Bits":   newMethod(i.reflectPackage, rtypeType, "Bits"),
-		"Elem":   newMethod(i.reflectPackage, rtypeType, "Elem"),
-		"Kind":   newMethod(i.reflectPackage, rtypeType, "Kind"),
-		"NumOut": newMethod(i.reflectPackage, rtypeType, "NumOut"),
-		"Out":    newMethod(i.reflectPackage, rtypeType, "Out"),
-		"String": newMethod(i.reflectPackage, rtypeType, "String"),
+		"Bits":      newMethod(i.reflectPackage, rtypeType, "Bits"),
+		"Elem":      newMethod(i.reflectPackage, rtypeType, "Elem"),
+		"Field":     newMethod(i.reflectPackage, rtypeType, "Field"),
+		"Kind":      newMethod(i.reflectPackage, rtypeType, "Kind"),
+		"NumField":  newMethod(i.reflectPackage, rtypeType, "NumField"),
+		"NumMethod": newMethod(i.reflectPackage, rtypeType, "NumMethod"),
+		"NumOut":    newMethod(i.reflectPackage, rtypeType, "NumOut"),
+		"Out":       newMethod(i.reflectPackage, rtypeType, "Out"),
+		"Size":      newMethod(i.reflectPackage, rtypeType, "Size"),
+		"String":    newMethod(i.reflectPackage, rtypeType, "String"),
 	}
 	i.errorMethods = methodSet{
 		"Error": newMethod(i.reflectPackage, errorType, "Error"),

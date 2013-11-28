@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package ssa-interp/interp defines an interpreter for the SSA
 // representation of Go programs.
 //
@@ -27,9 +31,6 @@
 // crashes.
 //
 // * map iteration is asymptotically inefficient.
-//
-// * the equivalence relation for structs doesn't skip over blank
-// fields.
 //
 // * the sizes of the int, uint and uintptr types in the target
 // program are assumed to be the same as those of the interpreter
@@ -74,15 +75,17 @@ type methodSet map[string]*ssa2.Function
 
 // State shared between all interpreted goroutines.
 type interpreter struct {
-	prog           *ssa2.Program        // the SSA program
-	globals        map[ssa2.Value]*Value // addresses of global variables (immutable)
-	Mode           Mode                 // interpreter options
-	TraceMode      TraceMode            // interpreter trace options
+	prog           *ssa2.Program            // the SSA program
+	globals        map[ssa2.Value]*Value    // addresses of global variables (immutable)
+	Mode           Mode                     // interpreter options
+	reflectPackage *ssa2.Package            // the fake reflect package
+	errorMethods   methodSet                // the method set of reflect.error, which implements the error interface.
+	rtypeMethods   methodSet                // the method set of rtype, which implements the reflect.Type interface.
+	runtimeErrorString types.Type           // the runtime.errorString type
+
+	TraceMode      TraceMode                // interpreter trace options
 	TraceEventMask ssa2.TraceEventMask
-	reflectPackage *ssa2.Package        // the fake reflect package
-	errorMethods   methodSet            // the method set of reflect.error, which implements the error interface.
-	rtypeMethods   methodSet            // the method set of rtype, which implements the reflect.Type interface.
-	nGoroutines    int                  // number of goroutines
+	nGoroutines    int                      // number of goroutines
 	goTops         []*GoreState
 }
 
@@ -117,7 +120,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		fr.env[instr] = unop(instr, fr.get(instr.X))
 
 	case *ssa2.BinOp:
-		fr.env[instr] = binop(instr.Op, fr.get(instr.X), fr.get(instr.Y))
+		fr.env[instr] = binop(instr.Op, instr.X.Type(), fr.get(instr.X), fr.get(instr.Y))
 
 	case *ssa2.Call:
 		fn, args := prepareCall(fr, &instr.Call)
@@ -141,7 +144,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 	case *ssa2.Slice:
 		fr.env[instr] = slice(fr.get(instr.X), fr.get(instr.Low), fr.get(instr.High))
 
-	case *ssa2.Ret:
+	case *ssa2.Return:
 		switch len(instr.Results) {
 		case 0:
 		case 1:
@@ -156,7 +159,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		return kReturn
 
 	case *ssa2.RunDefers:
-		fr.rundefers()
+		fr.runDefers()
 
 	case *ssa2.Panic:
 		switch os.Getenv("GOTRACEBACK") {
@@ -173,16 +176,6 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 			}
 		}
 		TraceHook(fr, &genericInstr, ssa2.PANIC)
-		fr.rundefers()
-		// Don't know if setting fr.status really does anything, but
-		// just to try to be totally Kosher. We do this *after*
-		// running TraceHook because TraceHook treats panic'd frames
-		// differently and will do less with them. If it needs to
-		// understand that we are in a panic state, it can do that via
-		// the event type passed above.
-		fr.status = StPanic
-		// We don't need an interpreter tracecback. So turn that off.
-		os.Setenv("GOTRACEBACK", "0")
 		panic(targetPanic{fr.get(instr.X)})
 
 	case *ssa2.Send:
@@ -420,7 +413,7 @@ func call(i *interpreter, goNum int, caller *Frame,	fn Value, args []Value) Valu
 func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args []Value, env []Value) Value {
 	if InstTracing() {
 		fset := fn.Prog.Fset
-		// TODO: fix: FmtRangeWithFset lies for external functions?
+		// TODO(adonovan): fix: loc() lies for external functions.
 		loc := ssa2.FmtRangeWithFset(fset, caller.startP, caller.endP)
 		fmt.Fprintf(os.Stderr, "Entering %s at %s.\n", fn, loc)
 		suffix := ""
@@ -473,27 +466,46 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 	for i, fv := range fn.FreeVars {
 		fr.env[fv] = env[i]
 	}
-	var instr ssa2.Instruction
+	for fr.block != nil {
+		runFrame(fr)
+	}
+	// Destroy the locals to avoid accidental use after return.
+	for i := range fn.Locals {
+		fr.locals[i] = bad{}
+	}
+	return fr.result
+}
 
+// runFrame executes SSA instructions starting at fr.block and
+// continuing until a return, a panic, or a recovered panic.
+//
+// After a panic, runFrame panics.
+//
+// After a normal return, fr.result contains the result of the call
+// and fr.block is nil.
+//
+// After a recovered panic, fr.result is undefined and fr.block
+// contains the block at which to resume control, which may be
+// nil for a normal return.
+//
+func runFrame(fr *Frame) {
 	defer func() {
-		if fr.status != StComplete {
-			if (fr.i.Mode & DisableRecover) != 0 {
-				return // let interpreter crash
-			}
-			fr.status = StPanic
-			fr.panic = recover()
+		if fr.block == nil {
+			return // normal return
 		}
-		fr.rundefers()
-		// Destroy the locals to avoid accidental use after return.
-		for i := range fn.Locals {
-			fr.locals[i] = bad{}
+		if fr.i.Mode&DisableRecover != 0 {
+			return // let interpreter crash
 		}
-		if fr.status == StPanic {
-			panic(fr.panic) // panic stack is not entirely clean
+		fr.panicking = true
+		fr.panic = recover()
+		if fr.i.TraceMode&EnableTracing != 0 {
+			fmt.Fprintf(os.Stderr, "Panicking: %T %v.\n", fr.panic, fr.panic)
 		}
-		i.goTops[goNum].Fr = caller
+		fr.runDefers()
+		fr.block = fr.fn.Recover // recovered panic
 	}()
 
+	fn        := fr.fn
 	fr.startP = fn.Pos()
 	fr.endP   = fn.Pos()
 	if ((fr.tracing == TRACE_STEP_IN) &&
@@ -504,6 +516,7 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 		TraceHook(fr, &fr.block.Instrs[0], event)
 	}
 	for {
+		var instr ssa2.Instruction
 		if InstTracing() {
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.block)
 		}
@@ -527,7 +540,7 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 				if (fr.tracing != TRACE_STEP_NONE) && GlobalStmtTracing() {
 					TraceHook(fr, &instr, ssa2.CALL_RETURN)
 				}
-				return fr.result
+				return
 			case kNext:
 				// no-op
 			case kJump:
@@ -535,7 +548,35 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 			}
 		}
 	}
-	panic("unreachable")
+}
+
+// doRecover implements the recover() built-in.
+func doRecover(caller *Frame) Value {
+	// recover() must be exactly one level beneath the deferred
+	// function (two levels beneath the panicking function) to
+	// have any effect.  Thus we ignore both "defer recover()" and
+	// "defer f() -> g() -> recover()".
+	if caller.i.Mode&DisableRecover == 0 &&
+		caller != nil && !caller.panicking &&
+		caller.caller != nil && caller.caller.panicking {
+		caller.caller.panicking = false
+		p := caller.caller.panic
+		caller.caller.panic = nil
+		switch p := p.(type) {
+		case targetPanic:
+			// The target program explicitly called panic().
+			return p.v
+		case runtime.Error:
+			// The interpreter encountered a runtime error.
+			return iface{caller.i.runtimeErrorString, p.Error()}
+		case string:
+			// The interpreter explicitly called panic().
+			return iface{caller.i.runtimeErrorString, p}
+		default:
+			panic(fmt.Sprintf("unexpected panic type %T in target call to recover()", p))
+		}
+	}
+	return iface{}
 }
 
 // setGlobal sets the value of a system-initialized global variable.
@@ -546,6 +587,8 @@ func setGlobal(i *interpreter, pkg *ssa2.Package, name string, v Value) {
 	}
 	panic("no global variable: " + pkg.Object.Path() + "." + name)
 }
+
+var stdSizes = types.StdSizes{WordSize: 8, MaxAlign: 8}
 
 // Interpret interprets the Go program whose main package is mainpkg.
 // mode specifies various interpreter options.  filename and args are
@@ -575,6 +618,13 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		i.TraceMode &= ^(EnableStmtTracing|EnableTracing)
 	}
 	i.goTops = append(i.goTops, &GoreState{Fr: nil, state: 0})
+
+	runtimePkg := i.prog.ImportedPackage("runtime")
+	if runtimePkg == nil {
+		panic("ssa.Program doesn't include runtime package")
+	}
+	i.runtimeErrorString = runtimePkg.Type("errorString").Object().Type()
+
 	initReflect(i)
 
 	for importPath, pkg := range i.prog.PackagesByPath {
@@ -595,15 +645,13 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 				envs = append(envs, s)
 			}
 			envs = append(envs, "GOSSAINTERP=1")
+			envs = append(envs, "GOARCH="+runtime.GOARCH)
 			setGlobal(i, pkg, "envs", envs)
 
 		case "runtime":
-			// TODO(gri): expose go/types.sizeof so we can
-			// avoid this fragile magic number;
-			// unsafe.Sizeof(memStats) won't work since gc
-			// and go/types have different sizeof
-			// functions.
-			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(3696))
+			// (Assumes no custom Sizeof used during SSA construction.)
+			sz := stdSizes.Sizeof(pkg.Object.Scope().Lookup("MemStats").Type())
+			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(sz))
 
 		case "os":
 			Args := []Value{filename}

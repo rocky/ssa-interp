@@ -1,10 +1,16 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package interp
 
 import (
+	"bytes"
 	"fmt"
 	"go/token"
-	"runtime"
 	"strings"
+	"sync"
+	"syscall"
 	"unsafe"
 
 	"code.google.com/p/go.tools/go/exact"
@@ -16,6 +22,10 @@ import (
 // If the target program panics, the interpreter panics with this type.
 type targetPanic struct {
 	v Value
+}
+
+func (p targetPanic) String() string {
+	return toString(p.v)
 }
 
 // If the target program calls exit, the interpreter panics with this type.
@@ -298,7 +308,7 @@ func lookup(instr *ssa2.Lookup, x, idx Value) Value {
 // numeric datatypes and strings.  Both operands must have identical
 // dynamic type.
 //
-func binop(op token.Token, x, y Value) Value {
+func binop(op token.Token, t types.Type, x, y Value) Value {
 	switch op {
 	case token.ADD:
 		switch x.(type) {
@@ -687,10 +697,10 @@ func binop(op token.Token, x, y Value) Value {
 		}
 
 	case token.EQL:
-		return equals(x, y)
+		return eqnil(t, x, y)
 
 	case token.NEQ:
-		return !equals(x, y)
+		return !eqnil(t, x, y)
 
 	case token.GTR:
 		switch x.(type) {
@@ -759,6 +769,39 @@ func binop(op token.Token, x, y Value) Value {
 	panic(fmt.Sprintf("invalid binary op: %T %s %T", x, op, y))
 }
 
+// eqnil returns the comparison x == y using the equivalence relation
+// appropriate for type t.
+// If t is a reference type, at most one of x or y may be a nil value
+// of that type.
+//
+func eqnil(t types.Type, x, y Value) bool {
+	switch t.Underlying().(type) {
+	case *types.Map, *types.Signature, *types.Slice:
+		// Since these types don't support comparison,
+		// one of the operands must be a literal nil.
+		switch x := x.(type) {
+		case *hashmap:
+			return (x != nil) == (y.(*hashmap) != nil)
+		case map[Value]Value:
+			return (x != nil) == (y.(map[Value]Value) != nil)
+		case *ssa2.Function:
+			switch y := y.(type) {
+			case *ssa2.Function:
+				return (x != nil) == (y != nil)
+			case *closure:
+				return true
+			}
+		case *closure:
+			return (x != nil) == (y.(*ssa2.Function) != nil)
+		case []Value:
+			return (x != nil) == (y.([]Value) != nil)
+		}
+		panic(fmt.Sprintf("eqnil(%s): illegal dynamic type: %T", t, x))
+	}
+
+	return equals(t, x, y)
+}
+
 func unop(instr *ssa2.UnOp, x Value) Value {
 	switch instr.Op {
 	case token.ARROW: // receive
@@ -797,6 +840,10 @@ func unop(instr *ssa2.UnOp, x Value) Value {
 		case float32:
 			return -x
 		case float64:
+			return -x
+		case complex64:
+			return -x
+		case complex128:
 			return -x
 		}
 	case token.MUL:
@@ -839,19 +886,18 @@ func unop(instr *ssa2.UnOp, x Value) Value {
 func typeAssert(i *interpreter, instr *ssa2.TypeAssert, itf iface) Value {
 	var v Value
 	err := ""
-	if idst, ok := instr.AssertedType.Underlying().(*types.Interface); ok {
-		if itf.t == nil {
-			err = fmt.Sprintf("interface conversion: interface is nil, not %s", instr.AssertedType)
-		} else {
-			v = itf
-			err = checkInterface(i, idst, itf)
-		}
+	if itf.t == nil {
+		err = fmt.Sprintf("interface conversion: interface is nil, not %s", instr.AssertedType)
+
+	} else if idst, ok := instr.AssertedType.Underlying().(*types.Interface); ok {
+		v = itf
+		err = checkInterface(i, idst, itf)
 
 	} else if types.IsIdentical(itf.t, instr.AssertedType) {
 		v = copyVal(itf.v) // extract value
 
 	} else {
-		err = fmt.Sprintf("type assert failed: expected %s, got %s", instr.AssertedType, itf.t)
+		err = fmt.Sprintf("interface conversion: interface is %s, not %s", itf.t, instr.AssertedType)
 	}
 
 	if err != "" {
@@ -864,6 +910,29 @@ func typeAssert(i *interpreter, instr *ssa2.TypeAssert, itf iface) Value {
 		return tuple{v, true}
 	}
 	return v
+}
+
+// If CapturedOutput is non-nil, all writes by the interpreted program
+// to file descriptors 1 and 2 will also be written to CapturedOutput.
+//
+// (The $GOROOT/test system requires that the test be considered a
+// failure if "BUG" appears in the combined stdout/stderr output, even
+// if it exits zero.  This is a global variable shared by all
+// interpreters in the same process.)
+//
+var CapturedOutput *bytes.Buffer
+var capturedOutputMu sync.Mutex
+
+// write writes bytes b to the target program's file descriptor fd.
+// The print/println built-ins and the write() system call funnel
+// through here so they can be captured by the test driver.
+func write(fd int, b []byte) (int, error) {
+	if CapturedOutput != nil && (fd == 1 || fd == 2) {
+		capturedOutputMu.Lock()
+		CapturedOutput.Write(b) // ignore errors
+		capturedOutputMu.Unlock()
+	}
+	return syscall.Write(fd, b)
 }
 
 // callBuiltin interprets a call to builtin fn with arguments args,
@@ -906,20 +975,19 @@ func callBuiltin(caller *Frame, fn *ssa2.Builtin, args []Value) Value {
 		}
 		return nil
 
-	case "print", "println": // print(anytype, ...interface{})
+	case "print", "println": // print(any, ...)
 		ln := fn.Name() == "println"
-		fmt.Print(toString(args[0]))
-		if len(args) == 2 {
-			for _, arg := range args[1].([]Value) {
-				if ln {
-					fmt.Print(" ")
-				}
-				fmt.Print(toString(arg))
+		var buf bytes.Buffer
+		for i, arg := range args {
+			if i > 0 && ln {
+				buf.WriteRune(' ')
 			}
+			buf.WriteString(toString(arg))
 		}
 		if ln {
-			fmt.Println()
+			buf.WriteRune('\n')
 		}
+		write(1, buf.Bytes())
 		return nil
 
 	case "len":
@@ -992,31 +1060,7 @@ func callBuiltin(caller *Frame, fn *ssa2.Builtin, args []Value) Value {
 		panic(targetPanic{args[0]})
 
 	case "recover":
-		// recover() must be exactly one level beneath the
-		// deferred function (two levels beneath the panicking
-		// function) to have any effect.  Thus we ignore both
-		// "defer recover()" and "defer f() -> g() ->
-		// recover()".
-		if (caller.i.Mode & DisableRecover) == 0 &&
-			caller != nil && caller.status == StRunning &&
-			caller.caller != nil && caller.caller.status == StPanic {
-			caller.caller.status = StComplete
-			p := caller.caller.panic
-			caller.caller.panic = nil
-			switch p := p.(type) {
-			case targetPanic:
-				return p.v
-			case runtime.Error:
-				// TODO(adonovan): must box this up
-				// inside instance of interface 'error'.
-				return iface{types.Typ[types.String], p.Error()}
-			case string:
-				return iface{types.Typ[types.String], p}
-			default:
-				panic(fmt.Sprintf("unexpected panic type %T in target call to recover()", p))
-			}
-		}
-		return iface{}
+		return doRecover(caller)
 	}
 
 	panic("unknown built-in: " + fn.Name())
@@ -1202,15 +1246,20 @@ func conv(t_dst, t_src types.Type, x Value) Value {
 			// TODO(adonovan): this is wrong and cannot
 			// really be fixed with the current design.
 			//
-			// It creates a new pointer of a different
-			// type but the underlying interface Value
+			// return (*value)(x.(unsafe.Pointer))
+			// creates a new pointer of a different
+			// type but the underlying interface value
 			// knows its "true" type and so cannot be
 			// meaningfully used through the new pointer.
 			//
 			// To make this work, the interpreter needs to
 			// simulate the memory layout of a real
 			// compiled implementation.
-			return (*Value)(x.(unsafe.Pointer))
+			//
+			// To at least preserve type-safety, we'll
+			// just return the zero value of the
+			// destination type.
+			return zero(t_dst)
 		}
 
 		// Conversions between complex numeric types?
@@ -1329,13 +1378,9 @@ func conv(t_dst, t_src types.Type, x Value) Value {
 // On success it returns "", on failure, an error message.
 //
 func checkInterface(i *interpreter, itype *types.Interface, x iface) string {
-	if meth, wrongType := types.MissingMethod(x.t, itype); meth != nil {
-		reason := "is missing"
-		if wrongType {
-			reason = "has wrong type"
-		}
-		return fmt.Sprintf("interface conversion: %v is not %v: method %s %s",
-			x.t, itype, meth.Name(), reason)
+	if meth, _ := types.MissingMethod(x.t, itype, true); meth != nil {
+		return fmt.Sprintf("interface conversion: %v is not %v: missing method %s",
+			x.t, itype, meth.Name())
 	}
 	return "" // ok
 }

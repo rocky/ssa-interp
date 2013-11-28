@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package interp
 
 // Values
@@ -19,7 +23,7 @@ package interp
 // - *ssa2.Function \
 //   *ssa2.Builtin   } --- functions.
 //   *closure      /
-// - tuple --- as returned by Ret, Next, "value,ok" modes, etc.
+// - tuple --- as returned by Return, Next, "value,ok" modes, etc.
 // - iter --- iterators from 'range' over map or string.
 // - bad --- a poison pill for locals that have gone out of scope.
 // - rtype -- the interpreter's concrete implementation of reflect.Type
@@ -35,11 +39,12 @@ import (
 	"io"
 	"reflect"
 	"strings"
+	"sync"
 	"unsafe"
 
 	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/go/types/typemap"
 	"github.com/rocky/ssa-interp"
-	"runtime/debug"
 )
 
 type Value interface{}
@@ -85,13 +90,18 @@ func hashString(s string) int {
 	return int(h)
 }
 
+var (
+	mu     sync.Mutex
+	hasher = typemap.MakeHasher()
+)
+
 // hashType returns a hash for t such that
 // types.IsIdentical(x, y) => hashType(x) == hashType(y).
 func hashType(t types.Type) int {
-	// TODO(adonovan): fix: not sound!  "IsIdentical" Signatures
-	// may have different parameter names; use typemap.Hasher when
-	// available.
-	return hashString(t.String()) // TODO(gri): provide a better hash
+	mu.Lock()
+	h := int(hasher.Hash(t))
+	mu.Unlock()
+	return h
 }
 
 // usesBuiltinMap returns true if the built-in hash function and
@@ -115,67 +125,80 @@ func usesBuiltinMap(t types.Type) bool {
 	panic(fmt.Sprintf("invalid map key type: %T", t))
 }
 
-func (x array) eq(_y interface{}) bool {
+func (x array) eq(t types.Type, _y interface{}) bool {
 	y := _y.(array)
+	tElt := t.Underlying().(*types.Array).Elem()
 	for i, xi := range x {
-		if !equals(xi, y[i]) {
+		if !equals(tElt, xi, y[i]) {
 			return false
 		}
 	}
 	return true
 }
 
-func (x array) hash() int {
+func (x array) hash(t types.Type) int {
 	h := 0
+	tElt := t.Underlying().(*types.Array).Elem()
 	for _, xi := range x {
-		h += hash(xi)
+		h += hash(tElt, xi)
 	}
 	return h
 }
 
-func (x structure) eq(_y interface{}) bool {
+func (x structure) eq(t types.Type, _y interface{}) bool {
 	y := _y.(structure)
-	// TODO(adonovan): fix: only non-blank fields should be
-	// compared.  This requires that we have type information
-	// available from the enclosing == operation or map access;
-	// the Value is not sufficient.
-	for i, xi := range x {
-		if !equals(xi, y[i]) {
-			return false
+	tStruct := t.Underlying().(*types.Struct)
+	for i, n := 0, tStruct.NumFields(); i < n; i++ {
+		if f := tStruct.Field(i); !f.Anonymous() {
+			if !equals(f.Type(), x[i], y[i]) {
+				return false
+			}
 		}
 	}
 	return true
 }
 
-func (x structure) hash() int {
+func (x structure) hash(t types.Type) int {
+	tStruct := t.Underlying().(*types.Struct)
 	h := 0
-	for _, xi := range x {
-		h += hash(xi)
+	for i, n := 0, tStruct.NumFields(); i < n; i++ {
+		if f := tStruct.Field(i); !f.Anonymous() {
+			h += hash(f.Type(), x[i])
+		}
 	}
 	return h
 }
 
-func (x iface) eq(_y interface{}) bool {
+// nil-tolerant variant of types.IsIdentical.
+func sameType(x, y types.Type) bool {
+	if x == nil {
+		return y == nil
+	}
+	return y != nil && types.IsIdentical(x, y)
+}
+
+func (x iface) eq(t types.Type, _y interface{}) bool {
 	y := _y.(iface)
-	return types.IsIdentical(x.t, y.t) && (x.t == nil || equals(x.v, y.v))
+	return sameType(x.t, y.t) && (x.t == nil || equals(x.t, x.v, y.v))
 }
 
-func (x iface) hash() int {
-	return hashType(x.t)*8581 + hash(x.v)
+func (x iface) hash(_ types.Type) int {
+	return hashType(x.t)*8581 + hash(x.t, x.v)
 }
 
-func (x rtype) hash() int {
+func (x rtype) hash(_ types.Type) int {
 	return hashType(x.t)
 }
 
-func (x rtype) eq(y interface{}) bool {
+func (x rtype) eq(_ types.Type, y interface{}) bool {
 	return types.IsIdentical(x.t, y.(rtype).t)
 }
 
 // equals returns true iff x and y are equal according to Go's
-// linguistic equivalence relation.  In a well-typed program, the
-// types of x and y are guaranteed equal.
-func equals(x, y Value) bool {
+// linguistic equivalence relation for type t.
+// In a well-typed program, the dynamic types of x and y are
+// guaranteed equal.
+func equals(t types.Type, x, y Value) bool {
 	switch x := x.(type) {
 	case bool:
 		return x == y.(bool)
@@ -216,31 +239,23 @@ func equals(x, y Value) bool {
 	case chan Value:
 		return x == y.(chan Value)
 	case structure:
-		return x.eq(y)
+		return x.eq(t, y)
 	case array:
-		return x.eq(y)
+		return x.eq(t, y)
 	case iface:
-		return x.eq(y)
+		return x.eq(t, y)
 	case rtype:
-		return x.eq(y)
-
-		// Since the following types don't support comparison,
-		// these cases are only reachable if one of x or y is
-		// (literally) nil.
-	case *hashmap:
-		return x == y.(*hashmap)
-	case map[Value]Value:
-		return (x != nil) == (y.(map[Value]Value) != nil)
-	case *ssa2.Function, *closure:
-		return x == y
-	case []Value:
-		return (x != nil) == (y.([]Value) != nil)
+		return x.eq(t, y)
 	}
-	panic(fmt.Sprintf("comparing incomparable type %T", x))
+
+	// Since map, func and slice don't support comparison, this
+	// case is only reachable if one of x or y is literally nil
+	// (handled in eqnil) or via interface{} values.
+	panic(fmt.Sprintf("comparing uncomparable type %s", t))
 }
 
 // Returns an integer hash of x such that equals(x, y) => hash(x) == hash(y).
-func hash(x Value) int {
+func hash(t types.Type, x Value) int {
 	switch x := x.(type) {
 	case bool:
 		if x {
@@ -284,15 +299,14 @@ func hash(x Value) int {
 	case chan Value:
 		return int(uintptr(reflect.ValueOf(x).Pointer()))
 	case structure:
-		return x.hash()
+		return x.hash(t)
 	case array:
-		return x.hash()
+		return x.hash(t)
 	case iface:
-		return x.hash()
+		return x.hash(t)
 	case rtype:
-		return x.hash()
+		return x.hash(t)
 	}
-	debug.PrintStack()
 	panic(fmt.Sprintf("%T is unhashable", x))
 }
 
@@ -332,7 +346,6 @@ func copyVal(v Value) Value {
 	case rtype:
 		return v
 	}
-	debug.PrintStack()
 	panic(fmt.Sprintf("cannot copy %T", v))
 }
 
@@ -346,7 +359,7 @@ func toWriter(w io.Writer, v Value) {
 
 	case map[Value]Value:
 		io.WriteString(w, "map[")
-		sep := " "
+		sep := ""
 		for k, e := range v {
 			io.WriteString(w, sep)
 			sep = " "
@@ -382,7 +395,9 @@ func toWriter(w io.Writer, v Value) {
 		}
 
 	case iface:
+		fmt.Fprintf(w, "(%s, ", v.t)
 		toWriter(w, v.v)
+		io.WriteString(w, ")")
 
 	case structure:
 		io.WriteString(w, "{")
