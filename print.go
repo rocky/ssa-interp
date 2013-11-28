@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa2
 
 // This file implements the String() methods for all Value and
@@ -15,35 +19,42 @@ import (
 )
 
 // relName returns the name of v relative to i.
-// In most cases, this is identical to v.Name(), but for references to
-// Functions (including methods) and Globals, the FullName is used
-// instead, explicitly package-qualified for cross-package references.
+// In most cases, this is identical to v.Name(), but references to
+// Functions (including methods) and Globals use RelString and
+// all types are displayed with relType, so that only cross-package
+// references are package-qualified.
 //
 func relName(v Value, i Instruction) string {
+	var from *types.Package
+	if i != nil {
+		from = i.Parent().pkgobj()
+	}
 	switch v := v.(type) {
-	case *Global:
-		if i != nil && v.Pkg == i.Parent().Pkg {
-			return v.Name()
-		}
-		return v.FullName()
-	case *Function:
-		var pkg *Package
-		if i != nil {
-			pkg = i.Parent().Pkg
-		}
-		return v.fullName(pkg)
+	case Member: // *Function or *Global
+		return v.RelString(from)
+	case *Const:
+		return v.valstring() + ":" + relType(v.Type(), from)
 	}
 	return v.Name()
+}
+
+func relType(t types.Type, from *types.Package) string {
+	return types.TypeString(from, t)
+}
+
+func relString(m Member, from *types.Package) string {
+	// NB: not all globals have an Object (e.g. init$guard),
+	// so use Package().Object not Object.Package().
+	if obj := m.Package().Object; obj != nil && obj != from {
+		return fmt.Sprintf("%s.%s", obj.Path(), m.Name())
+	}
+	return m.Name()
 }
 
 // Value.String()
 //
 // This method is provided only for debugging.
 // It never appears in disassembly, which uses Value.Name().
-
-func (v *Const) String() string {
-	return v.Name()
-}
 
 func (v *Parameter) String() string {
 	return fmt.Sprintf("parameter %s : %s", v.Name(), v.Type())
@@ -53,16 +64,8 @@ func (v *Capture) String() string {
 	return fmt.Sprintf("capture %s : %s", v.Name(), v.Type())
 }
 
-func (v *Global) String() string {
-	return v.FullName()
-}
-
 func (v *Builtin) String() string {
 	return fmt.Sprintf("builtin %s", v.Name())
-}
-
-func (v *Function) String() string {
-	return v.fullName(nil)
 }
 
 // FullName returns g's package-qualified name.
@@ -77,7 +80,7 @@ func (v *Alloc) String() string {
 	if v.Heap {
 		op = "new"
 	}
-	return fmt.Sprintf("%s %s (%s)", op, deref(v.Type()), v.Comment)
+	return fmt.Sprintf("%s %s (%s)", op, relType(deref(v.Type()), v.Parent().pkgobj()), v.Comment)
 }
 
 func (v *Phi) String() string {
@@ -145,7 +148,7 @@ func (v *Call) String() string {
 }
 
 func (v *ChangeType) String() string {
-	return fmt.Sprintf("changetype %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
+	return fmt.Sprintf("changetype %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), v.X.Type(), relName(v.X, v))
 }
 
 func (v *BinOp) String() string {
@@ -157,7 +160,7 @@ func (v *UnOp) String() string {
 }
 
 func (v *Convert) String() string {
-	return fmt.Sprintf("convert %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
+	return fmt.Sprintf("convert %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), v.X.Type(), relName(v.X, v))
 }
 
 func (v *ChangeInterface) String() string {
@@ -165,7 +168,7 @@ func (v *ChangeInterface) String() string {
 }
 
 func (v *MakeInterface) String() string {
-	return fmt.Sprintf("make %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
+	return fmt.Sprintf("make %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), relType(v.X.Type(), v.Parent().pkgobj()), relName(v.X, v))
 }
 
 func (v *MakeClosure) String() string {
@@ -264,7 +267,7 @@ func (v *Next) String() string {
 }
 
 func (v *TypeAssert) String() string {
-	return fmt.Sprintf("typeassert%s %s.(%s)", commaOk(v.CommaOk), relName(v.X, v), v.AssertedType)
+	return fmt.Sprintf("typeassert%s %s.(%s)", commaOk(v.CommaOk), relName(v.X, v), relType(v.AssertedType, v.Parent().pkgobj()))
 }
 
 func (v *Extract) String() string {
@@ -298,9 +301,9 @@ func (s *Panic) String() string {
 	return "panic " + relName(s.X, s)
 }
 
-func (s *Ret) String() string {
+func (s *Return) String() string {
 	var b bytes.Buffer
-	b.WriteString("ret")
+	b.WriteString("return")
 	for i, r := range s.Results {
 		if i == 0 {
 			b.WriteString(" ")
@@ -355,17 +358,18 @@ func (s *MapUpdate) String() string {
 }
 
 func (s *DebugRef) String() string {
+	p := s.Parent().Prog.Fset.Position(s.Pos())
 	var descr interface{}
 	if s.Object != nil {
 		descr = s.Object // e.g. "var x int"
 	} else {
 		descr = reflect.TypeOf(s.Expr) // e.g. "*ast.CallExpr"
 	}
-	fset := s.Parent().Prog.Fset
-	startP := fset.Position(s.Pos())
-	endP   := fset.Position(s.Expr.End())
-	return fmt.Sprintf("; %s is %s @ %s", s.X.Name(), descr,
-		PositionRangeSansFile(startP, endP))
+	var addr string
+	if s.IsAddr {
+		addr = "address of "
+	}
+	return fmt.Sprintf("; %s%s @ %d:%d is %s", addr, descr, p.Line, p.Column, s.X.Name())
 }
 
 func (p *Package) String() string {
@@ -395,24 +399,47 @@ func (p *Package) DumpTo(w io.Writer) {
 
 		case *Type:
 			fmt.Fprintf(w, "  type  %-*s %s\n", maxname, name, mem.Type().Underlying())
-			// Iterate over the keys of mset(*T) since they
-			// are a superset of mset(T)'s keys.
-			// The keys of a types.MethodSet are sorted (by Id).
-			mset := methodSetOf(mem.Type())
-			pmset := methodSetOf(types.NewPointer(mem.Type()))
-			for i, n := 0, pmset.Len(); i < n; i++ {
-				meth := pmset.At(i)
-				// If the method also exists in mset(T), show that instead.
-				if m := mset.Lookup(meth.Obj().Pkg(), meth.Obj().Name()); m != nil {
-					meth = m
-				}
+			for _, meth := range IntuitiveMethodSet(mem.Type()) {
 				fmt.Fprintf(w, "    %s\n", meth)
 			}
 
 		case *Global:
-			fmt.Fprintf(w, "  var   %-*s %s\n", maxname, name, mem.Type())
+			fmt.Fprintf(w, "  var   %-*s %s\n", maxname, name, mem.Type().(*types.Pointer).Elem())
 		}
 	}
+
+	fmt.Fprintf(w, "\n")
+}
+
+// IntuitiveMethodSet returns the intuitive method set of a type, T.
+//
+// The result contains MethodSet(T) and additionally, if T is a
+// concrete type, methods belonging to *T if there is no similarly
+// named method on T itself.  This corresponds to user intuition about
+// method sets; this function is intended only for user interfaces.
+//
+// The order of the result is as for types.MethodSet(T).
+//
+// TODO(gri): move this to go/types?
+//
+func IntuitiveMethodSet(T types.Type) []*types.Selection {
+	var result []*types.Selection
+	mset := T.MethodSet()
+	if _, ok := T.Underlying().(*types.Interface); ok {
+		for i, n := 0, mset.Len(); i < n; i++ {
+			result = append(result, mset.At(i))
+		}
+	} else {
+		pmset := types.NewPointer(T).MethodSet()
+		for i, n := 0, pmset.Len(); i < n; i++ {
+			meth := pmset.At(i)
+			if m := mset.Lookup(meth.Obj().Pkg(), meth.Obj().Name()); m != nil {
+				meth = m
+			}
+			result = append(result, meth)
+		}
+	}
+	return result
 }
 
 func commaOk(x bool) string {

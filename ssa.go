@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa2
 
 // This package defines a high-level intermediate representation for
@@ -22,7 +26,7 @@ type Program struct {
 	PackagesByPath map[string]*Package         // all loaded Packages, keyed by import path
 	PackagesByName map[string]*Package         // all loaded Packages, package name
 	packages       map[*types.Package]*Package // all loaded Packages, keyed by object
-	builtins       map[types.Object]*Builtin   // all built-in functions, keyed by typechecker objects.
+	builtins       map[*types.Builtin]*Builtin // all built-in functions, keyed by typechecker objects.
 	mode           BuilderMode                 // set of mode bits for SSA construction
 
 	methodsMu           sync.Mutex                // guards the following maps:
@@ -37,18 +41,20 @@ type Program struct {
 // type-specific accessor methods Func, Type, Var and Const.
 //
 type Package struct {
-	Prog    *Program               // the owning program
-	Object  *types.Package         // the type checker's package object for this package
-	Members map[string]Member      // all package members keyed by name
-	values  map[types.Object]Value // package-level vars & funcs (incl. methods), keyed by object
-	Init    *Function              // Func("init"); the package's (concatenated) init function
-
-	debug   bool                   // include full debug info in this package.
+	Prog    *Program                  // the owning program
+	Object  *types.Package            // the type checker's package object for this package
+	Members map[string]Member         // all package members keyed by name
+	methodSets []types.Type           // types whose method sets are included in this package
+	values  map[types.Object]Value    // package-level vars & funcs (incl. methods), keyed by object
+	Init    *Function                 // Func("init"); the package's (concatenated) init function
+	debug   bool                      // include full debug info in this package.
 
 	// The following fields are set transiently, then cleared
 	// after building.
-	started int32                 // atomically tested and set at start of build phase
-	info    *importer.PackageInfo // package ASTs and type information
+	started  int32                 // atomically tested and set at start of build phase
+	ninit    int32                 // number of init functions
+	info     *importer.PackageInfo // package ASTs and type information
+	needRTTI typemap.M             // types for which runtime type info is needed
 
 	locs   []LocInst            // slice of start source-code positions
 	Ast2Scope map[ast.Node]*Scope
@@ -60,12 +66,14 @@ type Package struct {
 // const, var, func and type declarations respectively.
 //
 type Member interface {
-	Name() string         // declared name of the package member
-	String() string       // package-qualified name of the package member
-	Object() types.Object // typechecker's object for this member, if any
-	Pos() token.Pos       // position of member's declaration, if known
-	Type() types.Type     // type of the package member
-	Token() token.Token   // token.{VAR,FUNC,CONST,TYPE}
+	Name() string                    // declared name of the package member
+	String() string                  // package-qualified name of the package member
+	RelString(*types.Package) string // like String, but relative refs are unqualified
+	Object() types.Object            // typechecker's object for this member, if any
+	Pos() token.Pos                  // position of member's declaration, if known
+	Type() types.Type                // type of the package member
+	Token() token.Token              // token.{VAR,FUNC,CONST,TYPE}
+	Package() *Package               // returns the containing package. (TODO: rename Pkg)
 }
 
 // A Type is a Member of a Package representing a package-level named type.
@@ -74,6 +82,7 @@ type Member interface {
 //
 type Type struct {
 	object *types.TypeName
+	pkg    *Package
 }
 
 // A NamedConst is a Member of Package representing a package-level
@@ -90,6 +99,7 @@ type NamedConst struct {
 	Value  *Const
 	pos    token.Pos
 	endP   token.Pos
+	pkg    *Package
 }
 
 // An SSA value that can be referenced by an instruction.
@@ -99,7 +109,7 @@ type Value interface {
 	// Instruction.
 	//
 	// This is the same as the source name for Parameters,
-	// Builtins, Functions, Captures, Globals and some Allocs.
+	// Builtins, Functions, Captures, Globals.
 	// For constants, it is a representation of the constant's value
 	// and type.  For all other Values this is the name of the
 	// virtual register defined by the instruction.
@@ -115,7 +125,7 @@ type Value interface {
 	String() string
 
 	// Type returns the type of this value.  Many instructions
-	// (e.g. IndexAddr) change the behaviour depending on the
+	// (e.g. IndexAddr) change their behaviour depending on the
 	// types of their operands.
 	Type() types.Type
 
@@ -127,8 +137,9 @@ type Value interface {
 	// caller may perform mutations to the object's state.
 	//
 	// Referrers is currently only defined for the function-local
-	// values Capture, Parameter and all value-defining instructions.
-	// It returns nil for Function, Builtin, Const and Global.
+	// values Capture, Parameter, Functions (iff anonymous) and
+	// all value-defining instructions.
+	// It returns nil for named Functions, Builtin, Const and Global.
 	//
 	// Instruction.Operands contains the inverse of this relation.
 	Referrers() *[]Instruction
@@ -168,7 +179,7 @@ type Instruction interface {
 	// Note that the name of the Value is not printed.
 	//
 	// Examples of Instructions that do define (are) Values:
-	// e.g.  "ret x"     (Ret)
+	// e.g.  "return x"  (Return)
 	//       "*y = x"    (Store)
 	//
 	// (This separation is useful for some analyses which
@@ -240,6 +251,11 @@ type Instruction interface {
 // semantically significant, though it may affect the readability of
 // the disassembly.
 //
+// Recover is an optional second entry point to which control resumes
+// after a recovered panic.  The Recover block may contain only a load
+// of the function's named return parameters followed by a return of
+// the loaded values.
+//
 // A nested function that refers to one or more lexically enclosing
 // local variables ("free variables") has Capture parameters.  Such
 // functions cannot be called directly but require a value created by
@@ -265,12 +281,25 @@ type Function struct {
 	endP      token.Pos
 
 	Synthetic string       // provenance of synthetic function; "" for true source functions
+	syntax    ast.Node     // *ast.Func{Decl,Lit}; replaced with simple ast.Node after build, unless debug mode
 	Enclosing *Function    // enclosing function if anon; nil if global
-	Pkg       *Package     // enclosing package for Go source functions; otherwise nil
+	Pkg       *Package     // enclosing package; nil for shared funcs (wrappers and error.Error)
 	Prog      *Program     // enclosing program
 	Params    []*Parameter // function parameters; for methods, includes receiver
 	FreeVars  []*Capture   // free variables whose values must be supplied by closure
 	Locals    []*Alloc
+	Blocks    []*BasicBlock // basic blocks of the function; nil => external
+	Recover   *BasicBlock   // optional; control transfers here after recovered panic
+	AnonFuncs []*Function   // anonymous functions directly beneath this one
+	referrers []Instruction // referring instructions (iff Enclosing != nil)
+
+	// The following fields are set transiently during building,
+	// then cleared.
+	currentBlock *BasicBlock             // where to emit code
+	objects      map[types.Object]Value  // addresses of local variables
+	namedResults []*Alloc                // tuple of named results
+	targets      *targets                // linked stack of branch targets
+	lblocks      map[*ast.Object]*lblock // labelled blocks
 
 	/* Allows lookup by string name, return is index into Locals +1. 0
        means not found. FIXME: this is not right. There can be several
@@ -278,26 +307,16 @@ type Function struct {
        sort of environment setting.  */
 	LocalsByName map[NameScope]uint
 
-	Blocks    []*BasicBlock // basic blocks of the function; nil => external
-	AnonFuncs []*Function   // anonymous functions directly beneath this one
-
 	Breakpoint bool    // Set on runtime if we should stop here
 	Scope      *Scope  // Scope number of its first basic block.
 
-	// The following fields are set transiently during building,
-	// then cleared.
-	currentBlock *BasicBlock             // where to emit code
-	objects      map[types.Object]Value  // addresses of local variables
-	namedResults []*Alloc                // tuple of named results
-	syntax       *funcSyntax             // abstract syntax trees for Go source functions
-	targets      *targets                // linked stack of branch targets
-	lblocks      map[*ast.Object]*lblock // labelled blocks
+
 }
 
 // An SSA basic block.
 //
 // The final element of Instrs is always an explicit transfer of
-// control (If, Jump, Ret or Panic).
+// control (If, Jump, Return or Panic).
 //
 // A block may contain no Instructions only if it is unreachable,
 // i.e. Preds is nil.  Empty blocks are typically pruned.
@@ -381,7 +400,7 @@ type Parameter struct {
 //
 // Value holds the exact value of the constant, independent of its
 // Type(), using the same representation as package go/exact uses for
-// constants.
+// constants, or nil for a typed nil value.
 //
 // Pos() returns token.NoPos.
 //
@@ -422,12 +441,14 @@ type Global struct {
 // Builtins are immutable values.  Builtins do not have addresses.
 // Builtins can only appear in CallCommon.Func.
 //
-// Type() returns a *types.Builtin.
-// Built-in functions may have polymorphic or variadic types that are
-// not expressible in Go's type system.
+// Object() returns a *types.Builtin.
+//
+// Type() returns types.Typ[types.Invalid], since built-in functions
+// may have polymorphic or variadic types that are not expressible in
+// Go's type system.
 //
 type Builtin struct {
-	object *types.Func // canonical types.Universe object for this built-in
+	object *types.Builtin // canonical types.Universe object for this built-in
 	endP token.Pos
 }
 
@@ -535,7 +556,8 @@ type BinOp struct {
 // and a boolean indicating the success of the receive.  The
 // components of the tuple are accessed using Extract.
 //
-// Pos() returns the ast.UnaryExpr.OpPos, if explicit in the source,
+// Pos() returns the ast.UnaryExpr.OpPos or ast.RangeStmt.TokPos (for
+// ranging over a channel), if explicit in the source.
 //
 // Example printed form:
 // 	t0 = *x
@@ -718,6 +740,9 @@ type MakeSlice struct {
 
 // The Slice instruction yields a slice of an existing string, slice
 // or *array X between optional integer bounds Low and High.
+//
+// Dynamically, this instruction panics if X evaluates to a nil *array
+// pointer.
 //
 // Type() returns string if the type of X was string, otherwise a
 // *types.Slice with the same element type as X.
@@ -1010,29 +1035,29 @@ type If struct {
 	Cond Value
 }
 
-// The Ret instruction returns values and control back to the calling
+// The Return instruction returns values and control back to the calling
 // function.
 //
 // len(Results) is always equal to the number of results in the
 // function's signature.
 //
-// If len(Results) > 1, Ret returns a tuple value with the specified
+// If len(Results) > 1, Return returns a tuple value with the specified
 // components which the caller must access using Extract instructions.
 //
 // There is no instruction to return a ready-made tuple like those
 // returned by a "value,ok"-mode TypeAssert, Lookup or UnOp(ARROW) or
 // a tail-call to a function with multiple result parameters.
 //
-// Ret must be the last instruction of its containing BasicBlock.
+// Return must be the last instruction of its containing BasicBlock.
 // Such a block has no successors.
 //
 // Pos() and EndP() are set the corresponding ast values.
 //
 // Example printed form:
-// 	ret
-// 	ret nil:I, 2:int
+// 	return
+// 	return nil:I, 2:int
 //
-type Ret struct {
+type Return struct {
 	anInstruction
 	Results []Value
 	pos     token.Pos
@@ -1139,7 +1164,8 @@ type Store struct {
 // The MapUpdate instruction updates the association of Map[Key] to
 // Value.
 //
-// Pos() returns the ast.KeyValueExpr.Colon, if explicit in the source.
+// Pos() returns the ast.KeyValueExpr.Colon or ast.IndexExpr.Lbrack,
+// if explicit in the source.
 //
 // Example printed form:
 //	t0[t1] = t2
@@ -1152,16 +1178,28 @@ type MapUpdate struct {
 	pos   token.Pos
 }
 
-// A DebugRef instruction provides the position information for a
-// specific source-level expression that compiles to the SSA value X.
+// A DebugRef instruction maps a source-level expression Expr to the
+// SSA value X that represents the value (!IsAddr) or address (IsAddr)
+// of that expression.
 //
 // DebugRef is a pseudo-instruction: it has no dynamic effect.
 //
-// Pos() returns the ast.Ident or ast.Selector.Sel of the source-level
-// reference.
+// Pos() returns Expr.Pos(), the start position of the source-level
+// expression.  This is not the same as the "designated" token as
+// documented at Value.Pos(). e.g. CallExpr.Pos() does not return the
+// position of the ("designated") Lparen token.
 //
-// Object() returns the source-level (var/const/func) object denoted
-// by Expr if it is an *ast.Ident; otherwise it is nil.
+// If Expr is an *ast.Ident denoting a var or func, Object() returns
+// the object; though this information can be obtained from the type
+// checker, including it here greatly facilitates debugging.
+// For non-Ident expressions, Object() returns nil.
+//
+// DebugRefs are generated only for functions built with debugging
+// enabled; see Package.SetDebugMode().
+//
+// DebugRefs are not emitted for ast.Idents referring to constants or
+// predeclared identifiers, since they are trivial and numerous.
+// Nor are they emitted for ast.ParenExprs.
 //
 // (By representing these as instructions, rather than out-of-band,
 // consistency is maintained during transformation passes by the
@@ -1169,18 +1207,19 @@ type MapUpdate struct {
 //
 type DebugRef struct {
 	anInstruction
-	X      Value        // the value whose position we're declaring
 	Expr   ast.Expr     // the referring expression
+
 	Object types.Object // the identity of the source var/const/func
+	IsAddr bool         // Expr is addressable and X is the address it denotes
+	X      Value        // the value or address of Expr
 }
 
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
 
-// Register is a mix-in embedded by all SSA values that are also
-// instructions, i.e. virtual registers, and provides implementations
-// of the Value interface's Name() and Type() methods: the name is
-// simply a numbered register (e.g. "t0") and the type is the typ
-// field.
+// register is a mix-in embedded by all SSA values that are also
+// instructions, i.e. virtual registers, and provides a uniform
+// implementation of most of the Value interface: Value.Name() is a
+// numbered register (e.g. "t0"); the other methods are field accessors.
 //
 // Temporary names are automatically assigned to each Register on
 // completion of building a function in SSA form.
@@ -1213,7 +1252,9 @@ type anInstruction struct {
 // interface method invocation, or "call" and "invoke" for short.
 //
 // 1. "call" mode: when Method is nil (!IsInvoke), a CallCommon
-// represents an ordinary function call of the value in Value.
+// represents an ordinary function call of the value in Value,
+// which may be a *Builtin, a *Function or any other value of kind
+// 'func'.
 //
 // In the common case in which Value is a *Function, this indicates a
 // statically dispatched call to a package-level function, an
@@ -1234,7 +1275,9 @@ type anInstruction struct {
 // 2. "invoke" mode: when Method is non-nil (IsInvoke), a CallCommon
 // represents a dynamically dispatched call to an interface method.
 // In this mode, Value is the interface value and Method is the
-// interface's abstract method.
+// interface's abstract method.  Note: an abstract method may be
+// shared by multiple interfaces due to embedding; Value.Type()
+// provides the specific interface used for this call.
 //
 // Value is implicitly supplied to the concrete method implementation
 // as the receiver parameter; in other words, Args[0] holds not the
@@ -1301,8 +1344,8 @@ func (c *CallCommon) StaticCallee() *Function {
 // for a user interface, e.g. "static method call".
 func (c *CallCommon) Description() string {
 	switch fn := c.Value.(type) {
-	case nil:
-		return "dynamic method call" // ("invoke" mode)
+	case *Builtin:
+		return "built-in function call"
 	case *MakeClosure:
 		return "static function closure call"
 	case *Function:
@@ -1310,6 +1353,9 @@ func (c *CallCommon) Description() string {
 			return "static method call"
 		}
 		return "static function call"
+	}
+	if c.IsInvoke() {
+		return "dynamic method call" // ("invoke" mode)
 	}
 	return "dynamic function call"
 }
@@ -1344,19 +1390,29 @@ func (v *Capture) Referrers() *[]Instruction { return &v.referrers }
 func (v *Capture) Pos() token.Pos            { return v.pos }
 func (v *Capture) Parent() *Function         { return v.parent }
 
-func (v *Global) Type() types.Type        { return v.typ }
-func (v *Global) Name() string            { return v.name }
-func (v *Global) Pos() token.Pos          { return v.pos }
-func (*Global) Referrers() *[]Instruction { return nil }
-func (v *Global) Token() token.Token      { return token.VAR }
-func (v *Global) Object() types.Object    { return v.object }
+func (v *Global) Type() types.Type                     { return v.typ }
+func (v *Global) Name() string                         { return v.name }
+func (v *Global) Pos() token.Pos                       { return v.pos }
+func (v *Global) Referrers() *[]Instruction            { return nil }
+func (v *Global) Token() token.Token                   { return token.VAR }
+func (v *Global) Object() types.Object                 { return v.object }
+func (v *Global) String() string                       { return v.RelString(nil) }
+func (v *Global) Package() *Package                    { return v.Pkg }
+func (v *Global) RelString(from *types.Package) string { return relString(v, from) }
 
-func (v *Function) Name() string            { return v.name }
-func (v *Function) Type() types.Type        { return v.Signature }
-func (v *Function) Pos() token.Pos          { return v.pos }
-func (*Function) Referrers() *[]Instruction { return nil }
-func (v *Function) Token() token.Token      { return token.FUNC }
-func (v *Function) Object() types.Object    { return v.object }
+func (v *Function) Name() string         { return v.name }
+func (v *Function) Type() types.Type     { return v.Signature }
+func (v *Function) Pos() token.Pos       { return v.pos }
+func (v *Function) Token() token.Token   { return token.FUNC }
+func (v *Function) Object() types.Object { return v.object }
+func (v *Function) String() string       { return v.RelString(nil) }
+func (v *Function) Package() *Package    { return v.Pkg }
+func (v *Function) Referrers() *[]Instruction {
+	if v.Enclosing != nil {
+		return &v.referrers
+	}
+	return nil
+}
 
 func (v *Parameter) Type() types.Type          { return v.typ }
 func (v *Parameter) Name() string              { return v.name }
@@ -1382,23 +1438,23 @@ func (v *anInstruction) Parent() *Function          { return v.block.parent }
 func (v *anInstruction) Block() *BasicBlock         { return v.block }
 func (v *anInstruction) SetBlock(block *BasicBlock) { v.block = block }
 
-func (t *Type) Name() string         { return t.object.Name() }
-func (t *Type) Pos() token.Pos       { return t.object.Pos() }
-func (t *Type) Type() types.Type     { return t.object.Type() }
-func (t *Type) Token() token.Token   { return token.TYPE }
-func (t *Type) Object() types.Object { return t.object }
-func (t *Type) String() string {
-	return fmt.Sprintf("%s.%s", t.object.Pkg().Path(), t.object.Name())
-}
+func (t *Type) Name() string                         { return t.object.Name() }
+func (t *Type) Pos() token.Pos                       { return t.object.Pos() }
+func (t *Type) Type() types.Type                     { return t.object.Type() }
+func (t *Type) Token() token.Token                   { return token.TYPE }
+func (t *Type) Object() types.Object                 { return t.object }
+func (t *Type) String() string                       { return t.RelString(nil) }
+func (t *Type) Package() *Package                    { return t.pkg }
+func (t *Type) RelString(from *types.Package) string { return relString(t, from) }
 
-func (c *NamedConst) Name() string   { return c.object.Name() }
-func (c *NamedConst) Pos() token.Pos { return c.object.Pos() }
-func (c *NamedConst) String() string {
-	return fmt.Sprintf("%s.%s", c.object.Pkg().Path(), c.object.Name())
-}
-func (c *NamedConst) Type() types.Type     { return c.object.Type() }
-func (c *NamedConst) Token() token.Token   { return token.CONST }
-func (c *NamedConst) Object() types.Object { return c.object }
+func (c *NamedConst) Name() string                         { return c.object.Name() }
+func (c *NamedConst) Pos() token.Pos                       { return c.object.Pos() }
+func (c *NamedConst) String() string                       { return c.RelString(nil) }
+func (c *NamedConst) Type() types.Type                     { return c.object.Type() }
+func (c *NamedConst) Token() token.Token                   { return token.CONST }
+func (c *NamedConst) Object() types.Object                 { return c.object }
+func (c *NamedConst) Package() *Package                    { return c.pkg }
+func (c *NamedConst) RelString(from *types.Package) string { return relString(c, from) }
 
 // Func returns the package-level function of the specified name,
 // or nil if not found.
@@ -1437,7 +1493,7 @@ func (s *Defer) Pos() token.Pos     { return s.pos }
 func (s *Go) Pos() token.Pos        { return s.pos }
 func (s *MapUpdate) Pos() token.Pos { return s.pos }
 func (s *Panic) Pos() token.Pos     { return s.pos }
-func (s *Ret) Pos() token.Pos       { return s.pos }
+func (s *Return) Pos() token.Pos    { return s.pos }
 func (s *Send) Pos() token.Pos      { return s.pos }
 func (s *Store) Pos() token.Pos     { return s.pos }
 func (s *If) Pos() token.Pos        { return token.NoPos }
@@ -1570,7 +1626,7 @@ func (v *Range) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
 
-func (s *Ret) Operands(rands []*Value) []*Value {
+func (s *Return) Operands(rands []*Value) []*Value {
 	for i := range s.Results {
 		rands = append(rands, &s.Results[i])
 	}

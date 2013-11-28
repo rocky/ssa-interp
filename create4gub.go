@@ -13,10 +13,15 @@ func assignScopeId(typesScope *types.Scope, scopeId ScopeId) *Scope{
 }
 
 func AssignScopeIds(pkg *Package, typesScope *types.Scope, scopeId *ScopeId) {
-	node  := typesScope.Node()
+
+	///FIXME rocky Node moved around in the types interface
+	///FIXME node  := typesScope.Node()
 	scope := assignScopeId(typesScope, *scopeId)
-	pkg.Ast2Scope[node] = scope
+
+	//FIXME  pkg.Ast2Scope[node] = scope
+
 	pkg.TypeScope2Scope[typesScope] = scope
+
 	// num2scope = append(num2scope, scope)
 	// switch node.(type) {
 	// case *ast.FuncType:

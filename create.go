@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa2
 
 // This file implements the CREATE phase of SSA construction.
@@ -8,6 +12,7 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
+	"strings"
 
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
@@ -40,7 +45,7 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 		PackagesByPath:      make(map[string]*Package),
 		PackagesByName:      make(map[string]*Package),
 		packages:            make(map[*types.Package]*Package),
-		builtins:            make(map[types.Object]*Builtin),
+		builtins:            make(map[*types.Builtin]*Builtin),
 		boundMethodWrappers: make(map[*types.Func]*Function),
 		ifaceMethodWrappers: make(map[*types.Func]*Function),
 		mode:                mode,
@@ -48,7 +53,7 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 
 	// Create Values for built-in functions.
 	for _, name := range types.Universe.Names() {
-		if obj, ok := types.Universe.Lookup(name).(*types.Func); ok {
+		if obj, ok := types.Universe.Lookup(name).(*types.Builtin); ok {
 			// FIXME: end position is not right
 			prog.builtins[obj] = &Builtin{obj, obj.Pos()}
 		}
@@ -68,7 +73,11 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	name := obj.Name()
 	switch obj := obj.(type) {
 	case *types.TypeName:
-		pkg.Members[name] = &Type{object: obj}
+		pkg.values[obj] = nil // for needMethods
+		pkg.Members[name] = &Type{
+			object: obj,
+			pkg:    pkg,
+		}
 
 	case *types.Const:
 		pos  := obj.Pos()
@@ -80,6 +89,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		c := &NamedConst{
 			object: obj,
 			Value:  NewConst(obj.Val(), obj.Type(), pos, endP),
+			pkg:    pkg,
 		}
 		pkg.values[obj] = c.Value
 		pkg.Members[name] = c
@@ -106,10 +116,8 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 
 	case *types.Func:
 		var fs *funcSyntax
-		synthetic := "loaded from gc object file"
 		var scope *Scope = nil
 		if decl, ok := syntax.(*ast.FuncDecl); ok {
-			synthetic = ""
 			fs = &funcSyntax{
 				functype:  decl.Type,
 				recvField: decl.Recv,
@@ -127,16 +135,19 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			name:      name,
 			object:    obj,
 			Signature: obj.Type().(*types.Signature),
-			Synthetic: synthetic,
+			syntax:    syntax,
 			pos:       pos,
 			endP:      endP,
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
-			syntax:     fs,
 			Breakpoint: false,
 			Scope     : scope,
 			LocalsByName: make(map[NameScope]uint),
 		}
+		if syntax == nil {
+			fn.Synthetic = "loaded from gc object file"
+		}
+
 		if fs != nil && fs.body != nil {
 			fn.endP =  fs.body.End()
 		}
@@ -188,11 +199,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 	case *ast.FuncDecl:
 		id := decl.Name
 		if decl.Recv == nil && id.Name == "init" {
-			if !pkg.Init.pos.IsValid() {
-				pkg.Init.pos = decl.Name.Pos()
-				pkg.Init.Synthetic = ""
-			}
-			return // init blocks aren't functions
+			return // no object
 		}
 		if !isBlankIdent(id) {
 			memberFromObject(pkg, pkg.objectOf(id), decl)
@@ -204,7 +211,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 // error-free package described by info, and populates its Members
 // mapping.
 //
-// Repeated calls with the same info returns the same Package.
+// Repeated calls with the same info return the same Package.
 //
 // The real work of building SSA form for each function is not done
 // until a subsequent call to Package.Build().
@@ -230,7 +237,10 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 
 	// 0 scope number is pkg init function
 	scope    := assignScopeId(info.Pkg.Scope(), 0)
-	p.Ast2Scope[scope.Node()] = scope
+
+	// FIXME: rocky I think this in there some other way now in the types interface
+	// p.Ast2Scope[scope.Node()] = scope
+
 	scopeId := ScopeId(1)
 	AssignScopeIds(p, info.Pkg.Scope(), &scopeId)
 
@@ -285,7 +295,9 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		p.DumpTo(os.Stderr)
 	}
 
-	prog.PackagesByPath[info.Pkg.Path()] = p
+	if info.Importable {
+		prog.PackagesByPath[info.Pkg.Path()] = p
+	}
 	prog.PackagesByName[p.Object.Name()] = p
 	prog.packages[p.Object] = p
 
@@ -294,4 +306,49 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 	}
 
 	return p
+}
+
+// CreatePackages creates SSA Packages for all error-free packages
+// loaded by the specified Importer.
+//
+// If all packages were error-free, it is safe to call
+// prog.BuildAll(), and nil is returned.  Otherwise an error is
+// returned.
+//
+func (prog *Program) CreatePackages(imp *importer.Importer) error {
+	var errpkgs []string
+	for _, info := range imp.AllPackages() {
+		if info.Err != nil {
+			errpkgs = append(errpkgs, info.Pkg.Path())
+		} else {
+			prog.CreatePackage(info)
+		}
+	}
+	if errpkgs != nil {
+		return fmt.Errorf("couldn't create these SSA packages due to type errors: %s",
+			strings.Join(errpkgs, ", "))
+	}
+	return nil
+}
+
+// AllPackages returns a new slice containing all packages in the
+// program prog in unspecified order.
+//
+func (prog *Program) AllPackages() []*Package {
+	pkgs := make([]*Package, 0, len(prog.packages))
+	for _, pkg := range prog.packages {
+		pkgs = append(pkgs, pkg)
+	}
+	return pkgs
+}
+
+// ImportedPackage returns the importable SSA Package whose import
+// path is path, or nil if no such SSA package has been created.
+//
+// Not all packages are importable.  For example, no import
+// declaration can resolve to the x_test package created by 'go test'
+// or the ad-hoc main package created 'go build foo.go'.
+//
+func (prog *Program) ImportedPackage(path string) *Package {
+	return prog.PackagesByPath[path]
 }

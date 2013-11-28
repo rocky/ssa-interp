@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa2
 
 // Helpers for emitting SSA instructions.
@@ -38,7 +42,7 @@ func emitLoad(f *Function, addr Value) *UnOp {
 // emitDebugRef emits to f a DebugRef pseudo-instruction associating
 // expression e with value v.
 //
-func emitDebugRef(f *Function, e ast.Expr, v Value) {
+func emitDebugRef(f *Function, e ast.Expr, v Value, isAddr bool) {
 	if !f.debugInfo() {
 		return // debugging not enabled
 	}
@@ -46,18 +50,21 @@ func emitDebugRef(f *Function, e ast.Expr, v Value) {
 		panic("nil")
 	}
 	var obj types.Object
+	e = unparen(e)
 	if id, ok := e.(*ast.Ident); ok {
 		if isBlankIdent(id) {
 			return
 		}
 		obj = f.Pkg.objectOf(id)
-		if _, ok := obj.(*types.Const); ok {
+		switch obj.(type) {
+		case *types.Nil, *types.Const, *types.Builtin:
 			return
 		}
 	}
 	f.emit(&DebugRef{
 		X:      v,
-		Expr:   unparen(e),
+		Expr:   e,
+		IsAddr: isAddr,
 		Object: obj,
 	})
 }
@@ -210,6 +217,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 			val = emitConv(f, val, DefaultType(ut_src))
 		}
 
+		f.Pkg.needMethodsOf(val.Type())
 		mi := &MakeInterface{X: val}
 		mi.setType(typ)
 		return f.emit(mi)
@@ -287,14 +295,11 @@ func emitTrace(f *Function, event TraceEvent, start token.Pos, end token.Pos) Va
 }
 
 // emitExtract emits to f an instruction to extract the index'th
-// component of tuple, ascribing it type typ.  It returns the
-// extracted value.
+// component of tuple.  It returns the extracted value.
 //
-func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
+func emitExtract(f *Function, tuple Value, index int) Value {
 	e := &Extract{Tuple: tuple, Index: index}
-	// In all cases but one (tSelect's recv), typ is redundant w.r.t.
-	// tuple.Type().(*types.Tuple).Values[index].Type.
-	e.setType(typ)
+	e.setType(tuple.Type().(*types.Tuple).At(index).Type())
 	return f.emit(e)
 }
 
@@ -341,7 +346,7 @@ func emitTailCall(f *Function, call *Call) {
 		call.typ = tresults
 	}
 	tuple := f.emit(call)
-	var ret Ret
+	var ret Return
 	switch nr {
 	case 0:
 		// no-op
@@ -349,7 +354,7 @@ func emitTailCall(f *Function, call *Call) {
 		ret.Results = []Value{tuple}
 	default:
 		for i := 0; i < nr; i++ {
-			v := emitExtract(f, tuple, i, tresults.At(i).Type())
+			v := emitExtract(f, tuple, i)
 			// TODO(adonovan): in principle, this is required:
 			//   v = emitConv(f, o.Type, f.Signature.Results[i].Type)
 			// but in practice emitTailCall is only used when
@@ -426,4 +431,49 @@ func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, pos toke
 		v = f.emit(instr)
 	}
 	return v
+}
+
+// createRecoverBlock emits to f a block of code to return after a
+// recovered panic, and sets f.Recover to it.
+//
+// If f's result parameters are named, the code loads and returns
+// their current values, otherwise it returns the zero values of their
+// type.
+//
+// Idempotent.
+//
+func createRecoverBlock(f *Function) {
+	if f.Recover != nil {
+		return // already created
+	}
+	saved := f.currentBlock
+
+	f.Recover = f.newBasicBlock("recover", nil)
+	f.currentBlock = f.Recover
+
+	var results []Value
+	if f.namedResults != nil {
+		// Reload NRPs to form value tuple.
+		for _, r := range f.namedResults {
+			results = append(results, emitLoad(f, r))
+		}
+	} else {
+		R := f.Signature.Results()
+		for i, n := 0, R.Len(); i < n; i++ {
+			T := R.At(i).Type()
+			var v Value
+
+			// Return zero value of each result type.
+			switch T.Underlying().(type) {
+			case *types.Struct, *types.Array:
+				v = emitLoad(f, f.addLocal(T, token.NoPos, token.NoPos, nil))
+			default:
+				v = zeroConst(T)
+			}
+			results = append(results, v)
+		}
+	}
+	f.emit(&Return{Results: results})
+
+	f.currentBlock = saved
 }

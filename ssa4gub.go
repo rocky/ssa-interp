@@ -50,7 +50,7 @@ func (s *DebugRef)  EndP() token.Pos            { return s.Expr.End() }
 func (s *Defer)     EndP() token.Pos            { return s.Call.endP }
 func (s *Go)        EndP() token.Pos            { return s.Call.endP }
 func (v *Register)  EndP() token.Pos            { return v.endP }
-func (s *Ret)       EndP() token.Pos            { return s.endP }
+func (s *Return)    EndP() token.Pos            { return s.endP }
 func (v *Function)  EndP() token.Pos            { return v.endP }
 func (v *Function)  Fset() *token.FileSet       { return v.Prog.Fset }
 func (v *Function)  NamedResults() []*Alloc     { return v.namedResults }

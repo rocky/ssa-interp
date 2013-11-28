@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa2
 
 // This file defines utilities for working with source positions
@@ -22,8 +26,8 @@ import (
 // Returns nil if not found; reasons might include:
 //    - the node is not enclosed by any function.
 //    - the node is within an anonymous function (FuncLit) and
-//      its SSA function has not been created yet (pkg.BuildPackage()
-//      has not yet been called).
+//      its SSA function has not been created yet
+//      (pkg.Build() has not yet been called).
 //
 func EnclosingFunction(pkg *Package, path []ast.Node) *Function {
 	// Start with package-level function...
@@ -82,6 +86,17 @@ func findEnclosingPackageLevelFunction(pkg *Package, path []ast.Node) *Function 
 		case *ast.FuncDecl:
 			if decl.Recv == nil && decl.Name.Name == "init" {
 				// Explicit init() function.
+				for _, b := range pkg.Init.Blocks {
+					for _, instr := range b.Instrs {
+						if instr, ok := instr.(*Call); ok {
+							if callee, ok := instr.Call.Value.(*Function); ok && callee.Pkg == pkg && callee.Pos() == decl.Name.NamePos {
+								return callee
+							}
+						}
+					}
+				}
+				// Hack: return non-nil when SSA is not yet
+				// built so that HasEnclosingFunction works.
 				return pkg.Init
 			}
 			// Declared function/method.
@@ -104,7 +119,7 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 				return mem
 			}
 		case *Type:
-			mset := methodSetOf(types.NewPointer(mem.Type()))
+			mset := types.NewPointer(mem.Type()).MethodSet()
 			for i, n := 0, mset.Len(); i < n; i++ {
 				// Don't call Program.Method: avoid creating wrappers.
 				obj := mset.At(i).Obj().(*types.Func)
@@ -126,30 +141,34 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 //    - e is a constant expression.  (For efficiency, no debug
 //      information is stored for constants. Use
 //      importer.PackageInfo.ValueOf(e) instead.)
+//    - e is a reference to nil or a built-in function.
 //    - the value was optimised away.
 //
-// The types of e and the result are equal (modulo "untyped" bools
-// resulting from comparisons) and they have equal "pointerness".
+// If e is an addressable expression used an an lvalue context,
+// value is the address denoted by e, and isAddr is true.
+//
+// The types of e (or &e, if isAddr) and the result are equal
+// (modulo "untyped" bools resulting from comparisons).
 //
 // (Tip: to find the ssa.Value given a source position, use
 // importer.PathEnclosingInterval to locate the ast.Node, then
 // EnclosingFunction to locate the Function, then ValueForExpr to find
 // the ssa.Value.)
 //
-func (f *Function) ValueForExpr(e ast.Expr) Value {
+func (f *Function) ValueForExpr(e ast.Expr) (value Value, isAddr bool) {
 	if f.debugInfo() { // (opt)
 		e = unparen(e)
 		for _, b := range f.Blocks {
 			for _, instr := range b.Instrs {
 				if ref, ok := instr.(*DebugRef); ok {
 					if ref.Expr == e {
-						return ref.X
+						return ref.X, ref.IsAddr
 					}
 				}
 			}
 		}
 	}
-	return nil
+	return
 }
 
 // --- Lookup functions for source-level named entities (types.Objects) ---
@@ -174,21 +193,16 @@ func (prog *Program) packageLevelValue(obj types.Object) Value {
 	return nil
 }
 
-// FuncValue returns the SSA Value denoted by the source-level named
-// function obj.  The result may be a *Function or a *Builtin, or nil
-// if not found.
+// FuncValue returns the Function denoted by the source-level named
+// function obj.
 //
-func (prog *Program) FuncValue(obj *types.Func) Value {
-	// Universal built-in?
-	if v, ok := prog.builtins[obj]; ok {
-		return v
-	}
+func (prog *Program) FuncValue(obj *types.Func) *Function {
 	// Package-level function or declared method?
 	if v := prog.packageLevelValue(obj); v != nil {
-		return v
+		return v.(*Function)
 	}
 	// Interface method wrapper?
-	meth := methodSetOf(recvType(obj)).Lookup(obj.Pkg(), obj.Name())
+	meth := recvType(obj).MethodSet().Lookup(obj.Pkg(), obj.Name())
 	return prog.Method(meth)
 }
 
@@ -217,51 +231,49 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 // because its package was not built, the debug information was not
 // requested during SSA construction, or the value was optimized away.
 //
-// ref must be the path to an ast.Ident (e.g. from
-// PathEnclosingInterval), and that ident must resolve to obj.
+// ref is the path to an ast.Ident (e.g. from PathEnclosingInterval),
+// and that ident must resolve to obj.
+//
+// pkg is the package enclosing the reference.  (A reference to a var
+// always occurs within a function, so we need to know where to find it.)
 //
 // The Value of a defining (as opposed to referring) identifier is the
-// value assigned to it in its definition.
+// value assigned to it in its definition.  Similarly, the Value of an
+// identifier that is the LHS of an assignment is the value assigned
+// to it in that statement.  In all these examples, VarValue(x) returns
+// the value of x and isAddr==false.
 //
-// In many cases where the identifier appears in an lvalue context,
-// the resulting Value is the var's address, not its value.
-// For example, x in all these examples:
+//    var x X
+//    var x = X{}
+//    x := X{}
+//    x = X{}
+//
+// When an identifier appears in an lvalue context other than as the
+// LHS of an assignment, the resulting Value is the var's address, not
+// its value.  This situation is reported by isAddr, the second
+// component of the result.  In these examples, VarValue(x) returns
+// the address of x and isAddr==true.
+//
 //    x.y = 0
 //    x[0] = 0
-//    _ = x[:]
-//    x = X{}
+//    _ = x[:]      (where x is an array)
 //    _ = &x
 //    x.method()    (iff method is on &x)
-// and all package-level vars.  (This situation can be detected by
-// comparing the types of the Var and Value.)
 //
-func (prog *Program) VarValue(obj *types.Var, ref []ast.Node) Value {
-	id := ref[0].(*ast.Ident)
-
-	// Package-level variable?
-	if v := prog.packageLevelValue(obj); v != nil {
-		return v.(*Global)
-	}
-
-	// It's a local variable (or param) of some function.
-
-	// The reference may occur inside a lexically nested function,
-	// so find that first.
-	pkg := prog.packages[obj.Pkg()]
-	if pkg == nil {
-		panic("no package for " + obj.String())
-	}
-
+func (prog *Program) VarValue(obj *types.Var, pkg *Package, ref []ast.Node) (value Value, isAddr bool) {
+	// All references to a var are local to some function, possibly init.
 	fn := EnclosingFunction(pkg, ref)
 	if fn == nil {
-		return nil // e.g. SSA not built
+		return // e.g. def of struct field; SSA not built?
 	}
+
+	id := ref[0].(*ast.Ident)
 
 	// Defining ident of a parameter?
 	if id.Pos() == obj.Pos() {
 		for _, param := range fn.Params {
 			if param.Object() == obj {
-				return param
+				return param, false
 			}
 		}
 	}
@@ -269,13 +281,18 @@ func (prog *Program) VarValue(obj *types.Var, ref []ast.Node) Value {
 	// Other ident?
 	for _, b := range fn.Blocks {
 		for _, instr := range b.Instrs {
-			if ref, ok := instr.(*DebugRef); ok {
-				if ref.Pos() == id.Pos() {
-					return ref.X
+			if dr, ok := instr.(*DebugRef); ok {
+				if dr.Pos() == id.Pos() {
+					return dr.X, dr.IsAddr
 				}
 			}
 		}
 	}
 
-	return nil // e.g. debug info not requested, or var optimized away
+	// Defining ident of package-level var?
+	if v := prog.packageLevelValue(obj); v != nil {
+		return v.(*Global), true
+	}
+
+	return // e.g. debug info not requested, or var optimized away
 }

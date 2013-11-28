@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa2
 
 // This file defines the Const SSA value type.
@@ -27,7 +31,7 @@ func intConst(i int64) *Const {
 // be any reference type, including interfaces.
 //
 func nilConst(typ types.Type) *Const {
-	return NewConst(exact.MakeNil(), typ, token.NoPos, token.NoPos)
+	return NewConst(nil, typ, token.NoPos, token.NoPos)
 }
 
 // zeroConst returns a new "zero" constant of the specified type,
@@ -61,19 +65,27 @@ func zeroConst(t types.Type) *Const {
 	panic(fmt.Sprint("zeroConst: unexpected ", t))
 }
 
-func (c *Const) Name() string {
-	var s string
-	if c.Value.Kind() == exact.String {
-		s = exact.StringVal(c.Value)
+func (c *Const) valstring() string {
+	if c.Value == nil {
+		return "nil"
+	} else if c.Value.Kind() == exact.String {
+		s := exact.StringVal(c.Value)
 		const max = 20
 		if len(s) > max {
 			s = s[:max-3] + "..." // abbreviate
 		}
-		s = strconv.Quote(s)
+		return strconv.Quote(s)
 	} else {
-		s = c.Value.String()
+		return c.Value.String()
 	}
-	return s + ":" + c.typ.String()
+}
+
+func (c *Const) Name() string {
+	return fmt.Sprintf("%s:%s", c.valstring(), c.typ)
+}
+
+func (v *Const) String() string {
+	return v.Name()
 }
 
 func (c *Const) Type() types.Type {
@@ -90,7 +102,7 @@ func (c *Const) Pos() token.Pos {
 
 // IsNil returns true if this constant represents a typed or untyped nil value.
 func (c *Const) IsNil() bool {
-	return c.Value.Kind() == exact.Nil
+	return c.Value == nil
 }
 
 // Int64 returns the numeric value of this constant truncated to fit

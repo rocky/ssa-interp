@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa2
 
 // lvalues are the union of addressable expressions and map-index
@@ -41,14 +45,14 @@ func (a *address) store(fn *Function, v Value) {
 	store.pos = a.starPos
 	if a.expr != nil {
 		// store.Val is v converted for assignability.
-		emitDebugRef(fn, a.expr, store.Val)
+		emitDebugRef(fn, a.expr, store.Val, false)
 	}
 }
 
 func (a *address) address(fn *Function) Value {
 	if a.expr != nil {
 		// NB: this kind of DebugRef yields the object's address.
-		emitDebugRef(fn, a.expr, a.addr)
+		emitDebugRef(fn, a.expr, a.addr, true)
 	}
 	return a.addr
 }
@@ -65,6 +69,8 @@ func (a *address) typ() types.Type {
 type element struct {
 	m, k Value      // map or string
 	t    types.Type // map element type or string byte type
+	pos  token.Pos  // source position of colon ({k:v}) or lbrack (m[k]=v)
+	endP token.Pos  // source position of colon ({k:v}) or rbrack (m[k]=v)
 }
 
 func (e *element) load(fn *Function) Value {
