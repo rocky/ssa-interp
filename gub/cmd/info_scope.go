@@ -10,9 +10,9 @@ import (
 	"github.com/rocky/ssa-interp/gub"
 )
 
-import (
-	"go/ast"
-)
+// import (
+// 	"go/ast"
+// )
 
 func init() {
 	parent := "info"
@@ -37,7 +37,8 @@ func InfoScopeSubcmd(args []string) {
 		gub.Errmsg("No scope recorded here")
 		return
 	}
-	gub.Section("scope number %d", scope.ScopeId())
-	gub.Msg("%s", scope.Scope)
-	ast.Print(fr.Fset(), scope.Scope.Node())
+	gub.Errmsg("Not reinstated yet")
+	// gub.Section("scope number %d", scope.ScopeId())
+	// gub.Msg("%s", scope.Scope)
+	// ast.Print(fr.Fset(), scope.Scope.Node())
 }

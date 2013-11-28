@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // +build ignore
 
 package main
@@ -7,9 +11,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"log"
 	"os"
+	"runtime"
 	"runtime/pprof"
+
 	"code.google.com/p/go.tools/importer"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
@@ -20,7 +27,7 @@ import (
 var buildFlag = flag.String("build", "", `Options controlling the SSA builder.
 The value is a sequence of zero or more of these letters:
 C	perform sanity [C]hecking of the SSA form.
-D	include debug info for every function.
+D	include [D]ebug info for every function.
 P	log [P]ackage inventory.
 F	log [F]unction SSA code.
 S	log [S]ource locations as SSA builder progresses.
@@ -53,11 +60,23 @@ Examples:
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
+func init() {
+	// If $GOMAXPROCS isn't set, use the full capacity of the machine.
+	// For small machines, use at least 4 threads.
+	if os.Getenv("GOMAXPROCS") == "" {
+		n := runtime.NumCPU()
+		if n < 4 {
+			n = 4
+		}
+		runtime.GOMAXPROCS(n)
+	}
+}
+
 func main() {
 	flag.Parse()
 	args := flag.Args()
 
-	impctx := importer.Config{Loader: importer.MakeGoBuildLoader(nil)}
+	impctx := importer.Config{Build: &build.Default}
 
 	var mode ssa2.BuilderMode = ssa2.NaiveForm
 
@@ -74,7 +93,7 @@ func main() {
 		case 'C':
 			mode |= ssa2.SanityCheckFunctions
 		case 'G':
-			impctx.Loader = nil
+			impctx.Build = nil
 		case 'L':
 			mode |= ssa2.BuildSerially
 		default:
@@ -117,26 +136,47 @@ func main() {
 
 	// Load, parse and type-check the program.
 	imp := importer.New(&impctx)
-	info, args, err := importer.CreatePackageFromArgs(imp, args)
+	prog_args := args[1:]
+	infos, args, err := imp.LoadInitialPackages(args[0:1])
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err)
 	}
 
 	// Create and build SSA-form program representation.
 	prog := ssa2.NewProgram(imp.Fset, mode)
-	for _, info := range imp.Packages {
-		prog.CreatePackage(info)
+	if err := prog.CreatePackages(imp); err != nil {
+		log.Fatal(err)
 	}
+
 	prog.BuildAll()
 
 	// Run the interpreter.
 	if *runFlag {
-		fmt.Println("Running....")
+		// If some package defines main, run that.
+		// Otherwise run all package's tests.
+		var main *ssa2.Package
+		var pkgs []*ssa2.Package
+		for _, info := range infos {
+			pkg := prog.Package(info.Pkg)
+			if pkg.Func("main") != nil {
+				main = pkg
+				break
+			}
+			pkgs = append(pkgs, pkg)
+		}
+		if main == nil && pkgs != nil {
+			main = prog.CreateTestMainPackage(pkgs...)
+		}
+		if main == nil {
+			log.Fatal("No main package and no tests")
+		}
 		if interpTraceMode & interp.EnableStmtTracing != 0 {
 			gubcmd.Init()
 			gub.Install(gubFlag)
 		}
-		interp.Interpret(prog.Package(info.Pkg), interpMode, interpTraceMode,
-			info.Pkg.Path(), args)
+
+		fmt.Println("Running....")
+		interp.Interpret(main, interpMode, interpTraceMode, main.Object.Path(),
+			prog_args)
 	}
 }

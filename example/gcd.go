@@ -23,7 +23,8 @@ func gcd(a int, b int) int {
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("usage: %s <int1> <int2>", os.Args[0])
+		fmt.Printf("usage: %s *int1* *int2*\n", os.Args[0])
+		fmt.Println("\t prints Greatest Common Divisor of *int1* and *int2*");
 		os.Exit(1)
 	}
 
