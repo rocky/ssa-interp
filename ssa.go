@@ -23,8 +23,8 @@ import (
 //
 type Program struct {
 	Fset           *token.FileSet              // position information for the files of this Program
-	PackagesByPath map[string]*Package         // all loaded Packages, keyed by import path
-	PackagesByName map[string]*Package         // all loaded Packages, package name
+	PackagesByPath map[string]*Package         // all importable Packages, keyed by import path
+	PackagesByName map[string]*Package         // all importable Packages, package name
 	packages       map[*types.Package]*Package // all loaded Packages, keyed by object
 	builtins       map[*types.Builtin]*Builtin // all built-in functions, keyed by typechecker objects.
 	mode           BuilderMode                 // set of mode bits for SSA construction
@@ -87,9 +87,6 @@ type Type struct {
 
 // A NamedConst is a Member of Package representing a package-level
 // named constant value.
-//
-// Pos() returns the position of the declaring ast.ValueSpec.Names[*]
-// identifier.
 //
 // NB: a NamedConst is not a Value; it contains a constant Value, which
 // it augments with the name and position of its 'const' declaration.
@@ -265,11 +262,6 @@ type Instruction interface {
 // If the function is a method (Signature.Recv() != nil) then the first
 // element of Params is the receiver parameter.
 //
-// Pos() returns the declaring ast.FuncLit.Type.Func or the position
-// of the ast.FuncDecl.Name, if the function was explicit in the
-// source.  Synthetic wrappers, for which Synthetic != "", may share
-// the same position as the function they wrap.
-//
 // Type() returns the function's Signature.
 //
 type Function struct {
@@ -430,10 +422,7 @@ type Global struct {
 	endP   token.Pos
 
 	Pkg *Package
-
-	// The following fields are set transiently during building,
-	// then cleared.
-	spec *ast.ValueSpec // explained at buildGlobal
+	spec *ast.ValueSpec // ast of global variable
 }
 
 // A Builtin represents a built-in function, e.g. len.
@@ -765,6 +754,9 @@ type Slice struct {
 // The field is identified by its index within the field list of the
 // struct type of X.
 //
+// Dynamically, this instruction panics if X evaluates to a nil
+// pointer.
+//
 // Type() returns a (possibly named) *types.Pointer.
 //
 // Pos() returns the position of the ast.SelectorExpr.Sel for the
@@ -802,6 +794,9 @@ type Field struct {
 //
 // The elements of maps and strings are not addressable; use Lookup or
 // MapUpdate instead.
+//
+// Dynamically, this instruction panics if X evaluates to a nil *array
+// pointer.
 //
 // Type() returns a (possibly named) *types.Pointer.
 //
@@ -1205,9 +1200,14 @@ type MapUpdate struct {
 // consistency is maintained during transformation passes by the
 // ordinary SSA renaming machinery.)
 //
+// Example printed form:
+//      ; *ast.CallExpr @ 102:9 is t5
+//      ; var x float64 @ 109:72 is x
+//      ; address of *ast.CompositeLit @ 216:10 is t0
+//
 type DebugRef struct {
 	anInstruction
-	Expr   ast.Expr     // the referring expression
+	Expr   ast.Expr     // the referring expression (never *ast.ParenExpr)
 
 	Object types.Object // the identity of the source var/const/func
 	IsAddr bool         // Expr is addressable and X is the address it denotes
@@ -1221,7 +1221,7 @@ type DebugRef struct {
 // implementation of most of the Value interface: Value.Name() is a
 // numbered register (e.g. "t0"); the other methods are field accessors.
 //
-// Temporary names are automatically assigned to each Register on
+// Temporary names are automatically assigned to each register on
 // completion of building a function in SSA form.
 //
 // Clients must not assume that the 'id' value (and the Name() derived

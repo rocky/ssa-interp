@@ -607,6 +607,12 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		TraceEventMask: make(ssa2.TraceEventMask, ssa2.TRACE_EVENT_LAST),
 	}
 
+	runtimePkg := i.prog.ImportedPackage("runtime")
+	if runtimePkg == nil {
+		panic("Internal error: Interperter should have imported the runtime package")
+	}
+	i.runtimeErrorString = runtimePkg.Type("errorString").Object().Type()
+
 	// Is there a way to combine the below loop into the above?
 	for event := ssa2.TRACE_EVENT_FIRST; event <= ssa2.TRACE_EVENT_LAST; event++ {
 		i.TraceEventMask[event] = true
@@ -618,12 +624,6 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		i.TraceMode &= ^(EnableStmtTracing|EnableTracing)
 	}
 	i.goTops = append(i.goTops, &GoreState{Fr: nil, state: 0})
-
-	runtimePkg := i.prog.ImportedPackage("runtime")
-	if runtimePkg == nil {
-		panic("ssa.Program doesn't include runtime package")
-	}
-	i.runtimeErrorString = runtimePkg.Type("errorString").Object().Type()
 
 	initReflect(i)
 

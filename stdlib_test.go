@@ -91,7 +91,7 @@ func TestStdlib(t *testing.T) {
 	runtime.GC()
 	runtime.ReadMemStats(&memstats)
 
-	numPkgs := len(prog.PackagesByPath)
+	numPkgs := len(prog.AllPackages())
 	if want := 140; numPkgs < want {
 		t.Errorf("Loaded only %d packages, want at least %d", numPkgs, want)
 	}
