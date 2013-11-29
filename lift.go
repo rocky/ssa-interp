@@ -102,9 +102,6 @@ func (df domFrontier) build(u *domNode) {
 func buildDomFrontier(fn *Function) domFrontier {
 	df := make(domFrontier, len(fn.Blocks))
 	df.build(fn.Blocks[0].dom)
-	if fn.Recover != nil {
-		df.build(fn.Recover.dom)
-	}
 	return df
 }
 
@@ -172,15 +169,18 @@ func lift(fn *Function) {
 	for _, b := range fn.Blocks {
 		b.gaps = 0
 		b.rundefers = 0
-		for _, instr := range b.Instrs {
+		for i, instr := range b.Instrs {
 			switch instr := instr.(type) {
 			case *Alloc:
-				index := -1
 				if liftAlloc(df, instr, newPhis) {
-					index = numAllocs
+					instr.index = numAllocs
 					numAllocs++
+					// Delete the alloc.
+					b.Instrs[i] = nil
+					b.gaps++
+				} else {
+					instr.index = -1
 				}
-				instr.index = index
 			case *Defer:
 				usesDefer = true
 			case *RunDefers:
@@ -209,8 +209,8 @@ func lift(fn *Function) {
 		nps := newPhis[b]
 		j := 0
 		for _, np := range nps {
-			if !phiIsLive(np.phi) {
-				continue // discard it
+			if len(*np.phi.Referrers()) == 0 {
+				continue // unreferenced phi
 			}
 			nps[j] = np
 			j++
@@ -254,7 +254,7 @@ func lift(fn *Function) {
 	// Remove any fn.Locals that were lifted.
 	j := 0
 	for _, l := range fn.Locals {
-		if l.index < 0 {
+		if l.index == -1 {
 			fn.Locals[j] = l
 			j++
 		}
@@ -264,19 +264,6 @@ func lift(fn *Function) {
 		fn.Locals[i] = nil
 	}
 	fn.Locals = fn.Locals[:j]
-}
-
-func phiIsLive(phi *Phi) bool {
-	for _, instr := range *phi.Referrers() {
-		if instr == phi {
-			continue // self-refs don't count
-		}
-		if _, ok := instr.(*DebugRef); ok {
-			continue // debug refs don't count
-		}
-		return true
-	}
-	return false
 }
 
 type blockSet struct{ big.Int } // (inherit methods from Int)
@@ -325,16 +312,6 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 	switch deref(alloc.Type()).Underlying().(type) {
 	case *types.Array, *types.Struct:
 		return false
-	}
-
-	// Don't lift named return values in functions that defer
-	// calls that may recover from panic.
-	if fn := alloc.Parent(); fn.Recover != nil {
-		for _, nr := range fn.namedResults {
-			if nr == alloc {
-				return false
-			}
-		}
 	}
 
 	// Compute defblocks, the set of blocks containing a
@@ -476,35 +453,24 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 
 	// Rename loads and stores of allocs.
 	for i, instr := range u.Instrs {
+		_ = i
 		switch instr := instr.(type) {
-		case *Alloc:
-			if instr.index >= 0 { // store of zero to Alloc cell
-				// Replace dominated loads by the zero value.
-				renaming[instr.index] = nil
-				if debugLifting {
-					fmt.Fprintf(os.Stderr, "\tkill alloc %s\n", instr)
-				}
-				// Delete the Alloc.
+		case *Store:
+			if alloc, ok := instr.Addr.(*Alloc); ok && alloc.index != -1 { // store to Alloc cell
+				// Delete the Store.
 				u.Instrs[i] = nil
 				u.gaps++
-			}
-
-		case *Store:
-			if alloc, ok := instr.Addr.(*Alloc); ok && alloc.index >= 0 { // store to Alloc cell
-				// Replace dominated loads by the stored value.
+				// Replace dominated loads by the
+				// stored value.
 				renaming[alloc.index] = instr.Val
 				if debugLifting {
 					fmt.Fprintf(os.Stderr, "\tkill store %s; new value: %s\n",
 						instr, instr.Val.Name())
 				}
-				// Delete the Store.
-				u.Instrs[i] = nil
-				u.gaps++
 			}
-
 		case *UnOp:
 			if instr.Op == token.MUL {
-				if alloc, ok := instr.X.(*Alloc); ok && alloc.index >= 0 { // load of Alloc cell
+				if alloc, ok := instr.X.(*Alloc); ok && alloc.index != -1 { // load of Alloc cell
 					newval := renamed(renaming, alloc)
 					if debugLifting {
 						fmt.Fprintf(os.Stderr, "\tupdate load %s = %s with %s\n",
@@ -515,22 +481,6 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 					// dominating stored value.
 					replaceAll(instr, newval)
 					// Delete the Load.
-					u.Instrs[i] = nil
-					u.gaps++
-				}
-			}
-
-		case *DebugRef:
-			if alloc, ok := instr.X.(*Alloc); ok && alloc.index >= 0 { // ref of Alloc cell
-				if instr.IsAddr {
-					instr.X = renamed(renaming, alloc)
-					instr.IsAddr = false
-				} else {
-					// A source expression denotes the address
-					// of an Alloc that was optimized away.
-					instr.X = nil
-
-					// Delete the DebugRef.
 					u.Instrs[i] = nil
 					u.gaps++
 				}
