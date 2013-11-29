@@ -6,7 +6,6 @@
 package gubcmd
 
 import (
-	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/gub"
 )
 
@@ -46,19 +45,6 @@ See also backtrace.
 func InfoFrameSubcmd(args []string) {
 	gub.Msg("goroutine number: %d", gub.CurFrame().GoNum())
 	gub.Msg("frame: %s", gub.CurFrame().FnAndParamString())
-}
-
-func InfoProgramSubcmd(args []string) {
-	gub.Msg("instruction number: %d", gub.CurFrame().PC())
-	block := gub.CurFrame().Block()
-	gub.Msg("basic block: %d", block.Index)
-	if block.Scope != nil {
-		gub.Msg("scope: %d", block.Scope.ScopeId())
-	} else {
-		gub.Msg("unknown scope")
-	}
-	gub.Msg("program stop event: %s", ssa2.Event2Name[gub.TraceEvent])
-	gub.Msg("position: %s", gub.CurFrame().PositionRange())
 }
 
 func InfoPCSubcmd() {

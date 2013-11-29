@@ -21,7 +21,7 @@ func val(lit string) exact.Value {
 	case "?":
 		return exact.MakeUnknown()
 	case "nil":
-		return exact.MakeNil()
+		return nil
 	case "true":
 		return exact.MakeBool(true)
 	case "false":

@@ -72,6 +72,10 @@ func (fr *Frame) FnAndParamString() string {
 }
 
 func (fr *Frame) Scope() *ssa2.Scope {
+	if fr.block == nil {
+		println("Whoa there, block is nil!")
+		return nil
+	}
 	return fr.block.Scope
 }
 

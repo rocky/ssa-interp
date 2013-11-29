@@ -1,6 +1,6 @@
-Running....
 Gub version 0.2
 Type 'h' for help
+Running....
 ->  main()
 testdata/expr.go:84:6
 # Test of eval
@@ -30,8 +30,8 @@ true
 # y(
 ** Error parsing y(: 1:3: expected ')', found 'EOF'
 # exprs
-exprs is in the environment at scope 32
-	local []string (exprs) = ["f(3.14)*2 + c", "-2  ", " 5 == 6", "5	< 6", "1+2", "(1+2)*3", "1 << n", "1 << 8", "y("]
+exprs is in the environment
+	*t0 = ["f(3.14)*2 + c", "-2  ", " 5 == 6", "5	< 6", "1+2", "(1+2)*3", "1 << n", "1 << 8", "y("]
 # eval exprs[0]
 "f(3.14)*2 + c"
 # eval exprs[100]

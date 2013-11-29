@@ -1,6 +1,6 @@
-Running....
 Gub version 0.2
 Type 'h' for help
+Running....
 ->  main()
 testdata/panic.go:3:6
 # Test that debugger handles an interpreter panic()

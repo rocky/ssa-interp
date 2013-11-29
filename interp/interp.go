@@ -558,9 +558,12 @@ func runFrame(fr *Frame) {
 			}
 			switch visitInstr(fr, instr) {
 			case kReturn:
+				switch return_instr := instr.(type) {
+				case *ssa2.Return:
+					fr.startP = return_instr.Pos()
+					fr.endP   = return_instr.EndP()
+				}
 				fr.status = StComplete
-				fr.startP = instr.Pos()
-				fr.endP   = instr.Pos()
 				if (fr.tracing != TRACE_STEP_NONE) && GlobalStmtTracing() {
 					TraceHook(fr, &instr, ssa2.CALL_RETURN)
 				}
