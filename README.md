@@ -9,7 +9,7 @@ Setup
 -----
 
 * Make sure our GO environment is setup, e.g. *$GOBIN*, *$GOPATH*, ...
-* Make sure you have go 1.1.1 or later installed.
+* Make sure you have go 1.1.1 installed. For go 1.2 use the go-1.2 branch.
 
 ```
    go get github.com/rocky/ssa-interp
