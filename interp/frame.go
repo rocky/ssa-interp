@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package interp
 
 import (
@@ -6,6 +10,13 @@ import (
 	"go/token"
 	"github.com/rocky/ssa-interp"
 )
+
+type deferred struct {
+	fn    Value
+	args  []Value
+	instr *ssa2.Defer
+	tail  *deferred
+}
 
 type Frame struct {
 	i                *interpreter
@@ -16,11 +27,11 @@ type Frame struct {
 	locals           []Value
 	defers           []func()
 	result           Value
-	status           RunStatusType
-	tracing			 traceType
 	panicking        bool
 	panic            interface{}
 
+	status           RunStatusType
+	tracing		 traceType
 	goNum            int         // Goroutine number
 	Var2Reg          map[string] string // Turns an SSA
 										// register/variable into its

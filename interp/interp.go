@@ -105,6 +105,11 @@ func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa2.Functi
 // record frame.  It returns a continuation value indicating where to
 // read the next instruction from.
 func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
+	// switch instr := genericInstr.(type) {
+	// default:
+	// 	fmt.Printf("instruction: %T\n", instr)
+	// }
+
 	switch instr := genericInstr.(type) {
 	case *ssa2.DebugRef:
 		if instr.Object != nil {
@@ -176,6 +181,15 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 			}
 		}
 		TraceHook(fr, &genericInstr, ssa2.PANIC)
+		// Don't know if setting fr.status really does anything, but
+		// just to try to be totally Kosher. We do this *after*
+		// running TraceHook because TraceHook treats panic'd frames
+		// differently and will do less with them. If it needs to
+		// understand that we are in a panic state, it can do that via
+		// the event type passed above.
+		fr.status = StPanic
+		// We don't need an interpreter tracecback. So turn that off.
+		os.Setenv("GOTRACEBACK", "0")
 		panic(targetPanic{fr.get(instr.X)})
 
 	case *ssa2.Send:
@@ -374,10 +388,11 @@ func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
 		if recv.t == nil {
 			panic("method invoked on nil interface")
 		}
-		fn = lookupMethod(fr.i, recv.t, call.Method)
-		if fn == nil {
+		if f := lookupMethod(fr.i, recv.t, call.Method); f == nil {
 			// Unreachable in well-typed programs.
 			panic(fmt.Sprintf("method set for dynamic type %v does not contain %s", recv.t, call.Method))
+		} else {
+			fn = f
 		}
 		args = append(args, copyVal(recv.v))
 	}
