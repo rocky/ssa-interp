@@ -161,6 +161,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 			}
 			fr.result = tuple(res)
 		}
+		fr.block = nil
 		return kReturn
 
 	case *ssa2.RunDefers:
@@ -213,6 +214,12 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 	case *ssa2.Defer:
 		fn, args := prepareCall(fr, &instr.Call)
 		fr.defers = append(fr.defers, func() { call(fr.i, fr.goNum, fr, fn, args) })
+		// fr.defers = &deferred{
+		// 	fn:    fn,
+		// 	args:  args,
+		// 	instr: instr,
+		// 	tail:  fr.defers,
+		// }
 
 	case *ssa2.Go:
 		fn, args := prepareCall(fr, &instr.Call)
@@ -464,13 +471,6 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 	}
 	i.goTops[goNum].Fr = fr
 
-	if caller == nil {
-		if GlobalStmtTracing() {
-			fr.tracing = TRACE_STEP_IN
-		}
-	} else if caller.tracing == TRACE_STEP_IN {
-		fr.tracing = TRACE_STEP_IN
-	}
 	for i, l := range fn.Locals {
 		fr.locals[i] = zero(deref(l.Type()))
 		fr.env[l] = &fr.locals[i]
@@ -481,6 +481,15 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 	for i, fv := range fn.FreeVars {
 		fr.env[fv] = env[i]
 	}
+
+	if caller == nil {
+		if GlobalStmtTracing() {
+			fr.tracing = TRACE_STEP_IN
+		}
+	} else if caller.tracing == TRACE_STEP_IN {
+		fr.tracing = TRACE_STEP_IN
+	}
+
 	for fr.block != nil {
 		runFrame(fr)
 	}
@@ -513,7 +522,7 @@ func runFrame(fr *Frame) {
 		}
 		fr.panicking = true
 		fr.panic = recover()
-		if fr.i.TraceMode&EnableTracing != 0 {
+		if InstTracing() || GlobalStmtTracing() {
 			fmt.Fprintf(os.Stderr, "Panicking: %T %v.\n", fr.panic, fr.panic)
 		}
 		fr.runDefers()
