@@ -408,9 +408,9 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 			et = types.NewPointer(t.Elem())
 		case *types.Map:
 			return &element{
-				m: b.expr(fn, e.X),
-				k: emitConv(fn, b.expr(fn, e.Index), t.Key()),
-				t: t.Elem(),
+				m:   b.expr(fn, e.X),
+				k:   emitConv(fn, b.expr(fn, e.Index), t.Key()),
+				t:   t.Elem(),
 			}
 		default:
 			panic("unexpected container type in IndexExpr: " + t.String())
@@ -490,17 +490,17 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 	case *ast.FuncLit:
 		posn := fn.Prog.Fset.Position(e.Type.Func)
 		fn2 := &Function{
-			name:       fmt.Sprintf("func@%d.%d", posn.Line, posn.Column),
-			Signature:  fn.Pkg.typeOf(e.Type).Underlying().(*types.Signature),
-			pos:        e.Type.Func,
-			Enclosing:  fn,
-			Pkg:        fn.Pkg,
-			Prog:       fn.Prog,
+			name:      fmt.Sprintf("func@%d.%d", posn.Line, posn.Column),
+			Signature: fn.Pkg.typeOf(e.Type).Underlying().(*types.Signature),
+			pos:       e.Type.Func,
+			Enclosing: fn,
+			Pkg:       fn.Pkg,
+			Prog:      fn.Prog,
+			syntax:    e,
 			Breakpoint: false,
 			Scope     : nil,
 			LocalsByName: make(map[NameScope]uint),
 			endP:       e.Body.End(),
-			syntax:     e,
 		}
 		fn.AnonFuncs = append(fn.AnonFuncs, fn2)
 		b.buildFunction(fn2)
@@ -2148,6 +2148,9 @@ func (b *builder) buildFunction(fn *Function) {
 	pkg := fn.Pkg
 	pkg.locs = append(pkg.locs, LocInst{pos: fn.pos, endP: fn.endP,
 		Trace: nil, Fn: fn})
+	if fn.Prog.mode&LogSource != 0 {
+		defer logStack("build function %s @ %s", fn, fn.Prog.Fset.Position(fn.pos))()
+	}
 	fn.startBody(scope)
 	fn.createSyntacticParams(recvField, functype)
 	b.stmt(fn, body, scope)

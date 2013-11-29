@@ -651,7 +651,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 
 	initReflect(i)
 
-	for importPath, pkg := range i.prog.PackagesByPath {
+	for _, pkg := range i.prog.AllPackages() {
 		// Initialize global storage.
 		for _, m := range pkg.Members {
 			switch v := m.(type) {
@@ -662,7 +662,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		}
 
 		// Ad-hoc initialization for magic system variables.
-		switch importPath {
+		switch pkg.Object.Path() {
 		case "syscall":
 			var envs []Value
 			for _, s := range os.Environ() {

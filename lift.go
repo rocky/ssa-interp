@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa2
 
 // This file defines the lifting pass which tries to "lift" Alloc
@@ -98,6 +102,9 @@ func (df domFrontier) build(u *domNode) {
 func buildDomFrontier(fn *Function) domFrontier {
 	df := make(domFrontier, len(fn.Blocks))
 	df.build(fn.Blocks[0].dom)
+	if fn.Recover != nil {
+		df.build(fn.Recover.dom)
+	}
 	return df
 }
 
@@ -115,7 +122,7 @@ func lift(fn *Function) {
 	// buildDomTree.  For example:
 	//
 	// - Alloc never loaded?  Eliminate.
-	// - Alloc never stored?  Replace all loads with a zero literal.
+	// - Alloc never stored?  Replace all loads with a zero constant.
 	// - Alloc stored once?  Replace loads with dominating store;
 	//   don't forget that an Alloc is itself an effective store
 	//   of zero.
@@ -138,7 +145,7 @@ func lift(fn *Function) {
 		for i, blocks := range df {
 			if blocks != nil {
 				if !title {
-					fmt.Fprintln(os.Stderr, "Dominance frontier:")
+					fmt.Fprintf(os.Stderr, "Dominance frontier of %s:\n", fn)
 					title = true
 				}
 				fmt.Fprintf(os.Stderr, "\t%s: %s\n", fn.Blocks[i], blocks)
@@ -165,18 +172,15 @@ func lift(fn *Function) {
 	for _, b := range fn.Blocks {
 		b.gaps = 0
 		b.rundefers = 0
-		for i, instr := range b.Instrs {
+		for _, instr := range b.Instrs {
 			switch instr := instr.(type) {
 			case *Alloc:
+				index := -1
 				if liftAlloc(df, instr, newPhis) {
-					instr.index = numAllocs
+					index = numAllocs
 					numAllocs++
-					// Delete the alloc.
-					b.Instrs[i] = nil
-					b.gaps++
-				} else {
-					instr.index = -1
 				}
+				instr.index = index
 			case *Defer:
 				usesDefer = true
 			case *RunDefers:
@@ -187,8 +191,8 @@ func lift(fn *Function) {
 
 	// renaming maps an alloc (keyed by index) to its replacement
 	// value.  Initially the renaming contains nil, signifying the
-	// zero literal of the appropriate type; we construct the
-	// Literal lazily at most once on each path through the domtree.
+	// zero constant of the appropriate type; we construct the
+	// Const lazily at most once on each path through the domtree.
 	// TODO(adonovan): opt: cache per-function not per subtree.
 	renaming := make([]Value, numAllocs)
 
@@ -205,8 +209,8 @@ func lift(fn *Function) {
 		nps := newPhis[b]
 		j := 0
 		for _, np := range nps {
-			if len(*np.phi.Referrers()) == 0 {
-				continue // unreferenced phi
+			if !phiIsLive(np.phi) {
+				continue // discard it
 			}
 			nps[j] = np
 			j++
@@ -250,7 +254,7 @@ func lift(fn *Function) {
 	// Remove any fn.Locals that were lifted.
 	j := 0
 	for _, l := range fn.Locals {
-		if l.index == -1 {
+		if l.index < 0 {
 			fn.Locals[j] = l
 			j++
 		}
@@ -260,6 +264,19 @@ func lift(fn *Function) {
 		fn.Locals[i] = nil
 	}
 	fn.Locals = fn.Locals[:j]
+}
+
+func phiIsLive(phi *Phi) bool {
+	for _, instr := range *phi.Referrers() {
+		if instr == phi {
+			continue // self-refs don't count
+		}
+		if _, ok := instr.(*DebugRef); ok {
+			continue // debug refs don't count
+		}
+		return true
+	}
+	return false
 }
 
 type blockSet struct{ big.Int } // (inherit methods from Int)
@@ -304,15 +321,20 @@ type newPhiMap map[*BasicBlock][]newPhi
 //
 func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 	// Don't lift aggregates into registers, because we don't have
-	// a way to express their zero-literals.
-	// TODO(adonovan): define zero-literals for aggregates, or
-	// add a separate SRA pass.  Lifting aggregates is an
-	// important optimisation for pointer analysis because the
-	// extra indirection really hurts precision under Das's
-	// algorithm.
+	// a way to express their zero-constants.
 	switch deref(alloc.Type()).Underlying().(type) {
 	case *types.Array, *types.Struct:
 		return false
+	}
+
+	// Don't lift named return values in functions that defer
+	// calls that may recover from panic.
+	if fn := alloc.Parent(); fn.Recover != nil {
+		for _, nr := range fn.namedResults {
+			if nr == alloc {
+				return false
+			}
+		}
 	}
 
 	// Compute defblocks, the set of blocks containing a
@@ -321,7 +343,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 	for _, instr := range *alloc.Referrers() {
 		// Bail out if we discover the alloc is not liftable;
 		// the only operations permitted to use the alloc are
-		// loads/stores into the cell.
+		// loads/stores into the cell, and DebugRef.
 		switch instr := instr.(type) {
 		case *Store:
 			if instr.Val == alloc {
@@ -338,6 +360,8 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 			if instr.X != alloc {
 				panic("Alloc.Referrers is inconsistent")
 			}
+		case *DebugRef:
+			// ok
 		default:
 			return false // some other instruction
 		}
@@ -346,7 +370,7 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 	defblocks.add(alloc.Block())
 
 	if debugLifting {
-		fmt.Fprintln(os.Stderr, "liftAlloc: lifting ", alloc, alloc.Name())
+		fmt.Fprintln(os.Stderr, "\tlifting ", alloc, alloc.Name())
 	}
 
 	fn := alloc.Parent()
@@ -376,13 +400,13 @@ func liftAlloc(df domFrontier, alloc *Alloc, newPhis newPhiMap) bool {
 				// It will be prepended to v.Instrs later, if needed.
 				phi := &Phi{
 					Edges:   make([]Value, len(v.Preds)),
-					Comment: alloc.Name(),
+					Comment: alloc.Comment,
 				}
 				phi.pos = alloc.Pos()
 				phi.setType(deref(alloc.Type()))
 				phi.block = v
 				if debugLifting {
-					fmt.Fprintf(os.Stderr, "place %s = %s at block %s\n", phi.Name(), phi, v)
+					fmt.Fprintf(os.Stderr, "\tplace %s = %s at block %s\n", phi.Name(), phi, v)
 				}
 				newPhis[v] = append(newPhis[v], newPhi{phi, alloc})
 
@@ -452,32 +476,61 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 
 	// Rename loads and stores of allocs.
 	for i, instr := range u.Instrs {
-		_ = i
 		switch instr := instr.(type) {
+		case *Alloc:
+			if instr.index >= 0 { // store of zero to Alloc cell
+				// Replace dominated loads by the zero value.
+				renaming[instr.index] = nil
+				if debugLifting {
+					fmt.Fprintf(os.Stderr, "\tkill alloc %s\n", instr)
+				}
+				// Delete the Alloc.
+				u.Instrs[i] = nil
+				u.gaps++
+			}
+
 		case *Store:
-			if alloc, ok := instr.Addr.(*Alloc); ok && alloc.index != -1 { // store to Alloc cell
+			if alloc, ok := instr.Addr.(*Alloc); ok && alloc.index >= 0 { // store to Alloc cell
+				// Replace dominated loads by the stored value.
+				renaming[alloc.index] = instr.Val
+				if debugLifting {
+					fmt.Fprintf(os.Stderr, "\tkill store %s; new value: %s\n",
+						instr, instr.Val.Name())
+				}
 				// Delete the Store.
 				u.Instrs[i] = nil
 				u.gaps++
-				// Replace dominated loads by the
-				// stored value.
-				renaming[alloc.index] = instr.Val
-				if debugLifting {
-					fmt.Fprintln(os.Stderr, "Kill store ", instr, "; current value is now ", instr.Val.Name())
-				}
 			}
+
 		case *UnOp:
 			if instr.Op == token.MUL {
-				if alloc, ok := instr.X.(*Alloc); ok && alloc.index != -1 { // load of Alloc cell
+				if alloc, ok := instr.X.(*Alloc); ok && alloc.index >= 0 { // load of Alloc cell
 					newval := renamed(renaming, alloc)
 					if debugLifting {
-						fmt.Fprintln(os.Stderr, "Replace refs to load", instr.Name(), "=", instr, "with", newval.Name())
+						fmt.Fprintf(os.Stderr, "\tupdate load %s = %s with %s\n",
+							instr.Name(), instr, newval.Name())
 					}
 					// Replace all references to
 					// the loaded value by the
 					// dominating stored value.
 					replaceAll(instr, newval)
 					// Delete the Load.
+					u.Instrs[i] = nil
+					u.gaps++
+				}
+			}
+
+		case *DebugRef:
+			if alloc, ok := instr.X.(*Alloc); ok && alloc.index >= 0 { // ref of Alloc cell
+				if instr.IsAddr {
+					instr.X = renamed(renaming, alloc)
+					instr.IsAddr = false
+				} else {
+					// A source expression denotes the address
+					// of an Alloc that was optimized away.
+					instr.X = nil
+
+					// Delete the DebugRef.
 					u.Instrs[i] = nil
 					u.gaps++
 				}
@@ -497,7 +550,7 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 			alloc := np.alloc
 			newval := renamed(renaming, alloc)
 			if debugLifting {
-				fmt.Fprintf(os.Stderr, "setphi %s edge %s -> %s (#%d) (alloc=%s) := %s\n \n",
+				fmt.Fprintf(os.Stderr, "\tsetphi %s edge %s -> %s (#%d) (alloc=%s) := %s\n",
 					phi.Name(), u, v, i, alloc.Name(), newval.Name())
 			}
 			phi.Edges[i] = newval
