@@ -35,10 +35,17 @@ package main
 
 import "fmt"
 
-const message = "Hello, World!"
+const message = "Hello, World"
+
+func bang() string {
+   s := "!"
+   return s
+}
 
 func main() {
-	fmt.Println(message)
+    if str := bang(); len(str) > 0 {
+	  fmt.Println(message, str)
+   }
 }
 `
 	// Construct an importer.  Imports will be loaded as if by 'go build'.
@@ -74,12 +81,12 @@ func main() {
 	mainPkg.Func("main").DumpTo(os.Stdout)
 
 	// Output:
-	//
 	// package main:
+	//   func  bang       func() string
 	//   func  init       func()
 	//   var   init$guard bool
 	//   func  main       func()
-	//   const message    message = "Hello, World!":untyped string
+	//   const message    message = "Hello, World":untyped string
 	//
 	// # Name: main.init
 	// # Package: main
@@ -100,16 +107,31 @@ func main() {
 	//
 	// # Name: main.main
 	// # Package: main
-	// # Location: hello.go:8:6-10:2
+	// # Location: hello.go:13:6-17:2
 	// func main():
-	// .0.entry:                                                               P:0 S:0
-	//	trace <STATEMENT in list> at hello.go:9:2-22
-	//	t0 = new [1]interface{} (varargs)                       *[1]interface{}
-	//	t1 = &t0[0:untyped integer]                                *interface{}
-	//	t2 = make interface{} <- string ("Hello, World!":string)    interface{}
-	//	*t1 = t2
-	//	t3 = slice t0[:]                                          []interface{}
-	//	t4 = fmt.Println(t3)                                 (n int, err error)
-	//	trace <Block End> at hello.go:10:2
+	// # scope: 4
+	// .0.entry:                                                               P:0 S:2
+	// 	trace <IF initialize> at hello.go:14:8-21
+	// 	t0 = bang()                                                      string
+	// 	trace <IF expression> at hello.go:14:23-35
+	// 	t1 = len(t0)                                                        int
+	// 	t2 = t1 > 0:int                                                    bool
+	// 	if t2 goto 1.if.then else 2.if.done
+	// # scope: 6
+	// .1.if.then:                                                             P:1 S:1
+	// 	trace <STATEMENT in list> at hello.go:15:4-29
+	// 	t3 = new [2]interface{} (varargs)                       *[2]interface{}
+	// 	t4 = &t3[0:untyped integer]                                *interface{}
+	// 	t5 = make interface{} <- string ("Hello, World":string)     interface{}
+	// 	*t4 = t5
+	// 	t6 = &t3[1:untyped integer]                                *interface{}
+	// 	t7 = make interface{} <- string (t0)                        interface{}
+	// 	*t6 = t7
+	// 	t8 = slice t3[:]                                          []interface{}
+	// 	t9 = fmt.Println(t8)                                 (n int, err error)
+	// 	trace <Block End> at hello.go:16:5
+	// 	jump 2.if.done
+	// .2.if.done:                                                             P:2 S:0
+	// 	trace <Block End> at hello.go:17:2
 	// 	return
 }

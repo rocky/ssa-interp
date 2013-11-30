@@ -123,7 +123,8 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 				recvField: decl.Recv,
 				body:      decl.Body,
 			}
-			scope = pkg.Ast2Scope[decl.Type]
+			scope = pkg.TypeScope2Scope[pkg.info.Scopes[decl.Type]]
+			pkg.Ast2Scope[decl.Type] = scope
 		}
 		pos  := obj.Pos()
 		endP := obj.Pos()

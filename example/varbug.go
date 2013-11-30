@@ -1,9 +1,13 @@
 package main
 func five() int {
-	return 5
+	x := 5
+	return x
 }
 var xx int = five()
 
 func main() {
-	println(xx)
+	if xx > 3 {
+		y := xx+1
+		println(y)
+	}
 }

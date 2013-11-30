@@ -2050,7 +2050,10 @@ start:
 		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 
 	case *ast.BlockStmt:
-		b.stmtList(fn, s.List, astScope(fn, s))
+		if scope == nil {
+			scope = astScope(fn, s)
+		}
+		b.stmtList(fn, s.List, scope)
 		emitTrace(fn, BLOCK_END, s.End(), s.End())
 
 	case *ast.IfStmt:
@@ -2144,14 +2147,15 @@ func (b *builder) buildFunction(fn *Function) {
 		}
 		return
 	}
-	var scope *Scope = nil
+	scope := fn.Scope // Or nil?
 	pkg := fn.Pkg
+	pkg.Ast2Scope[body] = scope
 	pkg.locs = append(pkg.locs, LocInst{pos: fn.pos, endP: fn.endP,
 		Trace: nil, Fn: fn})
 	if fn.Prog.mode&LogSource != 0 {
 		defer logStack("build function %s @ %s", fn, fn.Prog.Fset.Position(fn.pos))()
 	}
-	fn.startBody(scope)
+	fn.startBody(scope) // Or nil?
 	fn.createSyntacticParams(recvField, functype)
 	b.stmt(fn, body, scope)
 	if cb := fn.currentBlock; cb != nil && (cb == fn.Blocks[0] || cb == fn.Recover || cb.Preds != nil) {
