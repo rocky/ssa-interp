@@ -2147,9 +2147,11 @@ func (b *builder) buildFunction(fn *Function) {
 		}
 		return
 	}
-	scope := fn.Scope // Or nil?
+	scope := fn.Scope
 	pkg := fn.Pkg
-	pkg.Ast2Scope[body] = scope
+	if fn.syntax != nil && scope != nil {
+		scope.node = &fn.syntax
+	}
 	pkg.locs = append(pkg.locs, LocInst{pos: fn.pos, endP: fn.endP,
 		Trace: nil, Fn: fn})
 	if fn.Prog.mode&LogSource != 0 {

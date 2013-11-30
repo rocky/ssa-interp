@@ -57,7 +57,6 @@ type Package struct {
 	needRTTI typemap.M             // types for which runtime type info is needed
 
 	locs   []LocInst            // slice of start source-code positions
-	Ast2Scope map[ast.Node]*Scope
 	TypeScope2Scope map[*types.Scope]*Scope // Maps a type.scope to our Scope
 }
 

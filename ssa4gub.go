@@ -10,6 +10,7 @@ alike.
 */
 
 import (
+	"go/ast"
 	"go/token"
 	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
@@ -35,6 +36,7 @@ type ScopeId uint
 type Scope struct {
 	*types.Scope
 	scopeId ScopeId
+	node *ast.Node
 }
 
 type NameScope struct {
@@ -63,4 +65,5 @@ func (v *LocInst)   Pos() token.Pos             { return v.pos }
 func (p *Package)   Locs() []LocInst { return p.locs }
 func (p *Package)   Info() *importer.PackageInfo { return p.info }
 
-func (s *Scope) ScopeId() ScopeId { return s.scopeId }
+func (s *Scope) ScopeId() ScopeId   { return s.scopeId }
+func (s *Scope) Node()    *ast.Node { return s.node }

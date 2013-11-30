@@ -86,7 +86,7 @@ func ext۰debug۰function(fr *Frame, args []Value) Value {
 // limitation. Note: I tried using uint64 and 24 bits, but this causes
 // a range error down the line on 32-bit linux, I think when casting
 // to a uintptr.
-func encodePC(fr *Frame) uint {
+func EncodePC(fr *Frame) uint {
 	fnNum := fn2Num(fr.fn)
 	bpc := uint(fr.block.Index << 8) + uint(fr.pc & 0xff)
 	return uint(fnNum << 16) | (bpc & 0x00ffff)
@@ -110,7 +110,7 @@ func runtime۰Caller(fr *Frame, skip int) (pc uintptr, file string, line int, ok
 	} else {
 		filename = "??"
 	}
-	pc = uintptr(encodePC(final_fr))
+	pc = uintptr(EncodePC(final_fr))
 	line = startP.Line
 	return pc, filename, line, true
 }
@@ -134,7 +134,7 @@ func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
 	}
 	var count int
 	for count = 0; fr != nil && count <= size; fr = fr.caller {
-		pc[count] = encodePC(fr)
+		pc[count] = EncodePC(fr)
 		count++
 	}
 	return count

@@ -124,7 +124,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 				body:      decl.Body,
 			}
 			scope = pkg.TypeScope2Scope[pkg.info.Scopes[decl.Type]]
-			pkg.Ast2Scope[decl.Type] = scope
+			scope.node = &syntax
 		}
 		pos  := obj.Pos()
 		endP := obj.Pos()
@@ -232,7 +232,6 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		Object:  info.Pkg,
 		info:    info, // transient (CREATE and BUILD phases)
 		locs:    make([] LocInst, 0),
-		Ast2Scope: make(map[ast.Node]*Scope),
 		TypeScope2Scope: make(map[*types.Scope]*Scope),
 	}
 

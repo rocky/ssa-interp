@@ -20,7 +20,7 @@ Type "info" for a list of "info" subcommands and what they do.
 Type "help info *" for just a list of "info" subcommands.
 `,
 		Min_args: 0,
-		Max_args: 1,
+		Max_args: 2,
 	}
 	gub.AddToCategory("status", name)
 }
@@ -42,16 +42,6 @@ See also backtrace.
 		Name: "frame",
 	})
 }
-func InfoFrameSubcmd(args []string) {
-	gub.Msg("goroutine number: %d", gub.CurFrame().GoNum())
-	gub.Msg("frame: %s", gub.CurFrame().FnAndParamString())
-}
-
-func InfoPCSubcmd() {
-	fr := gub.CurFrame()
-	gub.Msg("instruction number: %d of block %d", fr.PC(), fr.Block().Index)
-}
-
 func InfoCommand(args []string) {
 	if len(args) == 1 {
 		gub.Section("List of info commands")
@@ -59,7 +49,8 @@ func InfoCommand(args []string) {
 			gub.Msg("%-10s -- %s", name, subinfo.Short_help)
 		}
 	}
-	if len(args) == 2 {
+	// FIXME check len(args) per subcommand
+	if len(args) >= 2 {
 		switch args[1] {
 		case "args":
 			gub.InfoArgsSubcmd(args)
@@ -68,9 +59,11 @@ func InfoCommand(args []string) {
 		case "program":
 			InfoProgramSubcmd(args)
 		case "PC", "pc":
-			InfoPCSubcmd()
+			InfoPCSubcmd(args)
 		case "breakpoint", "break":
 			InfoBreakpointSubcmd()
+		case "node":
+			InfoNodeSubcmd(args)
 		case "scope":
 			InfoScopeSubcmd(args)
 		case "stack":

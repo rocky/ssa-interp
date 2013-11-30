@@ -1,8 +1,8 @@
 // Copyright 2013 Rocky Bernstein.
 
-// info scope [level]
+// info program
 //
-// Prints information about scope
+// Prints program information
 
 package gubcmd
 
@@ -10,10 +10,6 @@ import (
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/gub"
 )
-
-// import (
-// 	"go/ast"
-// )
 
 func init() {
 	parent := "info"
@@ -24,6 +20,7 @@ func init() {
 Prints information about the program including:
 *  instruction number
 *  block number
+*  function number
 *  stop event
 *  source-code position
 `,
@@ -35,8 +32,9 @@ Prints information about the program including:
 }
 
 func InfoProgramSubcmd(args []string) {
-	gub.Msg("instruction number: %d", gub.CurFrame().PC())
-	block := gub.CurFrame().Block()
+	fr := gub.CurFrame()
+	gub.Msg("instruction number: %d", fr.PC())
+	block := fr.Block()
 	if block == nil {
 		gub.Msg("unknown block")
 	} else {
@@ -47,6 +45,7 @@ func InfoProgramSubcmd(args []string) {
 			gub.Msg("unknown scope")
 		}
 	}
+	gub.Msg("function: %s", fr.Fn().Name())
 	gub.Msg("program stop event: %s", ssa2.Event2Name[gub.TraceEvent])
 	gub.Msg("position: %s", gub.CurFrame().PositionRange())
 }

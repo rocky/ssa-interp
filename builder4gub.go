@@ -5,15 +5,9 @@ import	"go/ast"
 
 func astScope(fn *Function, node ast.Node) *Scope {
 	pkg   := fn.Pkg
-	scope := pkg.Ast2Scope[node]
+	scope := pkg.TypeScope2Scope[pkg.info.Scopes[node]]
 	if scope != nil {
-		// Probably won't happen
-		return scope
-	} else {
-		scope = pkg.TypeScope2Scope[pkg.info.Scopes[node]]
-		if scope != nil {
-			pkg.Ast2Scope[node] = scope
-		}
+		scope.node = &node
 	}
 	return scope
 }

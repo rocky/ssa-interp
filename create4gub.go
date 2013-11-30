@@ -16,9 +16,7 @@ func AssignScopeIds(pkg *Package, typesScope *types.Scope, scopeId *ScopeId) {
 
 	scope := assignScopeId(typesScope, *scopeId)
 
-	// Setting
-	// pkg.Ast2Scope[node] = scope
-	// is done in builder
+	// Setting scope.node is done in builder
 
 	pkg.TypeScope2Scope[typesScope] = scope
 
