@@ -38,4 +38,4 @@ See Also
 * [What's left to do?](https://github.com/rocky/ssa-interp/wiki/What%27s-left-to-do%3F)
 * [Cool things](https://github.com/rocky/ssa-interp/wiki/Cool-things)
 
-[![endorse](https://api.coderwall.com/rocky/endorsecount.png)](https://coderwall.com/rocky)
+[![endorse rocky](https://api.coderwall.com/rocky/endorsecount.png)](https://coderwall.com/rocky)
