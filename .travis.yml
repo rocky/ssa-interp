@@ -13,5 +13,6 @@ script:
   - go test -v
   - cd ../gub
   - go get "code.google.com/p/go-gnureadline"
+  - go get "code.google.com/p/go-columnize"
   - go get "github.com/mgutz/ansi"
   - go test -v
