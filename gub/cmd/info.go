@@ -9,10 +9,12 @@ import (
 	"github.com/rocky/ssa-interp/gub"
 )
 
+var subcmds = make(gub.SubcmdMap)
+
 func init() {
 	name := "info"
 	gub.Cmds[name] = &gub.CmdInfo{
-		SubcmdMgr: &gub.SubcmdMgr{Name: name, Subcmds: make(map[string]*gub.SubcmdInfo)},
+		SubcmdMgr: &gub.SubcmdMgr{Name: name, Subcmds: subcmds},
 		Fn: InfoCommand,
 		Help: `Generic command for showing things about the program being debugged.
 
@@ -26,46 +28,29 @@ Type "help info *" for just a list of "info" subcommands.
 }
 
 
-func init() {
-	parent := "info"
-	gub.AddSubCommand(parent, &gub.SubcmdInfo{
-		Fn: InfoFrameSubcmd,
-		Help: `info frame
-
-Show information about the selected frame.
-
-See also backtrace.
-`,
-		Min_args: 2,
-		Max_args: 2,
-		Short_help: "Show information about the selected frame",
-		Name: "frame",
-	})
-}
 func InfoCommand(args []string) {
 	if len(args) == 1 {
-		gub.Section("List of info commands")
-		for name, subinfo := range gub.Cmds["info"].SubcmdMgr.Subcmds {
-			gub.Msg("%-10s -- %s", name, subinfo.Short_help)
-		}
+		gub.ListSubCommandArgs(gub.Cmds["info"].SubcmdMgr)
+		return
 	}
-	// FIXME check len(args) per subcommand
+
+    subcmd_name := args[1]
+	subcmd_info := subcmds[subcmd_name]
+
+	if subcmd_info != nil {
+		if gub.ArgCountOK(subcmd_info.Min_args+1, subcmd_info.Max_args+1, args) {
+			subcmds[subcmd_name].Fn(args)
+		}
+		return
+	}
+
+	// FIXME: remove the below.
 	if len(args) >= 2 {
-		switch args[1] {
-		case "args":
-			gub.InfoArgsSubcmd(args)
-		case "frame":
-			InfoFrameSubcmd(args)
-		case "program":
-			InfoProgramSubcmd(args)
-		case "PC", "pc":
+		switch subcmd_name {
+		case "PC":
 			InfoPCSubcmd(args)
-		case "breakpoint", "break":
+		case "break":
 			InfoBreakpointSubcmd()
-		case "node":
-			InfoNodeSubcmd(args)
-		case "scope":
-			InfoScopeSubcmd(args)
 		case "stack":
 			gub.PrintStack(gub.TopFrame(), gub.MAXSTACKSHOW)
 		}

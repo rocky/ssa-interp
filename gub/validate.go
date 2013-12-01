@@ -4,7 +4,7 @@ package gub
 
 import "strconv"
 
-func argCountOK(min int, max int, args [] string) bool {
+func ArgCountOK(min int, max int, args [] string) bool {
 	l := len(args)-1 // strip command name from count
 	if l < min {
 		Errmsg("Too few args; need at least %d, got %d", min, l)

@@ -24,8 +24,8 @@ Prints information about the program including:
 *  stop event
 *  source-code position
 `,
-		Min_args: 1,
-		Max_args: 1,
+		Min_args: 0,
+		Max_args: 0,
 		Short_help: "Program information",
 		Name: "program",
 	})

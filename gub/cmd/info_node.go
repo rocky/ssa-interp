@@ -22,7 +22,7 @@ Warning: this can be volumnous.
 `,
 		Min_args: 0,
 		Max_args: 0,
-		Short_help: "Node information",
+		Short_help: "AST Node information",
 		Name: "node",
 	})
 }

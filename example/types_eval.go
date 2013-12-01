@@ -173,9 +173,14 @@ import m "math"
 const c = 3.0
 type T []int
 func f(a int, s string) float64 {
+	type testEntry struct {
+		src string
+	    num int
+	}
+	var testTypes = []testEntry{ {"a", 1}, {"b", 2}}
 	const d int = c + 1
 	var x int
-	x = a + len(s)
+	x = a + len(s) + testTypes[0].num
 	return float64(x)
 }
 `
@@ -216,6 +221,7 @@ func f(a int, s string) float64 {
 		`d/c => 1, int`,
 		`c/2 => 3/2, untyped float`,
 		`m.Pi < m.E => false, untyped boolean`,
+		`testTypes[0].num => 1, int`,
 	}
 	for _, test := range tests {
 		str, typ := split(test, ", ")

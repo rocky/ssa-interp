@@ -63,7 +63,7 @@ func PrintIfLocal(fr *interp.Frame, varname string) bool {
 
 func InfoArgsSubcmd(args []string) {
 	argc := len(args) - 2
-	if !argCountOK(1, 2, args) { return }
+	if !ArgCountOK(1, 2, args) { return }
 	if argc == 0 {
 		for i, p := range curFrame.Fn().Params {
 			Msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))

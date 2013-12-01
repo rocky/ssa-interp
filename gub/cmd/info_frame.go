@@ -20,8 +20,10 @@ Prints information about the program including:
 *  goroutine number
 *  location
 *  function and parameter names
+
+See also backtrace.
 `,
-		Min_args: 1,
+		Min_args: 0,
 		Max_args: 1,
 		Short_help: "Program frame",
 		Name: "frame",

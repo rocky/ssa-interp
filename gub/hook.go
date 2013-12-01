@@ -104,7 +104,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		cmd := Cmds[name];
 
 		if cmd != nil {
-			if argCountOK(cmd.Min_args, cmd.Max_args, args) {
+			if ArgCountOK(cmd.Min_args, cmd.Max_args, args) {
 				Cmds[name].Fn(args)
 			}
 			continue

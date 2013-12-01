@@ -19,9 +19,11 @@ type SubcmdInfo struct {
 	Name string
 }
 
+type SubcmdMap map[string]*SubcmdInfo
+
 type SubcmdMgr struct {
 	Name string
-	Subcmds map[string]*SubcmdInfo
+	Subcmds SubcmdMap
 }
 
 var Subcmds map[string]*SubcmdInfo  = make(map[string]*SubcmdInfo)
@@ -33,6 +35,23 @@ func AddSubCommand(mgrName string, subcmdInfo *SubcmdInfo) {
 		mgr.SubcmdMgr.Subcmds[subcmdInfo.Name] = subcmdInfo
 	} else {
 		Errmsg("Internal error: can't find command '%s' to add to", subcmdInfo.Name)
+	}
+}
+
+func ListSubCommandArgs(mgr *SubcmdMgr) {
+	Section("List of " + mgr.Name + " commands")
+	subcmds := mgr.Subcmds
+
+	names := make([]string, len(subcmds))
+	i := 0
+	for name, _ := range subcmds {
+		names[i] = name
+		i++
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		Msg("%-10s -- %s", name, subcmds[name].Short_help)
 	}
 }
 
