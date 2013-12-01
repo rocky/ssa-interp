@@ -86,7 +86,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
         if err != nil {
             break
         }
-		line = strings.TrimRight(line, "\n")
+		line = strings.Trim(line, " \t\n")
 		args  := strings.Split(line, " ")
 		if len(args) == 0 || len(args[0]) == 0 {
 			Msg("Empty line skipped")

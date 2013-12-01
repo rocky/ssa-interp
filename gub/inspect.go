@@ -61,24 +61,6 @@ func PrintIfLocal(fr *interp.Frame, varname string) bool {
 	return false
 }
 
-func InfoArgsSubcmd(args []string) {
-	argc := len(args) - 2
-	if !ArgCountOK(1, 2, args) { return }
-	if argc == 0 {
-		for i, p := range curFrame.Fn().Params {
-			Msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))
-		}
-	} else {
-		varname := args[2]
-		for i, p := range curFrame.Fn().Params {
-			if varname == curFrame.Fn().Params[i].Name() {
-				Msg("%s %s", curFrame.Fn().Params[i], interp.ToInspect(curFrame.Env()[p]))
-				break
-			}
-		}
-	}
-}
-
 func printConstantInfo(c *ssa2.NamedConst, name string, pkg *ssa2.Package) {
 	mem := pkg.Members[name]
 	position := pkg.Prog.Fset.Position(mem.Pos())

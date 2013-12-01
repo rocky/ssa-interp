@@ -26,7 +26,7 @@ Prints information about the program including:
 `,
 		Min_args: 0,
 		Max_args: 0,
-		Short_help: "Program information",
+		Short_help: "Information about debugged program",
 		Name: "program",
 	})
 }

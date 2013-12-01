@@ -24,8 +24,8 @@ Prints information about the program including:
 See also backtrace.
 `,
 		Min_args: 0,
-		Max_args: 1,
-		Short_help: "Program frame",
+		Max_args: 0,
+		Short_help: "Show information about the selected frame",
 		Name: "frame",
 	})
 }
