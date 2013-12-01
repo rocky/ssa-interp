@@ -4,4 +4,14 @@ go:
   - tip
 
 script:
+  - go get "code.google.com/p/go.tools/go/exact"
+  - go get "code.google.com/p/go.tools/go/types"
+  - go get "code.google.com/p/go.tools/go/types/typemap"
+  - go get "code.google.com/p/go.tools/importer"
+  - go test -v
+  - cd interp
+  - go test -v
+  - cd ../
+  - go get "code.google.com/p/go-gnureadline"
+  - go get "github.com/mgutz/ansi"
   - go test -v
