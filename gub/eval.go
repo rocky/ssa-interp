@@ -72,6 +72,11 @@ func EnvLookup(fr *interp.Frame, name string,
 			}
 		}
 	}
+	// FIXME: Why we would find things here and not by the
+	// above scope lookup?
+	if v := fn.Pkg.Var(name); v != nil {
+		return v, "", nil
+	}
 	return nil, "", nil
 }
 
@@ -182,7 +187,12 @@ func EvalExpr(n ast.Node) exact.Value {
 		return IndexExpr(e)
 	case *ast.SelectorExpr:
 		fn := curFrame.Fn()
-		sel := fn.Pkg.Info().Selections[e]
+		info := fn.Pkg.Info()
+		if info == nil {
+			Errmsg("Package info is nil. Was this compiled with debug?")
+			return nil
+		}
+		sel := info.Selections[e]
 		if sel == nil {
 			Errmsg("Can't handle selection yet.")
 			fmt.Println(fn.Pkg.Info().Selections[e])

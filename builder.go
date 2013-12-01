@@ -2318,7 +2318,10 @@ func (p *Package) Build() {
 	init.emit(new(Return))
 	init.finishBody()
 
-	p.info = nil // We no longer need ASTs or go/types deductions.
+	// if ! p.debug  {
+	// 	println("XXX Nuking info")
+	// 	p.info = nil // We no longer need ASTs or go/types deductions.
+	// }
 }
 
 // Only valid during p's create and build phases.
