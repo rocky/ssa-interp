@@ -9,12 +9,14 @@ import (
 	"github.com/rocky/ssa-interp/gub"
 )
 
-var subcmds = make(gub.SubcmdMap)
 
 func init() {
 	name := "info"
 	gub.Cmds[name] = &gub.CmdInfo{
-		SubcmdMgr: &gub.SubcmdMgr{Name: name, Subcmds: subcmds},
+		SubcmdMgr: &gub.SubcmdMgr{
+			Name   : name,
+			Subcmds: make(gub.SubcmdMap),
+		},
 		Fn: InfoCommand,
 		Help: `Generic command for showing things about the program being debugged.
 
@@ -35,6 +37,7 @@ func InfoCommand(args []string) {
 	}
 
     subcmd_name := args[1]
+	subcmds     := gub.Cmds["info"].SubcmdMgr.Subcmds
 	subcmd_info := subcmds[subcmd_name]
 
 	if subcmd_info != nil {
