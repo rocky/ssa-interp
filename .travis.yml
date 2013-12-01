@@ -11,7 +11,7 @@ script:
   - go test -v
   - cd interp
   - go test -v
-  - cd ../
+  - cd ../gub
   - go get "code.google.com/p/go-gnureadline"
   - go get "github.com/mgutz/ansi"
   - go test -v
