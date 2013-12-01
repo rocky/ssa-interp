@@ -11,8 +11,11 @@ script:
   - go test -v
   - cd interp
   - go test -v
-  - cd ../gub
+  - cd ..
   - go get "code.google.com/p/go-gnureadline"
   - go get "code.google.com/p/go-columnize"
   - go get "github.com/mgutz/ansi"
+  - go build tortoise.go
+  - cd gub
+  - go build
   - go test -v
