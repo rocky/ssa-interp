@@ -9,13 +9,15 @@ import (
 // TraceMode is a bitmask of options influencing the tracing.
 type TraceMode uint
 
-type traceType int
+// TraceType is a bitmask of options influencing the tracing per frame
+type TraceType int
 
 const (
 	TRACE_STEP_NONE = iota
 	TRACE_STEP_IN
-	TRACE_STEP_OVER
+	TRACE_STEP_INSTRUCTION
 	TRACE_STEP_OUT
+	TRACE_STEP_OVER
 )
 
 var gocall sync.Mutex
@@ -79,6 +81,11 @@ func SetStepIn(fr *Frame) {
 	fr.tracing = TRACE_STEP_IN
 }
 
+func SetStepInstruction(fr *Frame) {
+	i.TraceMode |= EnableStmtTracing
+	fr.tracing = TRACE_STEP_INSTRUCTION
+}
+
 func SetStepOver(fr *Frame) {
 	i.TraceMode |= EnableStmtTracing
 	fr.tracing = TRACE_STEP_OVER
@@ -120,4 +127,8 @@ func ClearFnBreakpoint(fn *ssa2.Function) {
 
 func IsFnBreakpoint(fn *ssa2.Function) bool {
 	return fn.Breakpoint
+}
+
+func Tracing(fr *Frame) TraceType {
+	return fr.tracing
 }

@@ -31,7 +31,7 @@ type Frame struct {
 	panic            interface{}
 
 	status           RunStatusType
-	tracing		 traceType
+	tracing		     TraceType
 	goNum            int         // Goroutine number
 	Var2Reg          map[string] string // Turns an SSA
 										// register/variable into its

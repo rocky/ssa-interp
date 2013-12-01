@@ -26,6 +26,7 @@ const (
 	RANGE_STMT
 	MAIN
 	SELECT_TYPE
+	STEP_INSTRUCTION
 	STMT_IN_LIST
 	SWITCH_COND
 )
@@ -39,24 +40,25 @@ var Event2Name map[TraceEvent]string
 
 func init() {
 	Event2Name = map[TraceEvent]string{
-		OTHER:    "?",
-		ASSIGN_STMT: "Assignment Statement",
-		BLOCK_END: "Block End",
-		BREAK_STMT: "BREAK",
-		BREAKPOINT: "Breakpoint",
-		CALL_ENTER: "function entry",
-		CALL_RETURN: "function return",
-		EXPR:     "Expression",
-		IF_INIT: "IF initialize",
-		IF_COND: "IF expression",
-		FOR_INIT: "FOR initialize",
-		FOR_COND: "FOR condition",
-		FOR_ITER: "FOR iteration",
-		MAIN:     "before main()",
-		RANGE_STMT: "range statement",
-		SELECT_TYPE: "SELECT type",
-		STMT_IN_LIST: "STATEMENT in list",
-		SWITCH_COND: "SWITCH condition",
+		OTHER           : "?",
+		ASSIGN_STMT     : "Assignment Statement",
+		BLOCK_END       : "Block End",
+		BREAK_STMT      : "BREAK",
+		BREAKPOINT      : "Breakpoint",
+		CALL_ENTER      : "function entry",
+		CALL_RETURN     : "function return",
+		EXPR            : "Expression",
+		IF_INIT         : "IF initialize",
+		IF_COND         : "IF expression",
+		FOR_INIT        : "FOR initialize",
+		FOR_COND        : "FOR condition",
+		FOR_ITER        : "FOR iteration",
+		MAIN            : "before main()",
+		RANGE_STMT      : "range statement",
+		SELECT_TYPE     : "SELECT type",
+	    STEP_INSTRUCTION: "Instruction step",
+		STMT_IN_LIST    : "STATEMENT in list",
+		SWITCH_COND     : "SWITCH condition",
 	}
 }
 

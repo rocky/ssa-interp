@@ -13,26 +13,27 @@ var Event2Icon map[ssa2.TraceEvent]string
 
 func init() {
 	Event2Icon = map[ssa2.TraceEvent]string{
-		ssa2.OTHER      : "???",
-		ssa2.ASSIGN_STMT: ":= ",
-		ssa2.BLOCK_END  : "}  ",
-		ssa2.BREAK_STMT : "<-X",
-		ssa2.BREAKPOINT : "xxx",
-		ssa2.CALL_ENTER : "-> ",
-		ssa2.CALL_RETURN: "<- ",
-		ssa2.DEFER_ENTER: "d->",
-		ssa2.EXPR       : "(.)",
-		ssa2.IF_INIT    : "if:",
-		ssa2.IF_COND    : "if?",
-		ssa2.FOR_INIT   : "lo:",
-		ssa2.FOR_COND   : "lo?",
-		ssa2.FOR_ITER   : "lo+",
-		ssa2.MAIN       : "m()",
-		ssa2.PANIC      : "oX ",  // My attempt at skull and cross bones
-		ssa2.RANGE_STMT : "...",
-		ssa2.SELECT_TYPE: "sel",
-		ssa2.SWITCH_COND: "sw?",
-		ssa2.STMT_IN_LIST: "---",
+		ssa2.OTHER           : "???",
+		ssa2.ASSIGN_STMT     : ":= ",
+		ssa2.BLOCK_END       : "}  ",
+		ssa2.BREAK_STMT      : "<-X",
+		ssa2.BREAKPOINT      : "xxx",
+		ssa2.CALL_ENTER      : "-> ",
+		ssa2.CALL_RETURN     : "<- ",
+		ssa2.DEFER_ENTER     : "d->",
+		ssa2.EXPR            : "(.)",
+		ssa2.IF_INIT         : "if:",
+		ssa2.IF_COND         : "if?",
+		ssa2.STEP_INSTRUCTION: "...",
+		ssa2.FOR_INIT        : "lo:",
+		ssa2.FOR_COND        : "lo?",
+		ssa2.FOR_ITER        : "lo+",
+		ssa2.MAIN            : "m()",
+		ssa2.PANIC           : "oX ",  // My attempt at skull and cross bones
+		ssa2.RANGE_STMT      : "...",
+		ssa2.SELECT_TYPE     : "sel",
+		ssa2.SWITCH_COND     : "sw?",
+		ssa2.STMT_IN_LIST    : "---",
 	}
 }
 
@@ -53,7 +54,7 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 		if len(name) > 0 { s += "()" }
 	}
 
-	if *terse {
+	if *terse && (event != ssa2.STEP_INSTRUCTION) {
 		Msg(s)
 	} else {
 		Msg("%s block %d insn %d", s, fr.Block().Index, fr.PC())

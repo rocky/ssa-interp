@@ -50,6 +50,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 
 	"code.google.com/p/go.tools/go/types"
 	"github.com/rocky/ssa-interp"
@@ -524,6 +525,7 @@ func runFrame(fr *Frame) {
 		fr.panic = recover()
 		if InstTracing() || GlobalStmtTracing() {
 			fmt.Fprintf(os.Stderr, "Panicking: %T %v.\n", fr.panic, fr.panic)
+			debug.PrintStack()
 		}
 		fr.runDefers()
 		fr.block = fr.fn.Recover // recovered panic
@@ -555,6 +557,9 @@ func runFrame(fr *Frame) {
 				} else {
 					fmt.Fprintln(os.Stderr, "\t", instr)
 				}
+			}
+			if fr.tracing == TRACE_STEP_INSTRUCTION {
+				TraceHook(fr, &instr, ssa2.STEP_INSTRUCTION)
 			}
 			switch visitInstr(fr, instr) {
 			case kReturn:
