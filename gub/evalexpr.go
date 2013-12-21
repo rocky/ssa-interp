@@ -17,10 +17,8 @@ func EvalIdentExpr(ctx *interactive.Ctx, ident *interactive.Ident, env *interact
 		// FIXME: Should this be done first or last?
 		return nil, false, nil
 	} else  {
-		println("XXX name is", name)
 		if _, interpVal, _ := EnvLookup(curFrame, name, curScope); interpVal != nil {
 			reflectVal := reflect.ValueOf(DerefValue(interpVal))
-			println("XXX val is", reflectVal.String())
 			return &reflectVal, false, nil
 		} else {
 			pkg := curFrame.I().Program().PackagesByName[name]
