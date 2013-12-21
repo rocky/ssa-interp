@@ -15,6 +15,7 @@ script:
   - go get "code.google.com/p/go-gnureadline"
   - go get "code.google.com/p/go-columnize"
   - go get "github.com/mgutz/ansi"
+  - go get "github.com/0xfaded/go-interactive"
   - go build tortoise.go
   - cd gub
   - go build
