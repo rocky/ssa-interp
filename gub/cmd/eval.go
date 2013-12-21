@@ -27,7 +27,19 @@ func EvalCommand(args []string) {
 		if expr == nil {
 			gub.Msg("nil")
 		} else {
-			gub.Msg("%v", (*expr)[0].Interface())
+			expr := *expr
+			if len(expr) == 1 {
+				gub.Msg("%v", expr[0].Interface())
+			} else {
+				if len(expr) == 0 {
+					gub.Errmsg("Something is weird. Result has length 0")
+				} else {
+					gub.Msg("Weird, multiple results:")
+					for i, v := range(expr) {
+						gub.Msg("%d: %v", i, v.Interface())
+					}
+				}
+			}
 		}
 	}
 }

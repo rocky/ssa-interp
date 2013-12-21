@@ -54,7 +54,7 @@ func run(t *testing.T, test testDatum) bool {
 		log.Fatal(err)
 	}
 
-	data := make([]byte, 1000)
+	data := make([]byte, 5000)
 	count, err := rightFile.Read(data)
 	if err != nil {
 		t.Errorf("%s failed to read 'right' data file %s:", test.baseName, rightFile)
