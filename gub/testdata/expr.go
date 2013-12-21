@@ -84,6 +84,7 @@ func evalAction(n ast.Node) exact.Value {
 func main() {
 	// src is the input for which we want to inspect the AST.
 	exprs := []string {
+		"\"quoted\" string with backslash \\",
 		"f(3.14)*2 + c",
 		"-2  ",  // trailing spaces to be devius
 		" 5 == 6",

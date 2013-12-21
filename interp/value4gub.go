@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/rocky/ssa-interp"
 )
@@ -24,7 +25,8 @@ func toInspect(w io.Writer, v Value) {
 		fmt.Fprintf(w, "%v", v)
 
 	case string:
-		fmt.Fprintf(w, "\"%v\"", v)
+		fmt.Fprintf(w, strconv.QuoteToASCII(v))
+
 
 	case map[Value]Value:
 		io.WriteString(w, "map[")

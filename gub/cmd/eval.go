@@ -2,12 +2,7 @@
 package gubcmd
 
 import (
-	"go/parser"
 	"github.com/rocky/ssa-interp/gub"
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/go/exact"
-	// "go/ast"
-	// "fmt"
 )
 
 func init() {
@@ -28,30 +23,11 @@ Evaluate go expression *expr*.
 func EvalCommand(args []string) {
 
 	// Don't use args, but gub.CmdArgstr which preserves blanks inside quotes
-	expr, err := parser.ParseExpr(gub.CmdArgstr)
-	if err != nil {
-		gub.Errmsg("Error parsing %s: %s", gub.CmdArgstr, err.Error())
-		return
-	}
-
-	var typ types.Type
-	var val exact.Value
-	// fr := gub.CurFrame()
-	// fset := fr.Fset()
-	// typesScope := fr.Scope().Scope
-	// typesPkg := fr.Fn().Pkg.Object
-	// typ, val, err := types.EvalNode(fset, expr, typesPkg, typesScope)
-	// fmt.Println("typ:", typ, ", val:", val, ", err:", err)
-	// ast.Print(fset, expr)
-	if err == nil {
-		if val != nil {
-			gub.Msg("%s", val)
+	if expr, err := gub.EvalExprInteractive(gub.CmdArgstr); err == nil {
+		if expr == nil {
+			gub.Msg("nil")
 		} else {
-			if val := gub.EvalExprStart(expr, typ); val != nil {
-				gub.Msg("%s", val)
-			}
+			gub.Msg("%v", (*expr)[0].Interface())
 		}
-	} else {
-		gub.Errmsg("%s", err)
 	}
 }

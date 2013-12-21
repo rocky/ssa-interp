@@ -25,13 +25,13 @@ func Deref2Str(v interp.Value) string {
 
 
 func PrintInEnvironment(fr *interp.Frame, name string) bool {
-	if k, v, scope := EnvLookup(fr, name, curScope); k != nil {
+	if nameVal, interpVal, scope := EnvLookup(fr, name, curScope); nameVal != nil {
 		envStr := ""
 		if scope != nil {
 			envStr = fmt.Sprintf(" at scope %d", scope.ScopeId())
 		}
 		Msg("%s is in the environment%s", name, envStr)
-		Msg("\t%s = %s", k, DerefValue(v))
+		Msg("\t%s = %s", nameVal, Deref2Str(interpVal))
 		return true
 	} else {
 		Errmsg("Name %s not found in environment", name)
@@ -40,7 +40,7 @@ func PrintInEnvironment(fr *interp.Frame, name string) bool {
 }
 
 func EnvLookup(fr *interp.Frame, name string,
-	scope *ssa2.Scope) (ssa2.Value, string, *ssa2.Scope) {
+	scope *ssa2.Scope) (ssa2.Value, interp.Value, *ssa2.Scope) {
 	fn := fr.Fn()
 	reg := fr.Var2Reg[name]
 	for ; scope != nil;  scope = ssa2.ParentScope(fn, scope) {
@@ -49,31 +49,30 @@ func EnvLookup(fr *interp.Frame, name string,
 			Scope: scope,
 		}
 		if i := fn.LocalsByName[nameScope]; i > 0 {
-			k := fn.Locals[i-1]
-			v := Deref2Str(fr.Env()[k])
-			return k, v, k.Scope
+			nameVal := fn.Locals[i-1]
+			val     := fr.Env()[nameVal]
+			return nameVal, val, nameVal.Scope
 		}
 	}
 	names := []string{name, reg}
 	for _, name := range names {
-		for k, v := range fr.Env() {
-			if name == k.Name() {
-				v := Deref2Str(v)
-				switch k := k.(type) {
+		for nameVal, val := range fr.Env() {
+			if name == nameVal.Name() {
+				switch nameVal := nameVal.(type) {
 				case *ssa2.Alloc:
-					return k, v, k.Scope
+					return nameVal, val, nameVal.Scope
 				default:
-					return k, v, nil
+					return nameVal, val, nil
 				}
 			}
 		}
 	}
 	// FIXME: Why we would find things here and not by the
 	// above scope lookup?
-	if v := fn.Pkg.Var(name); v != nil {
-		return v, "", nil
+	if val := fn.Pkg.Var(name); val != nil {
+		return val, nil, nil
 	}
-	return nil, "", nil
+	return nil, nil, nil
 }
 
 // Could something like this go into interp-ssa?
