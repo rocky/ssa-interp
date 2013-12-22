@@ -43,6 +43,8 @@ exprs is in the environment
 # eval exprs[-9]
 ** Error evaluating expression 'exprs[-9]' (invalid slice index -9 (index must be non-negative))
 
+# eval os.O_RDWR | 6
+6
 ## FIXME REINSTATE
 ### eval "we have: " + exprs[5] + "."
 ## eval "we have: " + exprs[5] + "."

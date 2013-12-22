@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"reflect"
 	"go/parser"
+	"code.google.com/p/go.tools/go/exact"
+	"github.com/rocky/ssa-interp"
 	"github.com/0xfaded/go-interactive"
 )
 
@@ -23,12 +25,93 @@ func EvalIdentExpr(ctx *interactive.Ctx, ident *interactive.Ident, env *interact
 		} else {
 			pkg := curFrame.I().Program().PackagesByName[name]
 			if pkg != nil {
-				fmt.Printf("Got %s\n", pkg)
 				val := reflect.ValueOf(pkg)
 				return &val, false, nil
 			}
 		}
 		return nil, false, errors.New(fmt.Sprintf("%s undefined", name))
+	}
+}
+
+func EvalSelectorExpr(ctx *interactive.Ctx, selector *interactive.SelectorExpr,
+	env *interactive.Env) (*reflect.Value, bool, error) {
+	var err error
+	var x *[]reflect.Value
+	if x, _, err = interactive.EvalExpr(ctx, selector.X.(interactive.Expr), env); err != nil {
+		return nil, true, err
+	}
+	sel   := selector.Sel.Name
+	x0    := (*x)[0]
+	xname := x0.Type().Name()
+
+	if x0.Kind() == reflect.Ptr {
+		// println("XXX x0.Type()", x0.Type().String(), "selector name:", sel)
+		// Special case for handling packages
+		if x0.Type() == reflect.TypeOf(curFrame.Fn().Pkg) {
+			pkg := x0.Interface().(*ssa2.Package)
+			m := pkg.Members[sel]
+			if m == nil {
+				return nil, true,
+				errors.New(fmt.Sprintf("%s has no field or method %s", pkg, sel))
+			}
+
+			if fn := pkg.Func(sel); fn != nil {
+				return nil, true,
+				errors.New("Can't handle functions yet")
+			} else if v := pkg.Var(sel); v != nil {
+				if g, ok := curFrame.I().Global(sel, pkg); ok {
+					val := reflect.ValueOf(*g)
+					return &val, true, nil
+				} else {
+					return nil, true,
+					errors.New(fmt.Sprintf("%s name lookup failed unexpectedly for %s",
+						pkg, sel))
+				}
+			} else if c := pkg.Const(sel); c != nil {
+				switch c.Value.Value.Kind() {
+				case exact.Int:
+					if int64, ok := exact.Int64Val(c.Value.Value); ok {
+						val := reflect.ValueOf(int64)
+						return &val, true, nil
+					} else {
+						return nil, true,
+						errors.New("Can't convert to int64")
+					}
+				default:
+					val := reflect.ValueOf(c.Value)
+					return &val, true, nil
+				}
+			} else if t := pkg.Type(sel); t != nil {
+				return nil, true,
+				errors.New("Can't handle types yet")
+			}
+			// FIXME
+		} else if !x0.IsNil() && x0.Elem().Kind() == reflect.Struct {
+			x0 = x0.Elem()
+		}
+		println("XXX nope!")
+	}
+
+	switch x0.Type().Kind() {
+	case reflect.Struct:
+		if v := x0.FieldByName(sel); v.IsValid() {
+			return &v, true, nil
+		} else if x0.CanAddr() {
+			if v := x0.Addr().MethodByName(sel); v.IsValid() {
+				return &v, true, nil
+			}
+		}
+		return nil, true, errors.New(fmt.Sprintf("%s has no field or method %s", xname, sel))
+	case reflect.Interface:
+		if v := x0.MethodByName(sel); !v.IsValid() {
+			return &v, true, errors.New(fmt.Sprintf("%s has no method %s", xname, sel))
+		} else {
+			return &v, true, nil
+		}
+	default:
+		err = errors.New(fmt.Sprintf("%s.%s undefined (%s has no field or method %s)",
+			xname, sel, xname, sel))
+		return nil, true, err
 	}
 }
 
@@ -65,4 +148,5 @@ func EvalExprInteractive(expr string) (*[]reflect.Value, error) {
 
 func init() {
 	interactive.SetEvalIdentExprCallback(EvalIdentExpr)
+	interactive.SetEvalSelectorExprCallback(EvalSelectorExpr)
 }
