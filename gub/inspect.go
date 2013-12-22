@@ -188,7 +188,6 @@ func WhatisName(name string) {
 		} else {
 			try_pkg := curFrame.I().Program().PackagesByName[varname]
 			if try_pkg != nil {
-				fmt.Printf("Got %s\n", try_pkg)
 				pkg = try_pkg
 			}
 			m := pkg.Members[ids[1]]
@@ -208,7 +207,7 @@ func WhatisName(name string) {
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {
-		Msg("%s is a variable at:", name)
+		Msg("%s is a variable in %s at:", name, pkg)
 		Msg("  %s", ssa2.FmtRange(myfn, v.Pos(), v.EndP()))
 		Msg("  %s", v.Type())
 		if g, ok := curFrame.I().Global(name, pkg); ok {
