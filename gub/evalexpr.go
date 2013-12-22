@@ -1,5 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
-// evaluation support
+// evaluation support for expressions. A bridge betwen go-interactive's evaluation
+// and reflect values and interp.Value
 package gub
 
 import (
@@ -9,8 +10,18 @@ import (
 	"go/parser"
 	"code.google.com/p/go.tools/go/exact"
 	"github.com/rocky/ssa-interp"
+	"github.com/rocky/ssa-interp/interp"
 	"github.com/0xfaded/go-interactive"
 )
+
+// Convert between an interp.Value which the interpreter uses and reflect.Value which
+// go-interactive uses. nameVal is used to get type information.
+func interp2reflectVal(interpVal interp.Value, nameVal ssa2.Value) reflect.Value {
+	v := DerefValue(interpVal)
+	// println("XXX 1 type",  interp.Type(v))
+	// println("XXX 1 value", interp.ToInspect(v))
+	return reflect.ValueOf(v)
+}
 
 func EvalIdentExpr(ctx *interactive.Ctx, ident *interactive.Ident, env *interactive.Env) (
 	*reflect.Value, bool, error) {
@@ -19,11 +30,11 @@ func EvalIdentExpr(ctx *interactive.Ctx, ident *interactive.Ident, env *interact
 		// FIXME: Should this be done first or last?
 		return nil, false, nil
 	} else  {
-		if _, interpVal, _ := EnvLookup(curFrame, name, curScope); interpVal != nil {
+		if nameVal, interpVal, _ := EnvLookup(curFrame, name, curScope); interpVal != nil {
 			// FIXME for structures the interpreter has turned this into a slice
 			// we need to somehow undo that or keep track of the type name that this
 			// came from so we can get record selection correct.
-			reflectVal := reflect.ValueOf(DerefValue(interpVal))
+			reflectVal := interp2reflectVal(interpVal, nameVal)
 			return &reflectVal, false, nil
 		} else {
 			pkg := curFrame.I().Program().PackagesByName[name]
@@ -63,7 +74,7 @@ func EvalSelectorExpr(ctx *interactive.Ctx, selector *interactive.SelectorExpr,
 				errors.New("Can't handle functions yet")
 			} else if v := pkg.Var(sel); v != nil {
 				if g, ok := curFrame.I().Global(sel, pkg); ok {
-					val := reflect.ValueOf(*g)
+					val := interp2reflectVal(g, v)
 					return &val, true, nil
 				} else {
 					return nil, true,

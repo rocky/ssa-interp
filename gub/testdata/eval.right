@@ -16,7 +16,7 @@ Step over...
 --- main()
 testdata/expr.go:101:3-35
 # Should be able to see expr
-"quoted" string with backslash \ foo 
+"\"quoted\" string with backslash \\ foo "
 # -2
 -2
 # 5 == 6
@@ -36,7 +36,7 @@ true
 exprs is in the environment
 	*t0 = ["\"quoted\" string with backslash \\", "f(3.14)*2 + c", "-2  ", " 5 == 6", "5\t< 6", "1+2", "(1+2)*3", "1 << n", "1 << 8", "y("]
 # eval exprs[0]
-"quoted" string with backslash \
+"\"quoted\" string with backslash \\"
 # eval exprs[100]
 ** Error evaluating expression 'exprs[100]' (reflect: slice index out of range)
 
@@ -45,6 +45,10 @@ exprs is in the environment
 
 # eval os.O_RDWR | 4
 6
+# eval os.Args
+["main"]
+# eval os.Args[0]
+"main"
 ## FIXME REINSTATE
 ### eval "we have: " + exprs[5] + "."
 ## eval "we have: " + exprs[5] + "."

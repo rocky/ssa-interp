@@ -121,8 +121,80 @@ func toInspect(w io.Writer, v Value) {
 }
 
 // Similar to ToString but using toInspect
+// Note: we can't use a method because the receiver is an interface type.
 func ToInspect(v Value) string {
 	var b bytes.Buffer
 	toInspect(&b, v)
 	return b.String()
+}
+
+// Returns a string representation of the types of interp.Value
+// Note: we can't use a method becasue the receiver is an interface type.
+func Type(v Value) string {
+	switch v.(type) {
+	case nil:
+		return "nil"
+	case bool:
+		return "bool"
+	case int:
+		return "int"
+	case int8:
+		return "int8"
+	case int16:
+		return "int16"
+	case int32:
+		return "int32"
+	case int64:
+		return "int64"
+	case uint:
+		return "uint"
+	case uint8:
+		return "uint8"
+	case uint16:
+		return "uint16"
+	case uint32:
+		return "uint32"
+	case uint64:
+		return "uint64"
+	case uintptr:
+		return "uintptr"
+	case float32:
+		return "float32"
+	case float64:
+		return "float64"
+	case complex64:
+		return "complex64"
+	case complex128:
+		return "complex128"
+	case string:
+		return "string"
+	case map[Value]Value:
+		return "map[Value]Value"
+	case *hashmap:
+		return "*hashmap"
+	case chan Value:
+		return "chan Value"
+	case *Value:
+		return "*Value"
+	case iface:
+		return "iface"
+	case structure:
+		return "structure"
+	case array:
+		return "array"
+	case []Value:
+		return "[]Value"
+	case *ssa2.Function:
+		return "*ssa2.Function"
+	case *ssa2.Builtin:
+		return "*ssa2.Builtin"
+	case *closure:
+		return "*closure"
+	case rtype:
+		return "rtype"
+	case tuple:
+		return "tuple"
+	default:
+		return "?"
+	}
 }
