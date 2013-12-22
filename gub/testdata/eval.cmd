@@ -27,8 +27,8 @@ eval exprs[0]
 eval exprs[100]
 # eval exprs[-9]
 eval exprs[-9]
-# eval os.O_RDWR | 6
-eval os.O_RDWR | 6
+# eval os.O_RDWR | 4
+eval os.O_RDWR | 4
 ## FIXME REINSTATE
 ### eval "we have: " + exprs[5] + "."
 ## eval "we have: " + exprs[5] + "."
