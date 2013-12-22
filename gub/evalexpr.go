@@ -20,6 +20,9 @@ func EvalIdentExpr(ctx *interactive.Ctx, ident *interactive.Ident, env *interact
 		return nil, false, nil
 	} else  {
 		if _, interpVal, _ := EnvLookup(curFrame, name, curScope); interpVal != nil {
+			// FIXME for structures the interpreter has turned this into a slice
+			// we need to somehow undo that or keep track of the type name that this
+			// came from so we can get record selection correct.
 			reflectVal := reflect.ValueOf(DerefValue(interpVal))
 			return &reflectVal, false, nil
 		} else {
@@ -89,30 +92,16 @@ func EvalSelectorExpr(ctx *interactive.Ctx, selector *interactive.SelectorExpr,
 		} else if !x0.IsNil() && x0.Elem().Kind() == reflect.Struct {
 			x0 = x0.Elem()
 		}
-		println("XXX nope!")
 	}
 
-	switch x0.Type().Kind() {
-	case reflect.Struct:
-		if v := x0.FieldByName(sel); v.IsValid() {
-			return &v, true, nil
-		} else if x0.CanAddr() {
-			if v := x0.Addr().MethodByName(sel); v.IsValid() {
-				return &v, true, nil
-			}
-		}
-		return nil, true, errors.New(fmt.Sprintf("%s has no field or method %s", xname, sel))
-	case reflect.Interface:
-		if v := x0.MethodByName(sel); !v.IsValid() {
-			return &v, true, errors.New(fmt.Sprintf("%s has no method %s", xname, sel))
-		} else {
-			return &v, true, nil
-		}
-	default:
+	if x0.Type().String() == "interp.structure" {
+		err = errors.New("selection for structures and interfaces not supported yet")
+	} else {
+		println("XXX", x0.Type().Kind().String(), x0.Type().String())
 		err = errors.New(fmt.Sprintf("%s.%s undefined (%s has no field or method %s)",
 			xname, sel, xname, sel))
-		return nil, true, err
 	}
+	return nil, true, err
 }
 
 func makeEnv() *interactive.Env {

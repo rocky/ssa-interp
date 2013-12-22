@@ -197,13 +197,13 @@ func WhatisName(name string) {
 			}
 			name = ids[1]
 		}
+	} else {
+		if nameVal, _, _ := EnvLookup(curFrame, name, curScope); nameVal != nil {
+			PrintInEnvironment(curFrame, name)
+			return
+		}
+		if PrintIfLocal(curFrame, name)       {return}
 	}
-
-	if k, _, _ := EnvLookup(curFrame, name, curScope); k != nil {
-		PrintInEnvironment(curFrame, name)
-		return
-	}
-	if PrintIfLocal(curFrame, name)       {return}
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
 	} else if v := pkg.Var(name); v != nil {

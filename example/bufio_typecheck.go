@@ -18,10 +18,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 	"code.google.com/p/go.tools/go/types"
-	"github.com/rocky/ssa-interp"
 )
 
 // var verbose = flag.Bool("types.v", false, "verbose mode")
@@ -78,13 +76,7 @@ func typecheck(path string, filenames []string) {
 	// typecheck package files
 	var conf types.Config
 	conf.Error = func(err error) { fmt.Println(err) }
-	pkg, err := conf.Check(path, fset, files, nil)
-	if err == nil {
-		scope := pkg.Scope()
-		scopeNum := 0
-		assignScopeNums(ast2Scope, scope, &scopeNum)
-		traverseScope(fset, pkg.Scope(), 0)
-	}
+	conf.Check(path, fset, files, nil)
 	pkgCount++
 }
 
@@ -96,30 +88,6 @@ type Scope struct {
 var num2scope [] *types.Scope
 
 var  ast2Scope map[ast.Node]*Scope = make(map[ast.Node]*Scope)
-
-func assignScopeNums(ast2Scope map[ast.Node]*Scope, scope *types.Scope, scopeNum *int) {
-	num2scope = append(num2scope, scope)
-	ast2Scope[scope.Node()] = &Scope {
-		Scope: scope,
-		scopeNum: *scopeNum,
-	}
-	*scopeNum++
-	n := scope.NumChildren()
-	for i:=0; i<n; i++ {
-		child := scope.Child(i)
-		if child != nil { assignScopeNums(ast2Scope, child, scopeNum) }
-	}
-}
-
-func printScope(fset *token.FileSet, scope *Scope) {
-	node := scope.Node()
-	if node != nil {
-		startP := fset.Position(node.Pos())
-		endP   := fset.Position(node.End())
-		fmt.Println(ssa2.PositionRange(startP, endP))
-	}
-	fmt.Printf("#%d %s\n", scope.scopeNum, scope.Scope)
-}
 
 func PrintAstType(node ast.Node) {
 	switch n := node.(type) {
@@ -237,25 +205,6 @@ func PrintAstType(node ast.Node) {
 		fmt.Println("Package")
 	default:
 		fmt.Printf("ast.Walk: unexpected node type %T", n)
-	}
-}
-
-func traverseScope(fset *token.FileSet, scope *types.Scope, indent int) {
-	const ind = ".  "
-	indn  := strings.Repeat(ind, indent)
-	fmt.Printf("%s ", indn)
-	node  := scope.Node()
-	fmt.Println("---------")
-	if node != nil {
-		PrintAstType(node)
-	}
-	fmt.Println("=========")
-	printScope(fset, ast2Scope[node])
-
-	n := scope.NumChildren()
-	for i:=0; i<n; i++ {
-		child := scope.Child(i)
-		if child != nil { traverseScope(fset, child, indent+1) }
 	}
 }
 
