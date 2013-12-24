@@ -211,7 +211,7 @@ func WhatisName(name string) {
 		Msg("  %s", ssa2.FmtRange(myfn, v.Pos(), v.EndP()))
 		Msg("  %s", v.Type())
 		if g, ok := curFrame.I().Global(name, pkg); ok {
-			Msg("  %s", *g)
+			Msg("  %s", interp.ToInspect(*g))
 		}
 	} else if c := pkg.Const(name); c != nil {
 		printConstantInfo(c, name, pkg)

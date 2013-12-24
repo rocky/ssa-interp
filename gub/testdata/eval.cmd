@@ -33,7 +33,6 @@ eval os.O_RDWR | 4
 eval os.Args
 # eval os.Args[0]
 eval os.Args[0]
-## FIXME REINSTATE
-### eval "we have: " + exprs[5] + "."
-## eval "we have: " + exprs[5] + "."
+# eval "we have: " + exprs[5] + "."
+eval "we have: " + exprs[5] + "."
 quit

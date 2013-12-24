@@ -49,7 +49,6 @@ exprs is in the environment
 ["main"]
 # eval os.Args[0]
 "main"
-## FIXME REINSTATE
-### eval "we have: " + exprs[5] + "."
-## eval "we have: " + exprs[5] + "."
+# eval "we have: " + exprs[5] + "."
+"we have: 1+2."
 gub: That's all folks...

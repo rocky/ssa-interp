@@ -108,7 +108,7 @@ func EvalSelectorExpr(ctx *interactive.Ctx, selector *interactive.SelectorExpr,
 	if x0.Type().String() == "interp.structure" {
 		err = errors.New("selection for structures and interfaces not supported yet")
 	} else {
-		println("XXX", x0.Type().Kind().String(), x0.Type().String())
+		// println("XXX", x0.Type().Kind().String(), x0.Type().String())
 		err = errors.New(fmt.Sprintf("%s.%s undefined (%s has no field or method %s)",
 			xname, sel, xname, sel))
 	}
@@ -146,7 +146,78 @@ func EvalExprInteractive(expr string) (*[]reflect.Value, error) {
 	return nil, nil
 }
 
+// FIXME should an interp2reflect function be in interp?
+var myConvertFunc = func (r reflect.Value, rtyped bool) (reflect.Value, bool, error) {
+	switch v := r.Interface().(type) {
+	case bool:
+		return reflect.ValueOf(v), true, nil
+	case int:
+		return reflect.ValueOf(v), true, nil
+	case int8:
+		return reflect.ValueOf(v), true, nil
+	case int16:
+		return reflect.ValueOf(v), true, nil
+	case int32:
+		return reflect.ValueOf(v), true, nil
+	case int64:
+		return reflect.ValueOf(v), true, nil
+	case uint:
+		return reflect.ValueOf(v), true, nil
+	case uint8:
+		return reflect.ValueOf(v), true, nil
+	case uint16:
+		return reflect.ValueOf(v), true, nil
+	case uint32:
+		return reflect.ValueOf(v), true, nil
+	case uint64:
+		return reflect.ValueOf(v), true, nil
+	case uintptr:
+		return reflect.ValueOf(v), true, nil
+	case float32:
+		return reflect.ValueOf(v), true, nil
+	case float64:
+		return reflect.ValueOf(v), true, nil
+	case complex64:
+		return reflect.ValueOf(v), true, nil
+	case complex128:
+		return reflect.ValueOf(v), true, nil
+	case string:
+		return reflect.ValueOf(v), true, nil
+	// case map[Value]Value:
+	// 	return "map[Value]Value"
+	// case *hashmap:
+	// 	return "*hashmap"
+	// case chan Value:
+	// 	return "chan Value"
+	// case *Value:
+	// 	return "*Value"
+	// case iface:
+	// 	return "iface"
+	// case structure:
+	// 	return "structure"
+	// case array:
+	// 	return "array"
+	// case []Value:
+	// 	return "[]Value"
+	// case *ssa2.Function:
+	// 	return "*ssa2.Function"
+	// case *ssa2.Builtin:
+	// 	return "*ssa2.Builtin"
+	// case *closure:
+	// 	return "*closure"
+	// case rtype:
+	// 	return "rtype"
+	// case tuple:
+	// 	return "tuple"
+	default:
+		return r, rtyped, nil
+	}
+
+	return r, rtyped, nil
+}
+
 func init() {
 	interactive.SetEvalIdentExprCallback(EvalIdentExpr)
 	interactive.SetEvalSelectorExprCallback(EvalSelectorExpr)
+	interactive.SetUserConversion(myConvertFunc)
 }
