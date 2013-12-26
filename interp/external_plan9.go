@@ -5,8 +5,6 @@
 package interp
 
 import (
-	"syscall"
-
 	"github.com/rocky/ssa-interp"
 )
 
@@ -46,4 +44,7 @@ func ext۰syscall۰Write(fr *Frame, args []Value) Value {
 	}
 	n, err := syscall.Write(args[0].(int), b)
 	return tuple{n, wrapError(err)}
+}
+func ext۰syscall۰RawSyscall(fn *Frame, args []value) value {
+	return tuple{^uintptr(0), uintptr(0), uintptr(0)}
 }

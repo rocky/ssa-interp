@@ -133,3 +133,7 @@ func ext۰syscall۰Write(fr *Frame, args []Value) Value {
 	n, err := syscall.Write(args[0].(int), ValueToBytes(args[1]))
 	return tuple{n, wrapError(err)}
 }
+
+func ext۰syscall۰RawSyscall(fn *Frame, args []Value) Value {
+	return tuple{uintptr(0), uintptr(0), uintptr(syscall.ENOSYS)}
+}
