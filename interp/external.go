@@ -94,6 +94,7 @@ var externals = map[string]externalFn{
 	"runtime.SetFinalizer":            ext۰runtime۰SetFinalizer,
 	"runtime.getgoroot":               ext۰runtime۰getgoroot,
 	"runtime.Stack":                   ext۰runtime۰Stack,
+	"sync.runtime_registerPool":       ext۰sync۰runtime_registerPool,
 	"sync.runtime_Syncsemcheck":       ext۰sync۰runtime_Syncsemcheck,
 	"sync/atomic.AddInt32":            ext۰atomic۰AddInt32,
 	"sync/atomic.CompareAndSwapInt32": ext۰atomic۰CompareAndSwapInt32,
@@ -219,6 +220,11 @@ func ext۰strings۰IndexByte(fn *Frame, args []Value) Value {
 	}
 	return -1
 }
+
+func ext۰sync۰runtime_registerPool(fn *Frame, args []Value) Value {
+	return nil
+}
+
 
 func ext۰sync۰runtime_Syncsemcheck(fn *Frame, args []Value) Value {
 	return nil
