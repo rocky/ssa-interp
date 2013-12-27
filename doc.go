@@ -126,11 +126,6 @@
 // TODO(adonovan): Consider the exceptional control-flow implications
 // of defer and recover().
 //
-// TODO(adonovan): write an example showing how to visit all functions
-// in a Program, including package init functions, methods of named
-// and anon types, and functions used as values but never called
-// directly.  See AllFunctions().
-//
 // TODO(adonovan): write a how-to document for all the various cases
 // of trying to determine corresponding elements across the four
 // domains of source locations, ast.Nodes, types.Objects,

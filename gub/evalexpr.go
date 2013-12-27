@@ -1,5 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
-// evaluation support for expressions. A bridge betwen go-interactive's evaluation
+// evaluation support for expressions. A bridge betwen eval's evaluation
 // and reflect values and interp.Value
 package gub
 
@@ -15,7 +15,7 @@ import (
 )
 
 // Convert between an interp.Value which the interpreter uses and reflect.Value which
-// go-interactive uses. nameVal is used to get type information.
+// eval uses. nameVal is used to get type information.
 func interp2reflectVal(interpVal interp.Value, nameVal ssa2.Value) reflect.Value {
 	v := DerefValue(interpVal)
 	// println("XXX 1 type",  interp.Type(v))
@@ -23,7 +23,7 @@ func interp2reflectVal(interpVal interp.Value, nameVal ssa2.Value) reflect.Value
 	return reflect.ValueOf(v)
 }
 
-func EvalIdentExpr(ctx *interactive.Ctx, ident *interactive.Ident, env *interactive.Env) (
+func EvalIdentExpr(ctx *eval.Ctx, ident *eval.Ident, env *eval.Env) (
 	*reflect.Value, bool, error) {
 	name := ident.Name
 	if name == "nil" {
@@ -43,15 +43,20 @@ func EvalIdentExpr(ctx *interactive.Ctx, ident *interactive.Ident, env *interact
 				return &val, false, nil
 			}
 		}
-		return nil, false, errors.New(fmt.Sprintf("%s undefined", name))
+		// Fall back to using eval's corresponding routine. That way
+		// we get access to its builtin functions which I don't support here yet.
+		// Also, can access packages that weren't imported by this running program
+		// but were in eval. For example, the running interpreter program might not
+		/// have imported "fmt", but eval definately does.
+		return eval.EvalIdentExpr(ctx, ident, env)
 	}
 }
 
-func EvalSelectorExpr(ctx *interactive.Ctx, selector *interactive.SelectorExpr,
-	env *interactive.Env) (*reflect.Value, bool, error) {
+func EvalSelectorExpr(ctx *eval.Ctx, selector *eval.SelectorExpr,
+	env *eval.Env) (*reflect.Value, bool, error) {
 	var err error
 	var x *[]reflect.Value
-	if x, _, err = interactive.EvalExpr(ctx, selector.X.(interactive.Expr), env); err != nil {
+	if x, _, err = eval.EvalExpr(ctx, selector.X.(eval.Expr), env); err != nil {
 		return nil, true, err
 	}
 	sel   := selector.Sel.Name
@@ -115,27 +120,27 @@ func EvalSelectorExpr(ctx *interactive.Ctx, selector *interactive.SelectorExpr,
 	return nil, true, err
 }
 
-func makeEnv() *interactive.Env {
-	return &interactive.Env {
+func makeEnv() *eval.Env {
+	return &eval.Env {
 		Vars: make(map[string] reflect.Value),
 		Consts: make(map[string] reflect.Value),
 		Funcs: make(map[string] reflect.Value),
 		Types: make(map[string] reflect.Type),
-		Pkgs: make(map[string] interactive.Pkg),
+		Pkgs: make(map[string] eval.Pkg),
 	}
 }
 
-func EvalExprInteractive(expr string) (*[]reflect.Value, error) {
+func EvalExprEval(expr string) (*[]reflect.Value, error) {
 	env := makeEnv()
-	ctx := &interactive.Ctx{expr}
+	ctx := &eval.Ctx{expr}
 	if e, err := parser.ParseExpr(expr); err != nil {
 		Errmsg("Failed to parse expression '%s' (%v)\n", expr, err)
 		return nil, err
-	} else if cexpr, errs := interactive.CheckExpr(ctx, e, env); len(errs) != 0 {
+	} else if cexpr, errs := eval.CheckExpr(ctx, e, env); len(errs) != 0 {
 		Errmsg("Error checking expression '%s' (%v)\n", expr, errs)
 		return nil, errs[0]
 	} else {
-		results, _, err := interactive.EvalExpr(ctx, cexpr, env)
+		results, _, err := eval.EvalExpr(ctx, cexpr, env)
 		if err != nil {
 			Errmsg("Error evaluating expression '%s' (%v)\n", expr, err)
 			return nil, err
@@ -217,7 +222,7 @@ var myConvertFunc = func (r reflect.Value, rtyped bool) (reflect.Value, bool, er
 }
 
 func init() {
-	interactive.SetEvalIdentExprCallback(EvalIdentExpr)
-	interactive.SetEvalSelectorExprCallback(EvalSelectorExpr)
-	interactive.SetUserConversion(myConvertFunc)
+	eval.SetEvalIdentExprCallback(EvalIdentExpr)
+	eval.SetEvalSelectorExprCallback(EvalSelectorExpr)
+	eval.SetUserConversion(myConvertFunc)
 }
