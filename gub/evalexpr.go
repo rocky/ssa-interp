@@ -11,7 +11,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"github.com/0xfaded/go-interactive"
+	"github.com/0xfaded/eval"
 )
 
 // Convert between an interp.Value which the interpreter uses and reflect.Value which
