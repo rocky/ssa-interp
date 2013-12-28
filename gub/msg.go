@@ -23,6 +23,11 @@ func Errmsg(format string, a ...interface{}) (n int, err error) {
 	return fmt.Fprintf(os.Stdout, format, a...)
 }
 
+func MsgNoCr(format string, a ...interface{}) (n int, err error) {
+	format = format
+	return fmt.Fprintf(os.Stdout, format, a...)
+}
+
 func Msg(format string, a ...interface{}) (n int, err error) {
 	format = format + "\n"
 	return fmt.Fprintf(os.Stdout, format, a...)

@@ -35,4 +35,14 @@ eval os.Args
 eval os.Args[0]
 # eval "we have: " + exprs[5] + "."
 eval "we have: " + exprs[5] + "."
+# eval len("abc") # -- builtin len() with string
+eval len("abc")
+# eval len(exprs) # -- builtin len() with array
+eval len(exprs)
+# eval fmt.Println("Hi there!") # -- Eval package fn
+eval fmt.Println("Hi there!")
+## FIXME eval should handle types better
+## Shouldn't need the int(20) below
+# eval strconv.Atoi("13") + int(20) # -- Eval package fn expression
+eval strconv.Atoi("13") + int(20)
 quit

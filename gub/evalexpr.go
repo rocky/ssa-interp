@@ -11,6 +11,7 @@ import (
 	"code.google.com/p/go.tools/go/exact"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
+	"github.com/rocky/go-fish"
 	"github.com/0xfaded/eval"
 )
 
@@ -64,19 +65,22 @@ func EvalSelectorExpr(ctx *eval.Ctx, selector *eval.SelectorExpr,
 	xname := x0.Type().Name()
 
 	if x0.Kind() == reflect.Ptr {
-		// println("XXX x0.Type()", x0.Type().String(), "selector name:", sel)
 		// Special case for handling packages
 		if x0.Type() == reflect.TypeOf(curFrame.Fn().Pkg) {
 			pkg := x0.Interface().(*ssa2.Package)
-			m := pkg.Members[sel]
-			if m == nil {
-				return nil, true,
-				errors.New(fmt.Sprintf("%s has no field or method %s", pkg, sel))
-			}
 
 			if fn := pkg.Func(sel); fn != nil {
-				return nil, true,
-				errors.New("Can't handle functions yet")
+				// Can't handle interp functions yet, but perhaps it happens
+				// to be a function in the static eval environment
+				pkg_name := pkg.Object.Name()
+				pkg_env := env.Pkgs[pkg_name]
+				if fn, ok := pkg_env.Funcs[sel]; ok {
+					return &fn, true, nil
+				} else {
+					return nil, true,
+					errors.New("Can't handle functions that are not in 0xfaded/eval yet")
+
+				}
 			} else if v := pkg.Var(sel); v != nil {
 				if g, ok := curFrame.I().Global(sel, pkg); ok {
 					val := interp2reflectVal(g, v)
@@ -120,8 +124,9 @@ func EvalSelectorExpr(ctx *eval.Ctx, selector *eval.SelectorExpr,
 	return nil, true, err
 }
 
-func makeEnv() *eval.Env {
+func makeNullEnv() *eval.Env {
 	return &eval.Env {
+		Name: "NullEnvironment",
 		Vars: make(map[string] reflect.Value),
 		Consts: make(map[string] reflect.Value),
 		Funcs: make(map[string] reflect.Value),
@@ -131,7 +136,7 @@ func makeEnv() *eval.Env {
 }
 
 func EvalExpr(expr string) (*[]reflect.Value, error) {
-	env := makeEnv()
+	env := &evalEnv
 	ctx := &eval.Ctx{expr}
 	if e, err := parser.ParseExpr(expr); err != nil {
 		Errmsg("Failed to parse expression '%s' (%v)\n", expr, err)
@@ -221,8 +226,11 @@ var myConvertFunc = func (r reflect.Value, rtyped bool) (reflect.Value, bool, er
 	return r, rtyped, nil
 }
 
+var evalEnv eval.Env
+
 func init() {
 	eval.SetEvalIdentExprCallback(EvalIdentExpr)
 	eval.SetEvalSelectorExprCallback(EvalSelectorExpr)
 	eval.SetUserConversion(myConvertFunc)
+	evalEnv = repl.MakeEvalEnv()
 }

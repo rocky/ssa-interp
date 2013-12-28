@@ -51,4 +51,15 @@ exprs is in the environment
 "main"
 # eval "we have: " + exprs[5] + "."
 "we have: 1+2."
+# eval len("abc") # -- builtin len() with string
+3
+# eval len(exprs) # -- builtin len() with array
+10
+# eval fmt.Println("Hi there!") # -- Eval package fn
+Hi there!
+(10, <nil>)
+## FIXME eval should handle types better
+## Shouldn't need the int(20) below
+# eval strconv.Atoi("13") + int(20) # -- Eval package fn expression
+33
 gub: That's all folks...

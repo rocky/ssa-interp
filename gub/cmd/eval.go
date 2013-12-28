@@ -35,10 +35,13 @@ func EvalCommand(args []string) {
 				if len(expr) == 0 {
 					gub.Errmsg("Something is weird. Result has length 0")
 				} else {
-					gub.Msg("Weird, multiple results:")
-					for i, v := range(expr) {
-						gub.Msg("%d: %v", i, v.Interface())
+					gub.MsgNoCr("(")
+					size := len(expr)
+					for i, v := range expr {
+						gub.MsgNoCr("%v", v.Interface())
+						if i < size-1 { gub.MsgNoCr(", ") }
 					}
+					gub.Msg(")")
 				}
 			}
 		}
