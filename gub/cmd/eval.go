@@ -24,7 +24,7 @@ Evaluate go expression *expr*.
 func EvalCommand(args []string) {
 
 	// Don't use args, but gub.CmdArgstr which preserves blanks inside quotes
-	if expr, err := gub.EvalExprInteractive(gub.CmdArgstr); err == nil {
+	if expr, err := gub.EvalExpr(gub.CmdArgstr); err == nil {
 		if expr == nil {
 			gub.Msg("nil")
 		} else {

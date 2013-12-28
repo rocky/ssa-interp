@@ -130,7 +130,7 @@ func makeEnv() *eval.Env {
 	}
 }
 
-func EvalExprEval(expr string) (*[]reflect.Value, error) {
+func EvalExpr(expr string) (*[]reflect.Value, error) {
 	env := makeEnv()
 	ctx := &eval.Ctx{expr}
 	if e, err := parser.ParseExpr(expr); err != nil {
