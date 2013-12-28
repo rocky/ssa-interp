@@ -16,7 +16,7 @@ script:
   - go get "code.google.com/p/go-columnize"
   - go get "github.com/mgutz/ansi"
   - go get "github.com/0xfaded/eval"
-  - go get "github.com/rock/go-fish"
+  - go get "github.com/rocky/go-fish"
   - go build tortoise.go
   - cd gub
   - go build
