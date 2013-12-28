@@ -90,8 +90,10 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		args  := strings.Split(line, " ")
 		if len(args) == 0 || len(args[0]) == 0 {
 			Msg("Empty line skipped")
+			gnureadline.RemoveHistory(gnureadline.HistoryLength()-1)
 			continue
 		} else if args[0][0] == '#' {
+			gnureadline.RemoveHistory(gnureadline.HistoryLength()-1)
 			Msg(line) // echo line but do nothing
 			continue
 		}
@@ -111,8 +113,11 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		}
 
 		if len(args) > 0 {
-			WhatisName(args[0])
+			if !WhatisName(args[0]) {
+				gnureadline.RemoveHistory(gnureadline.HistoryLength()-1)
+			}
 		} else {
+			gnureadline.RemoveHistory(gnureadline.HistoryLength()-1)
 			Errmsg("Unknown command %s\n", cmd)
 		}
 	}

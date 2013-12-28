@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -26,13 +27,58 @@ const (
 	version string = "0.2"
 )
 
-var Term string  // TERM environment variable
+// Term is the current environment TERM value, e.g. "gnome", "xterm", or "vt100"
+var Term string
+
 var Maxwidth int
 var initial_cwd string
 var GUB_RESTART_CMD string
 
-func termInit() {
+// history_file is file name where history entries were and are to be saved. If
+// the empty string, no history is saved and no history read in initially.
+var historyFile string
+
+// gnuReadLineTermination has GNU Readline Termination tasks:
+// save history file if ane, and reset the terminal.
+func gnuReadLineTermination() {
+	if historyFile != "" {
+		gnureadline.WriteHistory(historyFile)
+	}
+	if Term != "" {
+		gnureadline.Rl_reset_terminal(Term)
+	}
+}
+
+// HistoryFile returns a string file name to use for saving command
+// history entries
+func HistoryFile(history_basename string) string {
+	home_dir := os.Getenv("HOME")
+	if home_dir == "" {
+		// FIXME: also try ~ ?
+		fmt.Println("ignoring history file; environment variable HOME not set")
+		return ""
+	}
+	history_file := filepath.Join(home_dir, history_basename)
+	if fi, err := os.Stat(history_file); err != nil {
+		fmt.Println("No history file found to read in")
+	} else {
+		if fi.IsDir() {
+			fmt.Printf("Ignoring history file %s; is a directory, should be a file",
+				history_file)
+			return ""
+		}
+	}
+	return history_file
+}
+
+// gnuReadLineSetup is boilerplate initialization for GNU Readline.
+func gnuReadLineSetup() {
 	Term = os.Getenv("TERM")
+	historyFile = HistoryFile(".gub")
+	if historyFile != "" {
+		gnureadline.ReadHistory(historyFile)
+	}
+	// Set maximum number of history entries
 	gnureadline.StifleHistory(30)
 }
 
@@ -66,7 +112,8 @@ func process_options(options *string) {
 			}
 			inputReader = bufio.NewReader(inputFile)
 		} else {
-			termInit()
+			gnuReadLineSetup()
+			defer gnuReadLineTermination()
 		}
 
 	}

@@ -176,7 +176,7 @@ func printPackageInfo(name string, pkg *ssa2.Package) {
 // 	}
 // }
 
-func WhatisName(name string) {
+func WhatisName(name string) bool {
 	ids := strings.Split(name, ".")
 	myfn  := curFrame.Fn()
 	pkg := myfn.Pkg
@@ -185,6 +185,7 @@ func WhatisName(name string) {
 		// local lookup needs to take precedence over package lookup
 		if i := LocalsLookup(curFrame, varname, curScope); i != 0 {
 			Errmsg("Sorry, dotted variable lookup for local %s not supported yet", varname)
+			return false
 		} else {
 			try_pkg := curFrame.I().Program().PackagesByName[varname]
 			if try_pkg != nil {
@@ -193,16 +194,18 @@ func WhatisName(name string) {
 			m := pkg.Members[ids[1]]
 			if m == nil {
 				Errmsg("%s is not a member of %s", ids[1], pkg)
-				return
+				return false
 			}
 			name = ids[1]
 		}
 	} else {
 		if nameVal, _, _ := EnvLookup(curFrame, name, curScope); nameVal != nil {
 			PrintInEnvironment(curFrame, name)
-			return
+			return true
 		}
-		if PrintIfLocal(curFrame, name)       {return}
+		if PrintIfLocal(curFrame, name) {
+			return true
+		}
 	}
 	if fn := pkg.Func(name); fn != nil {
 		printFuncInfo(fn)
@@ -221,5 +224,7 @@ func WhatisName(name string) {
 		printPackageInfo(name, pkg)
 	} else {
 		Errmsg("Can't find name: %s", name)
+		return false
 	}
+	return true
 }
