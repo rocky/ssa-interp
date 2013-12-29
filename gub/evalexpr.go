@@ -31,7 +31,7 @@ func interp2reflectVal(interpVal interp.Value, nameVal ssa2.Value) reflect.Value
 // parameter is non-nil if there was an error.
 // Note that the parameter ctx is not used here, but is part of the eval
 // interface. So we pass that along if we can't find the name here and
-// resort to the static evaliuation environment compiled into eval.
+// resort to the static evaluation environment compiled into eval.
 func EvalIdentExpr(ctx *eval.Ctx, ident *eval.Ident, env *eval.Env) (
 	*reflect.Value, bool, error) {
 	name := ident.Name
