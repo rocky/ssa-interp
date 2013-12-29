@@ -1,4 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
+
 package gubcmd
 import (
 	"fmt"
@@ -11,8 +12,9 @@ func init() {
 		Fn: DisableCommand,
 		Help: `Disable [bpnum1 ...]
 
-Disable a breakpoint by the number assigned to it.`,
+Disable a breakpoint by its breakpoint number.
 
+See also "enable", "delete", and "info break"`,
 		Min_args: 0,
 		Max_args: -1,
 	}
@@ -20,6 +22,12 @@ Disable a breakpoint by the number assigned to it.`,
 }
 
 // FIXME: DRY with Enable and Delete?
+
+// DisableCommand implements the debugger command:
+//    disable [bpnum1 ...]
+// which disables a breakpoint by its breakpoint number.
+//
+// See also "enable", "delete", and "info break".
 func DisableCommand(args []string) {
 	for i:=1; i<len(args); i++ {
 		msg := fmt.Sprintf("breakpoint number for argument %d", i)

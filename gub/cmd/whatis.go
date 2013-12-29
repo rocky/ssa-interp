@@ -1,4 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
+
 package gubcmd
 import "github.com/rocky/ssa-interp/gub"
 
@@ -17,6 +18,11 @@ print information about *name* which can include a dotted variable name.
 	gub.AddToCategory("inspecting", name)
 }
 
+// WhatisCommand implements the debugger command:
+//    whatis *name*
+// which desribes what *name* is.
+//
+// See also "locals", "globals", and "eval".
 func WhatisCommand(args []string) {
 	name := args[1]
 	gub.WhatisName(name)

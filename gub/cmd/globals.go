@@ -1,4 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
+
 package gubcmd
 
 import (
@@ -18,7 +19,13 @@ func init() {
 	name := "globals"
 	gub.Cmds[name] = &gub.CmdInfo{
 		Fn: GlobalsCommand,
-		Help: "globals [*name*]: show global variable info",
+		Help: `globals [*name*]
+
+show global variable information. If *name* is not given list
+all global variables.
+
+See also "locals", "whatis", and "eval".
+`,
 		Min_args: 0,
 		Max_args: 1,
 	}
@@ -28,6 +35,11 @@ func init() {
 	gub.Aliases["gl"] = name
 }
 
+// GlobalsCommand implements the debugger command:
+//    globals [*name*]
+// which shows global variable info.
+//
+// See also "locals", "whatis", and "eval".
 func GlobalsCommand(args []string) {
 	argc := len(args) - 1
 	if argc == 0 {

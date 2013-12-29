@@ -1,4 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
+
 package gubcmd
 
 import (
@@ -21,6 +22,9 @@ Evaluate go expression *expr*.
 	gub.AddToCategory("data", name)
 }
 
+// EvalCommand implements the debugger command:
+//    eval *expr*
+// which evaluates go expression expr.
 func EvalCommand(args []string) {
 
 	// Don't use args, but gub.CmdArgstr which preserves blanks inside quotes

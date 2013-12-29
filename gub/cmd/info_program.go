@@ -31,6 +31,14 @@ Prints information about the program including:
 	})
 }
 
+// InfoProgramSubcmd implements the debugger command:
+//   info program
+// This command prints information about the program including:
+//    instruction number
+//    block number
+//    function number
+//    stop event
+//    source-code position
 func InfoProgramSubcmd(args []string) {
 	fr := gub.CurFrame()
 	gub.Msg("instruction number: %d", fr.PC())

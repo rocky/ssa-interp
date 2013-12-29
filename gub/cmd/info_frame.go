@@ -1,9 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
 
-// info frame
-//
-// Prints frame information
-
 package gubcmd
 
 import (
@@ -16,7 +12,7 @@ func init() {
 		Fn: InfoProgramSubcmd,
 		Help: `info frame
 
-Prints information about the program including:
+Prints information about the selected frame including:
 *  goroutine number
 *  location
 *  function and parameter names
@@ -30,6 +26,12 @@ See also backtrace.
 	})
 }
 
+// InfoFrameSubcmd implements the debugger command:
+//   info frame
+// which prints frame information including:
+//    goroutine number
+//    location
+//    function and parameter names
 func InfoFrameSubcmd(args []string) {
 	fr := gub.CurFrame()
 	gub.Msg("goroutine number: %d", fr.GoNum())

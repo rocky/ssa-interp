@@ -1,7 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 
-// info command
-//
+// set command
 
 package gubcmd
 
@@ -17,7 +16,7 @@ func init() {
 			Subcmds: make(gub.SubcmdMap),
 		},
 		Fn: SetCommand,
-		Help: `Generic command for shetting things about the program being debugged.
+		Help: `Generic command for setting things about the debugged program.
 
 Type "set" for a list of "set" subcommands and what they do.
 Type "help set *" for just a list of "info" subcommands.
@@ -63,6 +62,14 @@ Set whether we use terminal highlighting.
 }
 
 //FIXME: DRY THIS
+
+// setCommand implements the debugger command:
+//    set [*|subcommand]
+// which is a generic command for setting things about the debugged program.
+//
+// Type "set" for a list of "set" subcommands and what they do.
+//
+// Type "help set *" for just a list of "info" subcommands.
 func SetCommand(args []string) {
 	if len(args) == 1 {
 		gub.ListSubCommandArgs(gub.Cmds["set"].SubcmdMgr)

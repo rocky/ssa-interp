@@ -1,9 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
 
-// info args
-//
-// show call arguments
-
 package gubcmd
 
 import (
@@ -24,6 +20,9 @@ Show argument variables of the current stack frame"`,
 	})
 }
 
+// InfoArgsSubcmd implements the debugger command:
+//    info args [arg-name]
+// which shows argument variables of the current stack frame.
 func InfoArgsSubcmd(args []string) {
 	fr := gub.CurFrame()
 	fn := fr.Fn()

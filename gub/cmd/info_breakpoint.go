@@ -29,6 +29,20 @@ Status of user-settable breakpoints.
 	})
 }
 
+// InfoBreakpointSubcmd implements the debugger command:
+//   info breakpoint
+//
+// This command shows status of user-settable breakpoints. If no
+// breakpoint numbers are given, the show all breakpoints. Otherwise
+// only those breakpoints listed are shown and the order given.
+//
+// The "Disp" column contains one of "keep", "del", the disposition of
+// the breakpoint after it gets hit.
+//
+// The "enb" column indicates whether the breakpoint is enabled.
+//
+// The "Where" column indicates where the breakpoint is located.
+// Status of user-settable breakpoints.
 func InfoBreakpointSubcmd() {
 	if gub.IsBreakpointEmpty() {
 		gub.Msg("No breakpoints set")

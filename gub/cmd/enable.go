@@ -1,4 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
+
 package gubcmd
 import (
 	"fmt"
@@ -20,6 +21,12 @@ Enable a breakpoint by the number assigned to it.`,
 }
 
 // FIXME: DRY with Disable and Delete?
+
+// EnableCommand implements the debugger command:
+//    enable [bpnum1 ...]
+// which enables a breakpoint by its breakpoint number.
+//
+// See also "disable", "delete", and "info break".
 func EnableCommand(args []string) {
 	for i:=1; i<len(args); i++ {
 		msg := fmt.Sprintf("breakpoint number for argument %d", i)
