@@ -1,5 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 // command argument-validation routines
+
 package gub
 
 import "strconv"

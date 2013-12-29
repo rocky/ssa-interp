@@ -1,5 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 // Inspection routines
+
 package gub
 
 import (
@@ -13,8 +14,9 @@ import (
 	"code.google.com/p/go-columnize"
 )
 
-// deref returns a pointer's element type; otherwise it returns typ.
 // FIXME: this is from ssa-interp/util.go. DRY
+
+// deref returns a pointer's element type; otherwise it returns typ.
 func deref(typ types.Type) types.Type {
 	if p, ok := typ.Underlying().(*types.Pointer); ok {
 		return p.Elem()

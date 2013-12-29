@@ -1,5 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 // Debugger subcommands
+
 package gub
 
 import (
@@ -21,13 +22,21 @@ type SubcmdInfo struct {
 
 type SubcmdMap map[string]*SubcmdInfo
 
+// SubcmdMgr contains the name of a debugger command that has
+// subcommands, "info", and "set" are examples of such commmands,and
+// information about each of the subcommands.
 type SubcmdMgr struct {
 	Name string
 	Subcmds SubcmdMap
 }
 
+// Subcmds is a map of a debugger subcommand name to information about
+// that subcommand. For example, the "info" command has subcommands
+// "break", "program", "line" and so on.
 var Subcmds map[string]*SubcmdInfo  = make(map[string]*SubcmdInfo)
 
+// AddSubCommand adds to the subcommand manager mgrName, subcommand
+// subcmdInfo.
 func AddSubCommand(mgrName string, subcmdInfo *SubcmdInfo) {
 	Subcmds[mgrName] = subcmdInfo
 	mgr := Cmds[mgrName]

@@ -1,5 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 // Debugger callback hook. Contains the main command loop.
+
 package gub
 
 import (
@@ -17,14 +18,15 @@ var TraceEvent ssa2.TraceEvent
 
 var gubLock  sync.Mutex
 
-// Commands set InCmdLoop to "false" break out of debugger's read
-// command loop.
+// InCmdLoop is set to "false" to break out of debugger's read command
+// loop.
 var InCmdLoop bool
 
-// Some commands like "eval" next the exact text after the command
+// CmdArgstr contains the commad line read in. Some commands like
+// "eval" need the exact text after the command.
 var CmdArgstr string
 
-// if we are stopped by breakpoint, this is the breakpoint number.
+// NoBp contains the breakpoint number if we are stopped at and by a breakpoint.
 const NoBp = 0xfffff
 var curBpnum BpId
 
@@ -44,8 +46,8 @@ func skipEvent(fr *interp.Frame, event ssa2.TraceEvent) bool {
 	return false
 }
 
-// Compute the gub read prompt. It has the command count and
-// a goroutine number if we aren't in the main goroutine.
+// computePrompt computes the gub read prompt. It has the command
+// count and a goroutine number if we aren't in the main goroutine.
 func computePrompt() string {
 	prompt := fmt.Sprintf("gub[%d", cmdCount)
 	// If we aren't in the main goroutine, show the goroutine number
@@ -57,8 +59,10 @@ func computePrompt() string {
 }
 
 
-// Call-back hook from interpreter. Contains top-level statement breakout
 // FIXME: remove instr
+
+// GubTraceHook is the callback hook from interpreter. It contains
+// top-level statement breakout.
 func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
 	if !fr.I().TraceEventMask[event] { return }
 	gubLock.Lock()
