@@ -11,9 +11,15 @@ import (
 var topFrame *interp.Frame
 var curFrame *interp.Frame
 var curScope *ssa2.Scope
-var stackSize int  // Size of call stack
-var frameIndex int  // frame index we are focused on
-const MAXSTACKSHOW = 50  // maximum number of frame entries to show
+
+// stackSize is the size of call stack.
+var stackSize int
+
+// frameIndex is the frame index we are currently focused on.
+var frameIndex int
+
+// MAXSTACKSHOW is maximum number of frame entries to show.
+const MAXSTACKSHOW = 50
 
 func CurFrame() *interp.Frame { return curFrame }
 func TopFrame() *interp.Frame { return topFrame }
