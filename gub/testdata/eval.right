@@ -71,6 +71,7 @@ Kind = Type = int
 10
 # eval fmt.Println("Hi there!") # -- Eval package fn
 Hi there!
+Kind = Multi-Value
 10, nil
 ## FIXME eval should handle types better
 ## Shouldn't need the int(20) below
