@@ -58,7 +58,8 @@ func computePrompt() string {
 	return prompt
 }
 
-// The last stepping command
+// LastCommand is the last stepping command. It is used
+// when an empty line is entered.
 var LastCommand string = ""
 
 // FIXME: remove instr
@@ -101,7 +102,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 				continue
 			} else {
 				line = LastCommand
-				println("XXX line ", line)
 				args = strings.Split(line, " ")
 			}
 		}
@@ -117,6 +117,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 			name = newname
 		}
 		cmd := Cmds[name];
+		LastCommand = ""
 
 		if cmd != nil {
 			if ArgCountOK(cmd.Min_args, cmd.Max_args, args) {
