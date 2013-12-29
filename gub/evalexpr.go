@@ -1,6 +1,7 @@
 // Copyright 2013 Rocky Bernstein.
 // evaluation support for expressions. A bridge betwen eval's evaluation
 // and reflect values and interp.Value
+
 package gub
 
 import (
@@ -15,8 +16,9 @@ import (
 	"github.com/0xfaded/eval"
 )
 
-// Convert between an interp.Value which the interpreter uses and reflect.Value which
-// eval uses. nameVal is used to get type information.
+// interp2reflectVal converts between an interp.Value which the
+// interpreter uses and reflect.Value which eval uses. nameVal is used
+// to get type information.
 func interp2reflectVal(interpVal interp.Value, nameVal ssa2.Value) reflect.Value {
 	v := DerefValue(interpVal)
 	// println("XXX 1 type",  interp.Type(v))
@@ -24,6 +26,12 @@ func interp2reflectVal(interpVal interp.Value, nameVal ssa2.Value) reflect.Value
 	return reflect.ValueOf(v)
 }
 
+// EvalIdentExpr extracts a reflect.Vaue for an identifier. The
+// boolean return parameter indicates whether the value is typed. The error
+// parameter is non-nil if there was an error.
+// Note that the parameter ctx is not used here, but is part of the eval
+// interface. So we pass that along if we can't find the name here and
+// resort to the static evaliuation environment compiled into eval.
 func EvalIdentExpr(ctx *eval.Ctx, ident *eval.Ident, env *eval.Env) (
 	*reflect.Value, bool, error) {
 	name := ident.Name
@@ -124,6 +132,7 @@ func EvalSelectorExpr(ctx *eval.Ctx, selector *eval.SelectorExpr,
 	return nil, true, err
 }
 
+// makeNullEnv creates an empty evaluation environment.
 func makeNullEnv() *eval.Env {
 	return &eval.Env {
 		Name: "NullEnvironment",
@@ -135,6 +144,7 @@ func makeNullEnv() *eval.Env {
 	}
 }
 
+// EvalExpr is the top-level call to evaluate a string via 0xfaded/eval.
 func EvalExpr(expr string) (*[]reflect.Value, error) {
 	env := &evalEnv
 	ctx := &eval.Ctx{expr}
@@ -157,6 +167,10 @@ func EvalExpr(expr string) (*[]reflect.Value, error) {
 }
 
 // FIXME should an interp2reflect function be in interp?
+
+// myConvertFunc is used to convert a reflect-encoded interp.Value into
+// a reflect.Value. This is needed because values of composites are interp.Values
+// not reflect.Values
 var myConvertFunc = func (r reflect.Value, rtyped bool) (reflect.Value, bool, error) {
 	switch v := r.Interface().(type) {
 	case bool:
@@ -226,6 +240,10 @@ var myConvertFunc = func (r reflect.Value, rtyped bool) (reflect.Value, bool, er
 	return r, rtyped, nil
 }
 
+// evalEnv contains a 0xfaded/eval static evaluation environment that
+// we can use to fallback to using when the program environment
+// doesn't contain a specific package or due to limitations we
+// currently have in extracting values.
 var evalEnv eval.Env
 
 func init() {
