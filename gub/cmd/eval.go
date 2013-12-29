@@ -26,22 +26,37 @@ func EvalCommand(args []string) {
 	// Don't use args, but gub.CmdArgstr which preserves blanks inside quotes
 	if expr, err := gub.EvalExpr(gub.CmdArgstr); err == nil {
 		if expr == nil {
+			gub.Section("Kind=nil")
 			gub.Msg("nil")
 		} else {
 			expr := *expr
 			if len(expr) == 1 {
-				gub.Msg("%s", interp.ToInspect(expr[0].Interface()))
+				value := expr[0]
+				kind := value.Kind().String()
+				typ  := value.Type().String()
+				if typ != kind {
+					gub.Section("Kind = %v", kind)
+					gub.Section("Type = %v", typ)
+				} else {
+					gub.Section("Kind = Type = %v", kind)
+				}
+				gub.Msg("%s", interp.ToInspect(value.Interface()))
 			} else {
 				if len(expr) == 0 {
-					gub.Errmsg("Something is weird. Result has length 0")
+					gub.Section("Kind=Slice")
+					gub.Msg("void")
 				} else {
-					gub.MsgNoCr("(")
+					gub.Section("Kind = Multi-Value")
 					size := len(expr)
 					for i, v := range expr {
-						gub.MsgNoCr("%v", v.Interface())
+						if v.Interface() == nil {
+							gub.MsgNoCr("nil")
+						} else {
+							gub.MsgNoCr("%v", v.Interface())
+						}
 						if i < size-1 { gub.MsgNoCr(", ") }
 					}
-					gub.Msg(")")
+					gub.Msg("")
 				}
 			}
 		}

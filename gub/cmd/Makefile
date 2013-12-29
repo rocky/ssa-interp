@@ -11,7 +11,7 @@ check-quick: ../../tortoise
 
 #: Run all tests
 check: ../../tortoise
-	go test
+	cd .. && go test
 
 #: Same as check
 test:	check
