@@ -21,11 +21,15 @@ type Array []Value
 //   * nil is "nil" rather than "<nil>"
 func toInspect(w io.Writer, v Value) {
 	switch v := v.(type) {
-	case nil, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64, complex64, complex128:
+
+	case nil:
+		fmt.Fprintf(w, "nil")
+
+	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64, complex64, complex128:
 		fmt.Fprintf(w, "%v", v)
 
 	case string:
-		fmt.Fprintf(w, strconv.QuoteToASCII(v))
+		fmt.Fprintf(w, "%s", strconv.QuoteToASCII(v))
 
 
 	case map[Value]Value:

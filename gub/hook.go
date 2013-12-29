@@ -58,6 +58,8 @@ func computePrompt() string {
 	return prompt
 }
 
+// The last stepping command
+var LastCommand string = ""
 
 // FIXME: remove instr
 
@@ -93,10 +95,17 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		line = strings.Trim(line, " \t\n")
 		args  := strings.Split(line, " ")
 		if len(args) == 0 || len(args[0]) == 0 {
-			Msg("Empty line skipped")
-			gnureadline.RemoveHistory(gnureadline.HistoryLength()-1)
-			continue
-		} else if args[0][0] == '#' {
+			if len(LastCommand) == 0 {
+				Msg("Empty line skipped")
+				gnureadline.RemoveHistory(gnureadline.HistoryLength()-1)
+				continue
+			} else {
+				line = LastCommand
+				println("XXX line ", line)
+				args = strings.Split(line, " ")
+			}
+		}
+		if args[0][0] == '#' {
 			gnureadline.RemoveHistory(gnureadline.HistoryLength()-1)
 			Msg(line) // echo line but do nothing
 			continue

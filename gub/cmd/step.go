@@ -33,5 +33,6 @@ is called 'step into'.
 func StepCommand(args []string) {
 	gub.Msg("Stepping...")
 	interp.SetStepIn(gub.CurFrame())
+	gub.LastCommand = "step " + gub.CmdArgstr
 	gub.InCmdLoop = false
 }

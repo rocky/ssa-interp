@@ -28,5 +28,6 @@ Sometimes this is called 'step over'.
 func NextCommand(args []string) {
 	interp.SetStepOver(gub.TopFrame())
 	gub.Msg("Step over...")
+	gub.LastCommand = "next " + gub.CmdArgstr
 	gub.InCmdLoop = false
 }
