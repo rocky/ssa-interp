@@ -2,6 +2,7 @@ language: go
 
 go:
   - tip
+  - 1.2
 
 script:
   - go get "code.google.com/p/go.tools/go/exact"
