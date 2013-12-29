@@ -1,5 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 // Debugger breakpoint command
+
 package gubcmd
 
 import (
@@ -18,7 +19,10 @@ func init() {
 Set a breakpoint. The target can either be a function name as fn pkg.fn
 or a line and and optional column number. Specifying a column number
 may be useful if there is more than one statement on a line or if you
-want to distinguish parts of a compound statement`,
+want to distinguish parts of a compound statement.
+
+See also "info break", "enable", and "disable".
+`,
 
 		Min_args: 0,
 		Max_args: 2,
@@ -28,6 +32,16 @@ want to distinguish parts of a compound statement`,
 	gub.AddAlias("b", name)
 }
 
+// BreakpointCommand implements the debugger command:
+//    breakpoint [*fn* | line [column]
+// which sets a breakpoint.
+//
+// The target can either be a function name as fn pkg.fn
+// or a line and and optional column number. Specifying a column number
+// may be useful if there is more than one statement on a line or if you
+// want to distinguish parts of a compound statement.
+//
+// See also "info break", "enable", and "disable" and "delete".
 func BreakpointCommand(args []string) {
 	if len(args) == 1 {
 		InfoBreakpointSubcmd()

@@ -1,5 +1,4 @@
 // Copyright 2013 Rocky Bernstein.
-// Things involving continuing execution
 
 package gubcmd
 
@@ -25,10 +24,11 @@ See also step, and next.
 	// Down the line we'll have abbrevs
 }
 
-// StepInstructionCommand the debugger command:
+// StepInstructionCommand implements the debugger command:
 //   stepi
 // which executes one SSA instrcution and stop.
-// See also step and next.
+//
+// See also "step", "next", "continue" and "finish".
 func StepInstructionCommand(args []string) {
 	gub.Msg("Stepping Instruction...")
 	interp.SetStepInstruction(gub.CurFrame())

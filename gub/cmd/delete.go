@@ -1,5 +1,6 @@
 // Copyright 2013 Rocky Bernstein.
 // Debugger breakpoint delete command
+
 package gubcmd
 
 import (
@@ -13,7 +14,8 @@ func init() {
 		Fn: DeleteCommand,
 		Help: `Delete [bpnum1 ...]
 
-Delete a breakpoint by the number assigned to it.`,
+Delete a breakpoint by breakpoint number.
+`,
 
 		Min_args: 0,
 		Max_args: -1,
@@ -23,6 +25,11 @@ Delete a breakpoint by the number assigned to it.`,
 	gub.AddAlias("del", name)
 }
 
+// DeleteCommand implements the debugger command:
+//    delete [bpnum1 ... ]
+// which deletes some breakpoints by breakpoint number
+//
+// See also "breakpoint", "info break", "enable", and "disable".
 func DeleteCommand(args []string) {
 	for i:=1; i<len(args); i++ {
 		msg := fmt.Sprintf("breakpoint number for argument %d", i)
