@@ -19,7 +19,7 @@ type CmdInfo struct {
 var Cmds map[string]*CmdInfo  = make(map[string]*CmdInfo)
 
 
-// Aliases maps a name to its underlying debugger command anme.
+// Aliases maps a name to its underlying debugger command name.
 // For example, "?" is an alias for "help".
 var	Aliases map[string]string = make(map[string]string)
 
