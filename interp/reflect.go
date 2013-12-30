@@ -51,17 +51,17 @@ func makeNamedType(name string, underlying types.Type) *types.Named {
 }
 
 func makeReflectValue(t types.Type, v Value) Value {
-	return structure{rtype{t}, v}
+	return Array{rtype{t}, v}
 }
 
 // Given a reflect.Value, returns its rtype.
 func rV2T(v Value) rtype {
-	return v.(structure)[0].(rtype)
+	return v.(Array)[0].(rtype)
 }
 
 // Given a reflect.Value, returns the underlying interpreter value.
 func rV2V(v Value) Value {
-	return v.(structure)[1]
+	return v.(Array)[1]
 }
 
 // makeReflectType boxes up an rtype in a reflect.Type interface.
@@ -122,7 +122,7 @@ func ext۰reflect۰rtype۰Field(fr *Frame, args []Value) Value {
 	st := args[0].(rtype).t.Underlying().(*types.Struct)
 	i := args[1].(int)
 	f := st.Field(i)
-	return structure{
+	fields := []Value{
 		f.Name(),
 		f.Pkg().Path(),
 		makeReflectType(rtype{f.Type()}),
@@ -130,6 +130,11 @@ func ext۰reflect۰rtype۰Field(fr *Frame, args []Value) Value {
 		0,         // TODO(adonovan): offset
 		[]Value{}, // TODO(adonovan): indices
 		f.Anonymous(),
+	}
+	tags := []string{"name", "path", "rtype", "tag", "offset", "indices", "anonymous"}
+	return structure{
+		tags  : tags,
+		fields: fields,
 	}
 }
 
@@ -352,7 +357,7 @@ func ext۰reflect۰Value۰MapKeys(fr *Frame, args []Value) Value {
 
 func ext۰reflect۰Value۰NumField(fr *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) int
-	return len(rV2V(args[0]).(structure))
+	return len(rV2V(args[0]).(structure).fields)
 }
 
 func ext۰reflect۰Value۰NumMethod(fr *Frame, args []Value) Value {
@@ -430,7 +435,8 @@ func ext۰reflect۰Value۰Field(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value, i int) reflect.Value
 	v := args[0]
 	i := args[1].(int)
-	return makeReflectValue(rV2T(v).t.Underlying().(*types.Struct).Field(i).Type(), rV2V(v).(structure)[i])
+	return makeReflectValue(rV2T(v).t.Underlying().(*types.Struct).Field(i).Type(),
+		rV2V(v).(Array)[i])
 }
 
 func ext۰reflect۰Value۰Float(fr *Frame, args []Value) Value {

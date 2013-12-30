@@ -45,7 +45,8 @@ func PrintLocal(fr *interp.Frame, i uint) {
 		scopeStr = fmt.Sprintf(" scope %d", scope.ScopeId())
 	}
 	if name[0] == 't' && fr.Reg2Var[name] != "" {
-		Msg("%3d:\t%s %s (%s) = %s%s %s", i, fr.Reg2Var[name], name,
+		nameVal := fr.Reg2Var[name]
+		Msg("%3d:\t%s %s (%s) = %s%s %s", i, nameVal, name,
 			deref(l.Type()), interp.ToInspect(v), scopeStr,
 			ssa2.FmtRange(fn, l.Pos(), l.EndP()))
 	} else {
@@ -201,8 +202,9 @@ func WhatisName(name string) bool {
 			name = ids[1]
 		}
 	} else {
-		if nameVal, _, _ := EnvLookup(curFrame, name, curScope); nameVal != nil {
-			PrintInEnvironment(curFrame, name)
+		nameVal, interpVal, scopeVal := EnvLookup(curFrame, name, curScope)
+		if nameVal != nil {
+			PrintInEnvironment(curFrame, nameVal, interpVal, scopeVal)
 			return true
 		}
 		if PrintIfLocal(curFrame, name) {

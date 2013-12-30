@@ -2,6 +2,7 @@ package interp
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -74,11 +75,17 @@ func toInspect(w io.Writer, v Value) {
 
 	case structure:
 		io.WriteString(w, "{")
-		for i, e := range v {
+		for i, e := range v.fields {
 			if i > 0 {
-				io.WriteString(w, ", ")
+				io.WriteString(w, " ")
+			}
+			if v.tags[i] != "" {
+				fmt.Fprintf(w, "%s: ", v.tags[i])
+			// } else {
+			// 	io.WriteString(w, "anonymous: ")
 			}
 			toInspect(w, e)
+			io.WriteString(w, ",")
 		}
 		io.WriteString(w, "}")
 
@@ -201,4 +208,18 @@ func Type(v Value) string {
 	default:
 		return "?"
 	}
+}
+
+func (s structure) Tag(i int) (string, error) {
+	if i < 0 || i > len(s.tags) {
+		return "", errors.New("Index out of range")
+	}
+	return s.tags[i], nil
+}
+
+func (s structure) Field(i int) (Value, error) {
+	if i < 0 || i > len(s.fields) {
+		return "", errors.New("Index out of range")
+	}
+	return s.fields[i], nil
 }

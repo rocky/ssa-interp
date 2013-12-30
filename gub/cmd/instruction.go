@@ -48,22 +48,22 @@ func InstructionCommand(args []string) {
 	genericInstr := fr.Block().Instrs[ic]
 	switch instr := genericInstr.(type) {
 	case *ssa2.ChangeType:
-		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X)))
+		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X), nil))
 	case *ssa2.Convert:
-		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X)))
+		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X), nil))
 	case  *ssa2.MakeInterface:
-		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X)))
+		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X), nil))
 	case  *ssa2.ChangeInterface:
-		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X)))
+		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X), nil))
 	case  *ssa2.Range:
-		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X)))
+		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X), nil))
 	case *ssa2.UnOp:
-		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X)))
+		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X), nil))
 	case *ssa2.Field:
-		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X)))
+		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X), nil))
 	case *ssa2.BinOp:
-		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X)))
-		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.Y)))
+		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.X), nil))
+		gub.Msg("%s: %s", instr.X.Name(), gub.Deref2Str(fr.Get(instr.Y), nil))
 	case *ssa2.Trace:
 	default:
 		gub.Msg("Don't know how to deal with %s yet", instr)

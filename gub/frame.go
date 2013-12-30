@@ -23,6 +23,7 @@ const MAXSTACKSHOW = 50
 
 func CurFrame() *interp.Frame { return curFrame }
 func TopFrame() *interp.Frame { return topFrame }
+func CurScope() *ssa2.Scope   { return curScope }
 
 func frameInit(fr *interp.Frame) {
 	topFrame = fr

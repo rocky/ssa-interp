@@ -58,7 +58,10 @@ type iface struct {
 	v Value
 }
 
-type structure []Value
+type structure struct {
+	tags   []string
+	fields []Value
+}
 
 // For map, array, *array, slice, string or channel.
 type iter interface {
@@ -150,7 +153,7 @@ func (x structure) eq(t types.Type, _y interface{}) bool {
 	tStruct := t.Underlying().(*types.Struct)
 	for i, n := 0, tStruct.NumFields(); i < n; i++ {
 		if f := tStruct.Field(i); !f.Anonymous() {
-			if !equals(f.Type(), x[i], y[i]) {
+			if !equals(f.Type(), x.fields[i], y.fields[i]) {
 				return false
 			}
 		}
@@ -163,7 +166,7 @@ func (x structure) hash(t types.Type) int {
 	h := 0
 	for i, n := 0, tStruct.NumFields(); i < n; i++ {
 		if f := tStruct.Field(i); !f.Anonymous() {
-			h += hash(f.Type(), x[i])
+			h += hash(f.Type(), x.fields[i])
 		}
 	}
 	return h
@@ -334,8 +337,11 @@ func copyVal(v Value) Value {
 	case []Value:
 		return v
 	case structure:
-		a := make(structure, len(v))
-		copy(a, v)
+		a := structure{
+			tags  : v.tags,
+			fields: make([]Value, len(v.fields)),
+		}
+		copy(a.fields, v.fields)
 		return a
 	case array:
 		a := make(array, len(v))
@@ -401,9 +407,12 @@ func toWriter(w io.Writer, v Value) {
 
 	case structure:
 		io.WriteString(w, "{")
-		for i, e := range v {
+		for i, e := range v.fields {
 			if i > 0 {
-				io.WriteString(w, " ")
+				io.WriteString(w, ", ")
+			}
+			if v.tags[i] != "" {
+				fmt.Fprintf(w, "%s: ", v.tags[i])
 			}
 			toWriter(w, e)
 		}

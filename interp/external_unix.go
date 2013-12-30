@@ -20,21 +20,21 @@ func ValueToBytes(v Value) []byte {
 }
 
 func fillStat(st *syscall.Stat_t, stat structure) {
-	stat[0] = st.Dev
-	stat[1] = st.Ino
-	stat[2] = st.Nlink
-	stat[3] = st.Mode
-	stat[4] = st.Uid
-	stat[5] = st.Gid
+	stat.fields[0] = st.Dev
+	stat.fields[1] = st.Ino
+	stat.fields[2] = st.Nlink
+	stat.fields[3] = st.Mode
+	stat.fields[4] = st.Uid
+	stat.fields[5] = st.Gid
 
-	stat[7] = st.Rdev
-	stat[8] = st.Size
-	stat[9] = st.Blksize
-	stat[10] = st.Blocks
+	stat.fields[7] = st.Rdev
+	stat.fields[8] = st.Size
+	stat.fields[9] = st.Blksize
+	stat.fields[10] = st.Blocks
 	// TODO(adonovan): fix: copy Timespecs.
-	// stat[11] = st.Atim
-	// stat[12] = st.Mtim
-	// stat[13] = st.Ctim
+	// stat.fields[11] = st.Atim
+	// stat.fields[12] = st.Mtim
+	// stat.fields[13] = st.Ctim
 }
 
 func ext۰syscall۰Close(fr *Frame, args []Value) Value {

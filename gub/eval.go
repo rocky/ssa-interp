@@ -20,24 +20,20 @@ func DerefValue(v interp.Value) interp.Value {
 	}
 }
 
-func Deref2Str(v interp.Value) string {
+func Deref2Str(v interp.Value, ssaVal *ssa2.Value) string {
 	return interp.ToInspect(DerefValue(v))
 }
 
 
-func PrintInEnvironment(fr *interp.Frame, name string) bool {
-	if nameVal, interpVal, scope := EnvLookup(fr, name, curScope); nameVal != nil {
-		envStr := ""
-		if scope != nil {
-			envStr = fmt.Sprintf(" at scope %d", scope.ScopeId())
-		}
-		Msg("%s is in the environment%s", name, envStr)
-		Msg("\t%s = %s", nameVal, Deref2Str(interpVal))
-		return true
-	} else {
-		Errmsg("Name %s not found in environment", name)
-		return false
+func PrintInEnvironment(fr *interp.Frame, nameVal ssa2.Value, interpVal interp.Value,
+	scopeVal *ssa2.Scope) bool {
+	envStr := ""
+	if scopeVal != nil {
+		envStr = fmt.Sprintf(" at scope %d", scopeVal.ScopeId())
 	}
+	Msg("%s is in the environment%s", nameVal.Name(), envStr)
+	Msg("\t%s = %s", nameVal.Name(), Deref2Str(interpVal, &nameVal))
+	return true
 }
 
 func EnvLookup(fr *interp.Frame, name string,

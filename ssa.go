@@ -1418,6 +1418,7 @@ func (v *Parameter) Name() string              { return v.name }
 func (v *Parameter) Object() types.Object      { return v.object }
 func (v *Parameter) Referrers() *[]Instruction { return &v.referrers }
 func (v *Parameter) Pos() token.Pos            { return v.pos }
+func (v *Parameter) Endp() token.Pos           { return v.endP }
 func (v *Parameter) Parent() *Function         { return v.parent }
 
 func (v *Alloc) Type() types.Type          { return v.typ }

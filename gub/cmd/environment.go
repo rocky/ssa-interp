@@ -3,7 +3,6 @@
 package gubcmd
 
 import (
-	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/gub"
 )
 
@@ -28,20 +27,16 @@ If *name* is supplied, only show that name.
 
 func EnvironmentCommand(args []string) {
 	if len(args) == 2 {
-		gub.PrintInEnvironment(gub.CurFrame(), args[1])
+		name := args[1]
+		nameVal, interpVal, scopeVal := gub.EnvLookup(gub.CurFrame(), name, gub.CurScope())
+		if nameVal != nil {
+			gub.PrintInEnvironment(gub.CurFrame(), nameVal, interpVal, scopeVal)
+		} else {
+			gub.Errmsg("%s is in not the environment", name)
+		}
 		return
 	}
-	for k, v := range gub.CurFrame().Env() {
-		switch k := k.(type) {
-		case *ssa2.Alloc:
-			if scope := k.Scope; scope != nil {
-				gub.Msg("%s: %s = %s (scope %d)", k.Name(), k, gub.Deref2Str(v),
-					scope.ScopeId())
-			} else {
-				gub.Msg("%s: %s = %s", k.Name(), k, gub.Deref2Str(v))
-			}
-		default:
-			gub.Msg("%s: %s = %s", k.Name(), k, gub.Deref2Str(v))
-		}
+	for nameVal, interpVal := range gub.CurFrame().Env() {
+		gub.PrintInEnvironment(gub.CurFrame(), nameVal, interpVal, gub.CurScope())
 	}
 }

@@ -231,9 +231,14 @@ func zero(t types.Type) Value {
 	case *types.Slice:
 		return []Value(nil)
 	case *types.Struct:
-		s := make(structure, t.NumFields())
-		for i := range s {
-			s[i] = zero(t.Field(i).Type())
+		n := t.NumFields()
+		s := structure{
+			tags:   make([]string, n),
+			fields: make([]Value, n),
+		}
+		for i := 0; i<n; i++ {
+			s.tags[i] = t.Tag(i)
+			s.fields[i] = zero(t.Field(i).Type())
 		}
 		return s
 	case *types.Chan:

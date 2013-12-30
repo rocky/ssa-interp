@@ -65,14 +65,15 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 			Msg("return void")
 		} else {
 			Msg("return type: %s", sig.Results())
-			Msg("return value: %s", Deref2Str(fr.Result()))
+			Msg("return value: %s", Deref2Str(fr.Result(), nil))
 		}
 	case ssa2.CALL_ENTER:
-		for i, p := range fn.Params {
+		for _, p := range fn.Params {
 			if val := fr.Env()[p]; val != nil {
-				Msg("%s %s", fn.Params[i], Deref2Str(val))
+				ssaVal := ssa2.Value(p)
+				Msg("%s %s", p, Deref2Str(val, &ssaVal))
 			} else {
-				Msg("%s nil", fn.Params[i])
+				Msg("%s nil", p)
 			}
 		}
 	case ssa2.PANIC:
