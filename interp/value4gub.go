@@ -219,11 +219,11 @@ func Type(v Value) string {
 	}
 }
 
-func (s structure) Tag(i int) (string, error) {
-	if i < 0 || i > len(s.tags) {
+func (s structure) Name(i int) (string, error) {
+	if i < 0 || i > len(s.fieldnames) {
 		return "", errors.New("Index out of range")
 	}
-	return s.tags[i], nil
+	return s.fieldnames[i], nil
 }
 
 func (s structure) Field(i int) (Value, error) {

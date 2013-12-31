@@ -233,12 +233,12 @@ func zero(t types.Type) Value {
 	case *types.Struct:
 		n := t.NumFields()
 		s := structure{
-			tags:   make([]string, n),
-			fields: make([]Value, n),
+			fields    : make([]Value, n),
+			fieldnames: make([]string, n),
 		}
 		for i := 0; i<n; i++ {
-			s.tags[i] = t.Tag(i)
-			s.fields[i] = zero(t.Field(i).Type())
+			s.fields[i]     = zero(t.Field(i).Type())
+			s.fieldnames[i] = t.Tag(i)
 		}
 		return s
 	case *types.Chan:

@@ -133,8 +133,8 @@ func ext۰reflect۰rtype۰Field(fr *Frame, args []Value) Value {
 	}
 	tags := []string{"name", "path", "rtype", "tag", "offset", "indices", "anonymous"}
 	return structure{
-		tags  : tags,
 		fields: fields,
+		fieldnames: tags,
 	}
 }
 

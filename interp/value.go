@@ -59,9 +59,9 @@ type iface struct {
 }
 
 type structure struct {
-	fields []Value
-	tags   []string  // Check: does this need to be last because
-					 // generation uses address of fields?
+	fields    []Value
+	fieldnames[]string  // Check: does this need to be last because
+						// generation uses address of fields?
 }
 
 // For map, array, *array, slice, string or channel.
@@ -339,8 +339,9 @@ func copyVal(v Value) Value {
 		return v
 	case structure:
 		a := structure{
-			tags  : v.tags,
-			fields: make([]Value, len(v.fields)),
+			fields    : make([]Value, len(v.fields)),
+			fieldnames: v.fieldnames,
+			// Add tags?
 		}
 		copy(a.fields, v.fields)
 		return a
@@ -412,8 +413,8 @@ func toWriter(w io.Writer, v Value) {
 			if i > 0 {
 				io.WriteString(w, ", ")
 			}
-			if v.tags[i] != "" {
-				fmt.Fprintf(w, "%s: ", v.tags[i])
+			if v.fieldnames[i] != "" {
+				fmt.Fprintf(w, "%s: ", v.fieldnames[i])
 			}
 			toWriter(w, e)
 		}
