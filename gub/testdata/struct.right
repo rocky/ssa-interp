@@ -1,0 +1,23 @@
+Gub version 0.2
+Type 'h' for help
+Running....
+->  main()
+testdata/struct.go:8:6
+# Test of structs
+# Use with struct.go
+Setting highlight off
+# next
+Step over...
+--- main()
+testdata/struct.go:9:2-41
+# record
+record is in the environment at scope 3
+	record = {first: "", second: "",}
+# next
+Step over...
+--- main()
+testdata/struct.go:10:2-19
+# record
+record is in the environment at scope 3
+	record = {first: "Hello,", second: "World!",}
+gub: That's all folks...

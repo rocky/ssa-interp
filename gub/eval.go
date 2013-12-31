@@ -21,7 +21,7 @@ func DerefValue(v interp.Value) interp.Value {
 }
 
 func Deref2Str(v interp.Value, ssaVal *ssa2.Value) string {
-	return interp.ToInspect(DerefValue(v))
+	return interp.ToInspect(DerefValue(v), ssaVal)
 }
 
 

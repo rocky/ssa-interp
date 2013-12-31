@@ -49,9 +49,10 @@ func LocalsCommand(args []string) {
 		}
 		// FIXME: This really shouldn't be needed.
 		for i, v := range fr.Locals() {
-			if varname == fr.Fn().Locals[i].Name() {
+			ssaVal := fr.Fn().Locals[i]
+			if varname == ssaVal.Name() {
 				gub.Msg("fixme %s %s: %s",
-					varname, fr.Fn().Locals[i], interp.ToInspect(v))
+					varname, fr.Fn().Locals[i], interp.ToInspect(v, nil))
 				break
 			}
 		}

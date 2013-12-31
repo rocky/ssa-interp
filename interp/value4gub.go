@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-
+	"code.google.com/p/go.tools/go/types"
 	"github.com/rocky/ssa-interp"
 )
 
@@ -20,7 +20,7 @@ type Array []Value
 //   * strings are quoted
 //   * separators lists maps are ", " (rather than " ")
 //   * nil is "nil" rather than "<nil>"
-func toInspect(w io.Writer, v Value) {
+func toInspect(w io.Writer, v Value, name *ssa2.Value) {
 	switch v := v.(type) {
 
 	case nil:
@@ -39,9 +39,9 @@ func toInspect(w io.Writer, v Value) {
 		for k, e := range v {
 			io.WriteString(w, sep)
 			sep = ", "
-			toInspect(w, k)
+			toInspect(w, k, name)
 			io.WriteString(w, ":")
-			toInspect(w, e)
+			toInspect(w, e, name)
 		}
 		io.WriteString(w, "]")
 
@@ -52,9 +52,9 @@ func toInspect(w io.Writer, v Value) {
 			for e != nil {
 				io.WriteString(w, sep)
 				sep = ", "
-				toInspect(w, e.key)
+				toInspect(w, e.key, name)
 				io.WriteString(w, ":")
-				toInspect(w, e.Value)
+				toInspect(w, e.Value, name)
 				e = e.next
 			}
 		}
@@ -71,20 +71,29 @@ func toInspect(w io.Writer, v Value) {
 		}
 
 	case iface:
-		toInspect(w, v.v)
+		toInspect(w, v.v, name)
 
 	case structure:
 		io.WriteString(w, "{")
+		var ok bool = false
+		var typ types.Type
+		var t *types.Struct
+		if name != nil {
+			typ = deref((*name).Type()).Underlying()
+			t, ok = typ.(*types.Struct)
+		}
 		for i, e := range v.fields {
 			if i > 0 {
 				io.WriteString(w, " ")
 			}
-			if v.tags[i] != "" {
-				fmt.Fprintf(w, "%s: ", v.tags[i])
-			// } else {
-			// 	io.WriteString(w, "anonymous: ")
+			// FIXME: figure out why tags is not getting set
+			// if v.tags[i] != "" {
+			// 	fmt.Fprintf(w, "%s: ", v.tags[i])
+			// }
+			if ok {
+				fmt.Fprintf(w, "%s: ", t.Field(i).Name())
 			}
-			toInspect(w, e)
+			toInspect(w, e, name)
 			io.WriteString(w, ",")
 		}
 		io.WriteString(w, "}")
@@ -95,7 +104,7 @@ func toInspect(w io.Writer, v Value) {
 			if i > 0 {
 				io.WriteString(w, ", ")
 			}
-			toInspect(w, e)
+			toInspect(w, e, name)
 		}
 		io.WriteString(w, "]")
 
@@ -105,7 +114,7 @@ func toInspect(w io.Writer, v Value) {
 			if i > 0 {
 				io.WriteString(w, ", ")
 			}
-			toInspect(w, e)
+			toInspect(w, e, name)
 		}
 		io.WriteString(w, "]")
 
@@ -122,7 +131,7 @@ func toInspect(w io.Writer, v Value) {
 			if i > 0 {
 				io.WriteString(w, ", ")
 			}
-			toInspect(w, e)
+			toInspect(w, e, name)
 		}
 		io.WriteString(w, ")")
 
@@ -133,9 +142,9 @@ func toInspect(w io.Writer, v Value) {
 
 // Similar to ToString but using toInspect
 // Note: we can't use a method because the receiver is an interface type.
-func ToInspect(v Value) string {
+func ToInspect(v Value, name *ssa2.Value) string {
 	var b bytes.Buffer
-	toInspect(&b, v)
+	toInspect(&b, v, name)
 	return b.String()
 }
 

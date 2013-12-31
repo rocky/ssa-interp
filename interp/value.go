@@ -59,8 +59,9 @@ type iface struct {
 }
 
 type structure struct {
-	tags   []string
 	fields []Value
+	tags   []string  // Check: does this need to be last because
+					 // generation uses address of fields?
 }
 
 // For map, array, *array, slice, string or channel.

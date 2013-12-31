@@ -44,14 +44,15 @@ func PrintLocal(fr *interp.Frame, i uint) {
 	if scope != nil {
 		scopeStr = fmt.Sprintf(" scope %d", scope.ScopeId())
 	}
+	ssaVal := ssa2.Value(l)
 	if name[0] == 't' && fr.Reg2Var[name] != "" {
-		nameVal := fr.Reg2Var[name]
-		Msg("%3d:\t%s %s (%s) = %s%s %s", i, nameVal, name,
-			deref(l.Type()), interp.ToInspect(v), scopeStr,
+		nameStr := fr.Reg2Var[name]
+		Msg("%3d:\t%s %s (%s) = %s%s %s", i, nameStr, name,
+			deref(l.Type()), interp.ToInspect(v, &ssaVal), scopeStr,
 			ssa2.FmtRange(fn, l.Pos(), l.EndP()))
 	} else {
 		Msg("%3d:\t%s %s = %s%s %s", i, l.Name(), deref(l.Type()),
-			interp.ToInspect(v), scopeStr, ssa2.FmtRange(fn, l.Pos(),
+			interp.ToInspect(v, &ssaVal), scopeStr, ssa2.FmtRange(fn, l.Pos(),
 				l.EndP()))
 	}
 }
@@ -218,7 +219,8 @@ func WhatisName(name string) bool {
 		Msg("  %s", ssa2.FmtRange(myfn, v.Pos(), v.EndP()))
 		Msg("  %s", v.Type())
 		if g, ok := curFrame.I().Global(name, pkg); ok {
-			Msg("  %s", interp.ToInspect(*g))
+			ssaVal := ssa2.Value(v)
+			Msg("  %s", interp.ToInspect(*g, &ssaVal))
 		}
 	} else if c := pkg.Const(name); c != nil {
 		printConstantInfo(c, name, pkg)

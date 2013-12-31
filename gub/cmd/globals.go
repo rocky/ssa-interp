@@ -52,7 +52,7 @@ func GlobalsCommand(args []string) {
 				if fmt.Sprintf("%s", k) == "reflect.lookupCache" {
 					continue
 				}
-				gub.Msg("%s: %s", k, interp.ToInspect(*v))
+				gub.Msg("%s: %s", k, interp.ToInspect(*v, &k))
 			}
 		}
 	} else {
@@ -63,7 +63,7 @@ func GlobalsCommand(args []string) {
 			// fmt.Println(vv, "vs", interp.ToInspect(vv))
 			v, ok := gub.CurFrame().I().Globals()[vv]
 			if ok {
-				gub.Msg("%s: %s", vv, interp.ToInspect(*v))
+				gub.Msg("%s: %s", vv, interp.ToInspect(*v, nil))
 			}
 		}
 
@@ -78,7 +78,7 @@ func GlobalsCommand(args []string) {
 			vv := args[i]
 			v, ok := globals[vv]
 			if ok {
-				gub.Msg("%s: %s", vv, interp.ToInspect(*v))
+				gub.Msg("%s: %s", vv, interp.ToInspect(*v, nil))
 			}
 		}
 	}

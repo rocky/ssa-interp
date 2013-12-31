@@ -32,13 +32,13 @@ func InfoArgsSubcmd(args []string) {
 			return
 		}
 		for i, p := range fn.Params {
-			gub.Msg("%s %s", fn.Params[i], interp.ToInspect(fr.Env()[p]))
+			gub.Msg("%s %s", fn.Params[i], interp.ToInspect(fr.Env()[p], nil))
 		}
 	} else {
 		varname := args[2]
 		for i, p := range fn.Params {
 			if varname == fn.Params[i].Name() {
-				gub.Msg("%s %s", fn.Params[i], interp.ToInspect(fr.Env()[p]))
+				gub.Msg("%s %s", fn.Params[i], interp.ToInspect(fr.Env()[p], nil))
 				break
 			}
 		}

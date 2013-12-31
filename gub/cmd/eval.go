@@ -44,7 +44,7 @@ func EvalCommand(args []string) {
 				} else {
 					gub.Section("Kind = Type = %v", kind)
 				}
-				gub.Msg("%s", interp.ToInspect(value.Interface()))
+				gub.Msg("%s", interp.ToInspect(value.Interface(), nil))
 			} else {
 				if len(expr) == 0 {
 					gub.Section("Kind=Slice")
