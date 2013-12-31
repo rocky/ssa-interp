@@ -25,14 +25,14 @@ func Deref2Str(v interp.Value, ssaVal *ssa2.Value) string {
 }
 
 
-func PrintInEnvironment(fr *interp.Frame, nameVal ssa2.Value, interpVal interp.Value,
-	scopeVal *ssa2.Scope) bool {
+func PrintInEnvironment(fr *interp.Frame, name string, nameVal ssa2.Value,
+	interpVal interp.Value, scopeVal *ssa2.Scope) bool {
 	envStr := ""
 	if scopeVal != nil {
 		envStr = fmt.Sprintf(" at scope %d", scopeVal.ScopeId())
 	}
-	Msg("%s is in the environment%s", nameVal.Name(), envStr)
-	Msg("\t%s = %s", nameVal.Name(), Deref2Str(interpVal, &nameVal))
+	Msg("%s is in the environment%s", name, envStr)
+	Msg("\t%s = %s", name, Deref2Str(interpVal, &nameVal))
 	return true
 }
 

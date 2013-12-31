@@ -30,13 +30,14 @@ func EnvironmentCommand(args []string) {
 		name := args[1]
 		nameVal, interpVal, scopeVal := gub.EnvLookup(gub.CurFrame(), name, gub.CurScope())
 		if nameVal != nil {
-			gub.PrintInEnvironment(gub.CurFrame(), nameVal, interpVal, scopeVal)
+			gub.PrintInEnvironment(gub.CurFrame(), name, nameVal, interpVal, scopeVal)
 		} else {
 			gub.Errmsg("%s is in not the environment", name)
 		}
 		return
 	}
 	for nameVal, interpVal := range gub.CurFrame().Env() {
-		gub.PrintInEnvironment(gub.CurFrame(), nameVal, interpVal, gub.CurScope())
+		gub.PrintInEnvironment(gub.CurFrame(), nameVal.Name(), nameVal,
+			interpVal, gub.CurScope())
 	}
 }

@@ -204,7 +204,7 @@ func WhatisName(name string) bool {
 	} else {
 		nameVal, interpVal, scopeVal := EnvLookup(curFrame, name, curScope)
 		if nameVal != nil {
-			PrintInEnvironment(curFrame, nameVal, interpVal, scopeVal)
+			PrintInEnvironment(curFrame, name, nameVal, interpVal, scopeVal)
 			return true
 		}
 		if PrintIfLocal(curFrame, name) {
