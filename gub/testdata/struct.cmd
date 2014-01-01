@@ -9,4 +9,16 @@ record
 next
 # record
 record
+# eval record
+eval record
+# next
+next
+# next
+next
+# eval record
+eval record
+# eval record.first
+eval record.first
+# eval record.second
+eval record.second
 quit

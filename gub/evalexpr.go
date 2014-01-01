@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"go/parser"
 	"code.google.com/p/go.tools/go/exact"
+	"code.google.com/p/go.tools/go/types"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 	"github.com/rocky/go-fish"
@@ -21,8 +22,6 @@ import (
 // to get type information.
 func interp2reflectVal(interpVal interp.Value, nameVal ssa2.Value) reflect.Value {
 	v := DerefValue(interpVal)
-	// println("XXX 1 type",  interp.Type(v))
-	// println("XXX 1 value", interp.ToInspect(v))
 	return reflect.ValueOf(v)
 }
 
@@ -43,6 +42,16 @@ func EvalIdentExpr(ctx *eval.Ctx, ident *eval.Ident, env *eval.Env) (
 			// FIXME for structures the interpreter has turned this into a slice
 			// we need to somehow undo that or keep track of the type name that this
 			// came from so we can get record selection correct.
+			ival := DerefValue(interpVal)
+			if record, ok := ival.(interp.Structure); ok {
+				typ := deref(nameVal.Type()).Underlying()
+				if t, ok := typ.(*types.Struct); ok {
+					for i := 0; i< record.NumField(); i++ {
+						name := t.Field(i).Name()
+						record.SetName(i, name)
+					}
+				}
+			}
 			reflectVal := interp2reflectVal(interpVal, nameVal)
 			return &reflectVal, false, nil
 		} else {
@@ -122,13 +131,15 @@ func EvalSelectorExpr(ctx *eval.Ctx, selector *eval.SelectorExpr,
 		}
 	}
 
-	if x0.Type().String() == "interp.structure" {
-		err = errors.New("selection for structures and interfaces not supported yet")
-	} else {
-		// println("XXX", x0.Type().Kind().String(), x0.Type().String())
-		err = errors.New(fmt.Sprintf("%s.%s undefined (%s has no field or method %s)",
-			xname, sel, xname, sel))
+	//if x0.Type().String() == "interp.Structure" {
+	if record, ok := x0.Interface().(interp.Structure); ok {
+		if field, err := record.FieldByName(sel); err == nil {
+			retVal := reflect.ValueOf(field)
+			return &retVal, true, nil
+		}
 	}
+	err = errors.New(fmt.Sprintf("%s.%s undefined (%s has no field or method %s)",
+		xname, sel, xname, sel))
 	return nil, true, err
 }
 

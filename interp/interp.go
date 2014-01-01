@@ -264,10 +264,10 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 
 	case *ssa2.FieldAddr:
 		x := fr.get(instr.X)
-		fr.env[instr] = &(*x.(*Value)).(structure).fields[instr.Field]
+		fr.env[instr] = &(*x.(*Value)).(Structure).fields[instr.Field]
 
 	case *ssa2.Field:
-		fr.env[instr] = copyVal(fr.get(instr.X).(structure).fields[instr.Field])
+		fr.env[instr] = copyVal(fr.get(instr.X).(Structure).fields[instr.Field])
 
 	case *ssa2.IndexAddr:
 		x := fr.get(instr.X)

@@ -232,7 +232,7 @@ func zero(t types.Type) Value {
 		return []Value(nil)
 	case *types.Struct:
 		n := t.NumFields()
-		s := structure{
+		s := Structure{
 			fields    : make([]Value, n),
 			fieldnames: make([]string, n),
 		}

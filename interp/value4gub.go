@@ -73,7 +73,7 @@ func toInspect(w io.Writer, v Value, name *ssa2.Value) {
 	case iface:
 		toInspect(w, v.v, name)
 
-	case structure:
+	case Structure:
 		io.WriteString(w, "{")
 		var ok bool = false
 		var typ types.Type
@@ -86,12 +86,10 @@ func toInspect(w io.Writer, v Value, name *ssa2.Value) {
 			if i > 0 {
 				io.WriteString(w, " ")
 			}
-			// FIXME: figure out why tags is not getting set
-			// if v.tags[i] != "" {
-			// 	fmt.Fprintf(w, "%s: ", v.tags[i])
-			// }
 			if ok {
 				fmt.Fprintf(w, "%s: ", t.Field(i).Name())
+			} else if v.fieldnames[i] != "" {
+				fmt.Fprintf(w, "%s: ", v.fieldnames[i])
 			}
 			toInspect(w, e, name)
 			io.WriteString(w, ",")
@@ -198,8 +196,8 @@ func Type(v Value) string {
 		return "*Value"
 	case iface:
 		return "iface"
-	case structure:
-		return "structure"
+	case Structure:
+		return "Structure"
 	case array:
 		return "array"
 	case []Value:
@@ -219,16 +217,37 @@ func Type(v Value) string {
 	}
 }
 
-func (s structure) Name(i int) (string, error) {
+func (s Structure) Name(i int) (string, error) {
 	if i < 0 || i > len(s.fieldnames) {
 		return "", errors.New("Index out of range")
 	}
 	return s.fieldnames[i], nil
 }
 
-func (s structure) Field(i int) (Value, error) {
+func (s Structure) Field(i int) (Value, error) {
 	if i < 0 || i > len(s.fields) {
 		return "", errors.New("Index out of range")
 	}
 	return s.fields[i], nil
+}
+
+func (s Structure) SetName(i int, name string) error {
+	if i < 0 || i > len(s.fields) {
+		return errors.New("Index out of range")
+	}
+	s.fieldnames[i] = name
+	return nil
+}
+
+func (s Structure) FieldByName(name string) (Value, error) {
+	for i, field := range s.fields {
+		if s.fieldnames[i] == name {
+			return field, nil
+		}
+	}
+	return nil, errors.New("Field not found")
+}
+
+func (s Structure) NumField() int {
+	return len(s.fields)
 }

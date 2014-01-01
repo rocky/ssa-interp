@@ -17,7 +17,7 @@ package interp
 // - chan value
 // - []value --- slices
 // - iface --- interfaces.
-// - structure --- structs.  Fields are ordered and accessed by numeric indices.
+// - Structure --- structs.  Fields are ordered and accessed by numeric indices.
 // - array --- arrays.
 // - *value --- pointers.  Careful: *value is a distinct type from *array etc.
 // - *ssa2.Function \
@@ -58,7 +58,7 @@ type iface struct {
 	v Value
 }
 
-type structure struct {
+type Structure struct {
 	fields    []Value
 	fieldnames[]string  // Check: does this need to be last because
 						// generation uses address of fields?
@@ -149,8 +149,8 @@ func (x array) hash(t types.Type) int {
 	return h
 }
 
-func (x structure) eq(t types.Type, _y interface{}) bool {
-	y := _y.(structure)
+func (x Structure) eq(t types.Type, _y interface{}) bool {
+	y := _y.(Structure)
 	tStruct := t.Underlying().(*types.Struct)
 	for i, n := 0, tStruct.NumFields(); i < n; i++ {
 		if f := tStruct.Field(i); !f.Anonymous() {
@@ -162,7 +162,7 @@ func (x structure) eq(t types.Type, _y interface{}) bool {
 	return true
 }
 
-func (x structure) hash(t types.Type) int {
+func (x Structure) hash(t types.Type) int {
 	tStruct := t.Underlying().(*types.Struct)
 	h := 0
 	for i, n := 0, tStruct.NumFields(); i < n; i++ {
@@ -242,7 +242,7 @@ func equals(t types.Type, x, y Value) bool {
 		return x == y.(*Value)
 	case chan Value:
 		return x == y.(chan Value)
-	case structure:
+	case Structure:
 		return x.eq(t, y)
 	case array:
 		return x.eq(t, y)
@@ -302,7 +302,7 @@ func hash(t types.Type, x Value) int {
 		return int(uintptr(unsafe.Pointer(x)))
 	case chan Value:
 		return int(uintptr(reflect.ValueOf(x).Pointer()))
-	case structure:
+	case Structure:
 		return x.hash(t)
 	case array:
 		return x.hash(t)
@@ -337,8 +337,8 @@ func copyVal(v Value) Value {
 		return v
 	case []Value:
 		return v
-	case structure:
-		a := structure{
+	case Structure:
+		a := Structure{
 			fields    : make([]Value, len(v.fields)),
 			fieldnames: v.fieldnames,
 			// Add tags?
@@ -407,7 +407,7 @@ func toWriter(w io.Writer, v Value) {
 		toWriter(w, v.v)
 		io.WriteString(w, ")")
 
-	case structure:
+	case Structure:
 		io.WriteString(w, "{")
 		for i, e := range v.fields {
 			if i > 0 {

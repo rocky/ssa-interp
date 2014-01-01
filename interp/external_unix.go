@@ -19,7 +19,7 @@ func ValueToBytes(v Value) []byte {
 	return b
 }
 
-func fillStat(st *syscall.Stat_t, stat structure) {
+func fillStat(st *syscall.Stat_t, stat Structure) {
 	stat.fields[0] = st.Dev
 	stat.fields[1] = st.Ino
 	stat.fields[2] = st.Nlink
@@ -45,7 +45,7 @@ func ext۰syscall۰Close(fr *Frame, args []Value) Value {
 func ext۰syscall۰Fstat(fr *Frame, args []Value) Value {
 	// func Fstat(fd int, stat *Stat_t) (err error)
 	fd := args[0].(int)
-	stat := (*args[1].(*Value)).(structure)
+	stat := (*args[1].(*Value)).(Structure)
 
 	var st syscall.Stat_t
 	err := syscall.Fstat(fd, &st)
@@ -73,7 +73,7 @@ func ext۰syscall۰Kill(fr *Frame, args []Value) Value {
 func ext۰syscall۰Lstat(fr *Frame, args []Value) Value {
 	// func Lstat(name string, stat *Stat_t) (err error)
 	name := args[0].(string)
-	stat := (*args[1].(*Value)).(structure)
+	stat := (*args[1].(*Value)).(Structure)
 
 	var st syscall.Stat_t
 	err := syscall.Lstat(name, &st)
@@ -120,7 +120,7 @@ func ext۰syscall۰Read(fr *Frame, args []Value) Value {
 func ext۰syscall۰Stat(fr *Frame, args []Value) Value {
 	// func Stat(name string, stat *Stat_t) (err error)
 	name := args[0].(string)
-	stat := (*args[1].(*Value)).(structure)
+	stat := (*args[1].(*Value)).(Structure)
 
 	var st syscall.Stat_t
 	err := syscall.Stat(name, &st)
