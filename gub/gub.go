@@ -18,7 +18,7 @@ import (
 )
 
 var terse     = flag.Bool("terse", true, `abbreviated output`)
-var Highlight = flag.Bool("highlight", true, `use syntax highlighting in output`)
+var Highlight = flag.Bool("hilight", true, `use syntax highlighting in output`)
 var inputFilename = flag.String("cmdfile", "", `cmdfile *commandfile*.`)
 var inputFile *os.File
 var inputReader *bufio.Reader

@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2014 Rocky Bernstein.
 
 package gubcmd
 
@@ -49,6 +49,7 @@ func HelpCommand(args []string) {
 			sort.Strings(names)
 			opts := columnize.DefaultOptions()
 			opts.DisplayWidth = gub.Maxwidth
+			opts.LinePrefix  = "  "
 			mems := strings.TrimRight(columnize.Columnize(names, opts),
 				"\n")
 			gub.Msg(mems)

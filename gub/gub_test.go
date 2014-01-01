@@ -41,7 +41,6 @@ func run(t *testing.T, test testDatum) bool {
 		log.Fatal(err)
 	}
 
-	// fmt.Println("+++1", "../tortoise", "-run", "-interp=S", gubOpt, goFile)
 	got, err  := exec.Command("../tortoise", "-run", "-interp=S", gubOpt, goFile).Output()
 
 	if err != nil {
