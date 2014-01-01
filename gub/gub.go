@@ -31,8 +31,13 @@ const (
 // Term is the current environment TERM value, e.g. "gnome", "xterm", or "vt100"
 var Term string
 
+// Maxwidth is the size of the line. We will try to wrap text that is
+// longer than this. It like the COLS environment variable
 var Maxwidth int
 var initial_cwd string
+
+//GUB is a string that was used to invoke gofish.
+//If we want to restart gub, this is what we'll use.
 var GUB_RESTART_CMD string
 
 // history_file is file name where history entries were and are to be saved. If
