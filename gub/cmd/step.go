@@ -1,5 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
-// Things involving continuing execution
+// step command
 
 package gubcmd
 
@@ -16,6 +16,8 @@ func init() {
 
 Execute the current statement, stopping at the next event.  Sometimes this
 is called 'step into'.
+
+See also: stepi, continue, finish, and next.
 `,
 		Min_args: 0,
 		Max_args: 0,
@@ -25,11 +27,12 @@ is called 'step into'.
 	gub.AddAlias("s", name)
 }
 
-// StepCommand implements the debugger command: step which executes
-// the current statement, stopping at the next event.  Sometimes this
-// is called 'step into'.
+// StepCommand implements the debugger command: step
 //
-// See also stepi, continue, finish, and next.
+// This executes the current statement, stopping at the next event.
+// Sometimes this is called 'step into'.
+//
+// See also: stepi, continue, finish, and next.
 func StepCommand(args []string) {
 	gub.Msg("Stepping...")
 	interp.SetStepIn(gub.CurFrame())

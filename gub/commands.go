@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2014 Rocky Bernstein.
 
 package gub
 
@@ -24,7 +24,7 @@ var Cmds map[string]*CmdInfo  = make(map[string]*CmdInfo)
 var	Aliases map[string]string = make(map[string]string)
 
 // Categories maps a debugger category name into the list of
-// debugger commands in that categore. For example, in category stack,
+// debugger commands in that category. For example, in category stack,
 // there are commands: backtrace, down, frame, goroutines, and up.
 var	Categories map[string] []string = make(map[string] []string)
 

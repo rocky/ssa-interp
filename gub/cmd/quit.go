@@ -1,11 +1,5 @@
 // Copyright 2013 Rocky Bernstein.
-
 // quit command
-// quit [exit-code]
-//
-// Terminates program. If an exit code is given, that is the exit code
-// for the program. Zero (normal termination) is used if no
-// termintation code.
 
 package gubcmd
 
@@ -35,6 +29,13 @@ termintation code.
 	gub.Aliases["q"] = name
 }
 
+// QuitCommand implements the debugger command: quit
+//
+// quit [exit-code]
+//
+// Terminates program. If an exit code is given, that is the exit code
+// for the program. Zero (normal termination) is used if no
+// termintation code.
 func QuitCommand(args []string) {
 	rc := 0
 	if len(args) == 2 {

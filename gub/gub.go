@@ -31,7 +31,10 @@ const (
 // Term is the current environment TERM value, e.g. "gnome", "xterm", or "vt100"
 var Term string
 
+// Maxwidth is the size of the line. We will try to wrap text that is
+// longer than this. It like the COLS environment variable
 var Maxwidth int
+
 var initial_cwd string
 var GUB_RESTART_CMD string
 
