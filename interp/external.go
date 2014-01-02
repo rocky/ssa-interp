@@ -13,6 +13,8 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/rocky/ssa-interp"
 )
 
 type externalFn func(fr *Frame, args []Value) Value
@@ -201,7 +203,9 @@ func ext۰math۰Min(fn *Frame, args []Value) Value {
 }
 
 func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
-	runtime.Breakpoint()
+	// If tracehook is DefaultTraceHook, should we run a PrintStack
+	// and leave?
+	TraceHook(fr, &fr.block.Instrs[0], ssa2.TRACE_CALL)
 	return nil
 }
 

@@ -18,7 +18,7 @@ import (
 )
 
 var terse     = flag.Bool("terse", true, `abbreviated output`)
-var Highlight = flag.Bool("highlight", true, `use syntax highlighting in output`)
+var Highlight = flag.Bool("hilight", true, `use syntax highlighting in output`)
 var inputFilename = flag.String("cmdfile", "", `cmdfile *commandfile*.`)
 var inputFile *os.File
 var inputReader *bufio.Reader
@@ -36,6 +36,9 @@ var Term string
 var Maxwidth int
 
 var initial_cwd string
+
+//GUB is a string that was used to invoke gofish.
+//If we want to restart gub, this is what we'll use.
 var GUB_RESTART_CMD string
 
 // history_file is file name where history entries were and are to be saved. If

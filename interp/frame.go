@@ -85,7 +85,7 @@ func (fr *Frame) runDefers() {
 			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
 		}
 		fn := fr.defers[len(fr.defers)-1-i]
-		TraceHook(fr, nil, ssa2.DEFER_ENTER)
+		TraceHook(fr, nil, ssa2.TRACE_CALL)
 		fn()
 	}
 	fr.defers = fr.defers[:0]

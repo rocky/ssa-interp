@@ -132,7 +132,7 @@ func ext۰reflect۰rtype۰Field(fr *Frame, args []Value) Value {
 		f.Anonymous(),
 	}
 	tags := []string{"name", "path", "rtype", "tag", "offset", "indices", "anonymous"}
-	return structure{
+	return Structure{
 		fields: fields,
 		fieldnames: tags,
 	}
@@ -357,7 +357,7 @@ func ext۰reflect۰Value۰MapKeys(fr *Frame, args []Value) Value {
 
 func ext۰reflect۰Value۰NumField(fr *Frame, args []Value) Value {
 	// Signature: func (reflect.Value) int
-	return len(rV2V(args[0]).(structure).fields)
+	return len(rV2V(args[0]).(Structure).fields)
 }
 
 func ext۰reflect۰Value۰NumMethod(fr *Frame, args []Value) Value {
@@ -513,7 +513,7 @@ func ext۰reflect۰Value۰Set(fr *Frame, args []Value) Value {
 
 func ext۰reflect۰valueInterface(fn *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value, safe bool) interface{}
-	v := args[0].(structure)
+	v := args[0].(Structure)
 	return iface{rV2T(v).t, rV2V(v)}
 }
 

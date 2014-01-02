@@ -10,12 +10,12 @@ For now, some of the SSA optimizations however have been removed since our focus
 Setup
 -----
 
-* Make sure our GO environment is setup, e.g. *$GOBIN*, *$GOPATH*, ...
-* Make sure you have go a 1.2ish version installed.
+* Make sure our Go environment is setup, e.g. *$GOBIN*, *$GOPATH*, ...
+* Make sure you have a 1.2ish Go version installed.
 
 ```
    go get github.com/rocky/ssa-interp
-   cd <place where ssa-interp/src copied>
+   cd $GOBIN/src/github.com/rocky/ssa-interp
    make
    cp tortoise gub.sh  $GOBIN/
 ```
@@ -37,5 +37,7 @@ See Also
 
 * [What's left to do?](https://github.com/rocky/ssa-interp/wiki/What%27s-left-to-do%3F)
 * [Cool things](https://github.com/rocky/ssa-interp/wiki/Cool-things)
+* [go-play](http://code.google.com/p/go-play): A locally-run HTML5 web interface for experimenting with Go code
+* [go-fish](https://github.com/rocky/go-fish): Yet another Go REPL
 
 [![endorse rocky](https://api.coderwall.com/rocky/endorsecount.png)](https://coderwall.com/rocky)
