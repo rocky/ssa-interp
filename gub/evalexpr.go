@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2014 Rocky Bernstein.
 // evaluation support for expressions. A bridge betwen eval's evaluation
 // and reflect values and interp.Value
 
@@ -79,7 +79,6 @@ func EvalSelectorExpr(ctx *eval.Ctx, selector *eval.SelectorExpr,
 	}
 	sel   := selector.Sel.Name
 	x0    := (*x)[0]
-	xname := x0.Type().Name()
 
 	if x0.Kind() == reflect.Ptr {
 		// Special case for handling packages
@@ -125,22 +124,18 @@ func EvalSelectorExpr(ctx *eval.Ctx, selector *eval.SelectorExpr,
 				return nil, true,
 				errors.New("Can't handle types yet")
 			}
-			// FIXME
 		} else if !x0.IsNil() && x0.Elem().Kind() == reflect.Struct {
 			x0 = x0.Elem()
 		}
 	}
 
-	//if x0.Type().String() == "interp.Structure" {
 	if record, ok := x0.Interface().(interp.Structure); ok {
 		if field, err := record.FieldByName(sel); err == nil {
 			retVal := reflect.ValueOf(field)
 			return &retVal, true, nil
 		}
 	}
-	err = errors.New(fmt.Sprintf("%s.%s undefined (%s has no field or method %s)",
-		xname, sel, xname, sel))
-	return nil, true, err
+	return eval.EvalSelectorExpr(ctx, selector, env)
 }
 
 // makeNullEnv creates an empty evaluation environment.
