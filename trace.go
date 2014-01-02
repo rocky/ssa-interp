@@ -29,10 +29,11 @@ const (
 	STEP_INSTRUCTION
 	STMT_IN_LIST
 	SWITCH_COND
+	TRACE_CALL
 )
 
 const TRACE_EVENT_FIRST = OTHER
-const TRACE_EVENT_LAST  = SWITCH_COND
+const TRACE_EVENT_LAST  = TRACE_CALL
 
 type TraceEventMask map[TraceEvent]bool
 

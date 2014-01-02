@@ -21,6 +21,7 @@ func init() {
 		ssa2.CALL_ENTER      : "-> ",
 		ssa2.CALL_RETURN     : "<- ",
 		ssa2.DEFER_ENTER     : "d->",
+		ssa2.TRACE_CALL      : ":o)",  // bozo the clown
 		ssa2.EXPR            : "(.)",
 		ssa2.IF_INIT         : "if:",
 		ssa2.IF_COND         : "if?",

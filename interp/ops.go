@@ -1066,6 +1066,11 @@ func callBuiltin(caller *Frame, fn *ssa2.Builtin, args []Value) Value {
 
 	case "recover":
 		return doRecover(caller)
+
+	case "trace":
+		TraceHook(caller, &caller.block.Instrs[0], ssa2.TRACE_CALL)
+		return nil
+
 	}
 
 	panic("unknown built-in: " + fn.Name())

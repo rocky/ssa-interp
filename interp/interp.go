@@ -649,6 +649,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	for event := ssa2.TRACE_EVENT_FIRST; event <= ssa2.TRACE_EVENT_LAST; event++ {
 		i.TraceEventMask[event] = true
 	}
+	i.TraceEventMask[ssa2.TRACE_CALL] = false
 	i.TraceEventMask[ssa2.DEFER_ENTER] = false
 	if i.TraceMode & EnableInitTracing == 0 {
 		// clear tracing bits in init() functions that occur before
@@ -740,6 +741,10 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		// If we didn't set tracing before because EnableInitTracing
 		// was off, we'll set it now.
 		i.TraceMode = traceMode
+
+		// And allow runtime.Breakpoint() take effect now.
+		i.TraceEventMask[ssa2.TRACE_CALL] = true
+
 		// Allow defer tracing now that we've hit main
 		// On second thought. We catch defer enter with a call enter.
 		// i.TraceEventMask[ssa2.DEFER_ENTER] = true
