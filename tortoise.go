@@ -33,6 +33,7 @@ F	log [F]unction SSA code.
 S	log [S]ource locations as SSA builder progresses.
 G	use binary object files from gc to provide imports (no code).
 L	build distinct packages seria[L]ly instead of in parallel.
+N	build [N]aive SSA form: don't replace local loads/stores with registers.
 `)
 
 var runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
@@ -56,6 +57,13 @@ Use -help flag to display options.
 Examples:
 % tortoise -run -interp=S hello.go     # interpret a program, with statement tracing
 % tortoise -build=FPG hello.go         # quickly dump SSA form of a single package
+% tortoise -run unicode -- -test.v     # interpret the unicode package's tests, verbosely
+
+` + importer.InitialPackagesUsage +
+	`
+When -run is specified, tortoise will find the first package that
+defines a main function and run it in the interpreter.
+If none is found, the tests of each package will be run instead.
 `
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
