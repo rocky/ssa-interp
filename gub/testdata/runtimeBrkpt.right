@@ -1,0 +1,20 @@
+Gub version 0.2
+Type 'h' for help
+Running....
+->  main()
+testdata/gcdBrkpt.go:24:6
+# Test of runtime.Breakpoint()
+# Use with gcdBrkpt.go
+Setting highlight off
+# continue
+Continuing...
+:o) gcd()
+testdata/gcdBrkpt.go:17:2-22
+# info program
+instruction number: 3
+basic block: 4
+unknown scope
+function: gcd
+program stop event: 
+position: testdata/gcdBrkpt.go:17:2-22
+gub: That's all folks...

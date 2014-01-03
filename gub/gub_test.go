@@ -20,11 +20,12 @@ type testDatum struct {
 
 // Note we should order these from simple to more complex
 var testData = []testDatum {
-	{gofile: "gcd",    baseName: "stepping"},
-	{gofile: "panic",  baseName: "panic"},
-	{gofile: "gcd",    baseName: "frame"},
-	{gofile: "expr",   baseName: "eval"},
-	{gofile: "struct", baseName: "struct"},
+	{gofile: "struct",   baseName: "struct"},
+	{gofile: "gcd",      baseName: "stepping"},
+	{gofile: "panic",    baseName: "panic"},
+	{gofile: "gcd",      baseName: "frame"},
+	{gofile: "expr",     baseName: "eval"},
+	{gofile: "gcdBrkpt", baseName: "runtimeBrkpt"},
 }
 
 // Runs debugger on go program with baseName. Then compares output.
