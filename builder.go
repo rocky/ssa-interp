@@ -1545,6 +1545,13 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 		}
 		b.stmtList(fn, *defaultBody, selectScope)
 		fn.targets = fn.targets.tail
+	} else {
+		// A blocking select must match some case.
+		// (This should really be a runtime.errorString, not a string.)
+		fn.emit(&Panic{
+			X: emitConv(fn, NewConst(exact.MakeString("blocking select matched no case"), types.Typ[types.String], token.NoPos, token.NoPos), tEface),
+		})
+		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 	}
 	emitJump(fn, done)
 	fn.currentBlock = done
@@ -2165,8 +2172,13 @@ func (b *builder) buildFunction(fn *Function) {
 	fn.createSyntacticParams(recvField, functype)
 	b.stmt(fn, body, scope)
 	if cb := fn.currentBlock; cb != nil && (cb == fn.Blocks[0] || cb == fn.Recover || cb.Preds != nil) {
-		// Run function calls deferred in this function when
-		// falling off the end of the body block.
+		// Control fell off the end of the function's body block.
+		//
+		// Block optimizations eliminate the current block, if
+		// unreachable.  It is an ssa.builder invariant that
+		// if this no-arg return is ill-typed for
+		// fn.Signature.Results, this block must be
+		// unreachable.  The sanity checker checks this.
 		fn.emit(new(RunDefers))
 		fn.emit(new(Return))
 	}
