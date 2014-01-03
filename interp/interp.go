@@ -509,9 +509,13 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 // After a normal return, fr.result contains the result of the call
 // and fr.block is nil.
 //
-// After a recovered panic, fr.result is undefined and fr.block
-// contains the block at which to resume control, which may be
-// nil for a normal return.
+// A recovered panic in a function without named return parameters
+// (NRPs) becomes a normal return of the zero value of the function's
+// result type.
+//
+// After a recovered panic in a function with NRPs, fr.result is
+// undefined and fr.block contains the block at which to resume
+// control.
 //
 func runFrame(fr *Frame) {
 	defer func() {
@@ -528,7 +532,10 @@ func runFrame(fr *Frame) {
 			debug.PrintStack()
 		}
 		fr.runDefers()
-		fr.block = fr.fn.Recover // recovered panic
+		fr.block = fr.fn.Recover
+		if fr.block == nil {
+			fr.result = zero(fr.fn.Signature.Results())
+		}
 	}()
 
 	fn        := fr.fn
