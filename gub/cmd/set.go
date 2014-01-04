@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2014 Rocky Bernstein.
 
 // set command
 
@@ -16,10 +16,10 @@ func init() {
 			Subcmds: make(gub.SubcmdMap),
 		},
 		Fn: SetCommand,
-		Help: `Generic command for setting things about the debugged program.
+		Help: `Modifies parts of the debugger environment.
 
 Type "set" for a list of "set" subcommands and what they do.
-Type "help set *" for just a list of "info" subcommands.
+Type "help set *" for just a list of "set" subcommands.
 `,
 		Min_args: 0,
 		Max_args: 3,
@@ -50,42 +50,21 @@ func init() {
 	parent := "set"
 	gub.AddSubCommand(parent, &gub.SubcmdInfo{
 		Fn: SetHighlightSubcmd,
-		Help: `set highlight [on|off]
+		Help: `Modifies parts of the debugger environment.
 
-Set whether we use terminal highlighting.
-`,
-		Min_args: 2,
+You can give unique prefix of the name of a subcommand to get
+information about just that subcommand.
+
+Type "set" for a list of "set" subcommands and what they do.
+Type "help set *" for just the list of "set" subcommands.`,
+		Min_args: 0,
 		Max_args: 3,
-		Short_help: "Set whether we use terminal highlighting",
-		Name: "highlight",
 	})
 }
 
-//FIXME: DRY THIS
-
 // setCommand implements the debugger command:
-//    set [*|subcommand]
-// which is a generic command for setting things about the debugged program.
-//
-// Type "set" for a list of "set" subcommands and what they do.
-//
-// Type "help set *" for just a list of "info" subcommands.
+//    set [*subcommand*]
+// which modifies parts of the debugger environment.
 func SetCommand(args []string) {
-	if len(args) == 1 {
-		gub.ListSubCommandArgs(gub.Cmds["set"].SubcmdMgr)
-		return
-	}
-
-    subcmd_name := args[1]
-	subcmds     := gub.Cmds["set"].SubcmdMgr.Subcmds
-	subcmd_info := subcmds[subcmd_name]
-
-	if subcmd_info != nil {
-		if gub.ArgCountOK(subcmd_info.Min_args+1, subcmd_info.Max_args+1, args) {
-			subcmds[subcmd_name].Fn(args)
-		}
-		return
-	}
-
-	gub.Errmsg("Unknown 'set' subcommand '%s'", args[1])
+	gub.SubcmdMgrCommand(args)
 }

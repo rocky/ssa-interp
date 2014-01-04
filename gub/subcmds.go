@@ -88,3 +88,29 @@ func HelpSubCommand(subcmdMgr *SubcmdMgr, args []string) {
 		}
 	}
 }
+
+func UnknownSubCommand(cmdName, subcmdName string) {
+	Errmsg("Unknown \"%st\" subcommand \"%s\".", cmdName, subcmdName)
+	Errmsg("Try \"help %s *\".", cmdName)
+}
+
+func SubcmdMgrCommand(args []string) {
+	cmdName := args[0]
+	if len(args) == 1 {
+		ListSubCommandArgs(Cmds[cmdName].SubcmdMgr)
+		return
+	}
+
+    subcmd_name := args[1]
+	subcmds     := Cmds[cmdName].SubcmdMgr.Subcmds
+	subcmd_info := subcmds[subcmd_name]
+
+	if subcmd_info != nil {
+		if ArgCountOK(subcmd_info.Min_args+1, subcmd_info.Max_args+1, args) {
+			subcmds[subcmd_name].Fn(args)
+		}
+		return
+	}
+
+	Errmsg("Unknown \"%s\" subcommand \"%s\"", cmdName, subcmd_name)
+}
