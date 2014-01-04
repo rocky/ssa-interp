@@ -441,7 +441,7 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 			return ext(caller, args)
 		}
 		if fn.Blocks == nil {
-			panic("no code for function: " + name)
+			caller.sourcePanic(caller.block.Instrs[caller.pc], "no code for function: " + name)
 		}
 	}
 	fr := &Frame{
