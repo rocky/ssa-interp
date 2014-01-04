@@ -97,24 +97,24 @@ func toInspect(w io.Writer, v Value, name *ssa2.Value) {
 		io.WriteString(w, "}")
 
 	case array:
-		io.WriteString(w, "[")
+		io.WriteString(w, "{")
 		for i, e := range v {
 			if i > 0 {
 				io.WriteString(w, ", ")
 			}
 			toInspect(w, e, name)
 		}
-		io.WriteString(w, "]")
+		io.WriteString(w, "}")
 
 	case []Value:
-		io.WriteString(w, "[")
+		io.WriteString(w, "{")
 		for i, e := range v {
 			if i > 0 {
 				io.WriteString(w, ", ")
 			}
 			toInspect(w, e, name)
 		}
-		io.WriteString(w, "]")
+		io.WriteString(w, "}")
 
 	case *ssa2.Function, *ssa2.Builtin, *closure:
 		fmt.Fprintf(w, "%p", v) // (an address)

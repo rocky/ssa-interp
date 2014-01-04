@@ -169,7 +169,8 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		fr.runDefers()
 
 	case *ssa2.Panic:
-		switch os.Getenv("GOTRACEBACK") {
+		gotraceback := os.Getenv("GOTRACEBACK")
+		switch gotraceback {
 		case "0":
 			//do nothing
 		case "1":
@@ -190,9 +191,10 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		// understand that we are in a panic state, it can do that via
 		// the event type passed above.
 		fr.status = StPanic
-		// We don't need an interpreter tracecback. So turn that off.
+		// We don't need an interpreter traceback. So turn that off.
 		os.Setenv("GOTRACEBACK", "0")
 		panic(targetPanic{fr.get(instr.X)})
+		os.Setenv("GOTRACEBACK", gotraceback)
 
 	case *ssa2.Send:
 		fr.get(instr.Chan).(chan Value) <- copyVal(fr.get(instr.X))

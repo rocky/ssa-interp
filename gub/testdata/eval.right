@@ -38,7 +38,7 @@ true
 
 # exprs
 exprs is in the environment
-	exprs = ["\"quoted\" string with backslash \\", "f(3.14)*2 + c", "-2  ", " 5 == 6", "5\t< 6", "1+2", "(1+2)*3", "1 << n", "1 << 8", "y("]
+	exprs = {"\"quoted\" string with backslash \\", "f(3.14)*2 + c", "-2  ", " 5 == 6", "5\t< 6", "1+2", "(1+2)*3", "1 << n", "1 << 8", "y("}
 # eval exprs[0]
 Kind = interface
 Type = interp.Value
@@ -55,7 +55,7 @@ Kind = Type = int64
 # eval os.Args
 Kind = slice
 Type = []interp.Value
-["main"]
+{"main"}
 # eval os.Args[0]
 Kind = interface
 Type = interp.Value
