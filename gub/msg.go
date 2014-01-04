@@ -1,9 +1,13 @@
 package gub
 
 import (
-	"github.com/mgutz/ansi"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
+
+	"github.com/mgutz/ansi"
+	"code.google.com/p/go-columnize"
 )
 
 var	termReset, termBold, termHighlight string
@@ -41,4 +45,16 @@ func Section(format string, a ...interface{}) (n int, err error) {
 		format = format + "\n"
 	}
 	return fmt.Fprintf(os.Stdout, format, a...)
+}
+
+func PrintSorted(title string, names []string) {
+	Section(title + ":")
+	sort.Strings(names)
+	opts := columnize.DefaultOptions()
+	opts.LinePrefix  = "  "
+	opts.DisplayWidth = Maxwidth
+	columnizedNames := strings.TrimRight(columnize.Columnize(names, opts),
+		"\n")
+	Msg(columnizedNames)
+
 }
