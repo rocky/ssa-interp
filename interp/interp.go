@@ -169,32 +169,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		fr.runDefers()
 
 	case *ssa2.Panic:
-		gotraceback := os.Getenv("GOTRACEBACK")
-		switch gotraceback {
-		case "0":
-			//do nothing
-		case "1":
-			runtime۰Gotraceback(fr)
-		case "2", "crash":
-			runtime۰Gotraceback(fr)
-			for _, goTop := range fr.i.goTops {
-				otherFr := goTop.Fr
-				if otherFr == fr { continue }
-				runtime۰Gotraceback(otherFr)
-			}
-		}
-		TraceHook(fr, &genericInstr, ssa2.PANIC)
-		// Don't know if setting fr.status really does anything, but
-		// just to try to be totally Kosher. We do this *after*
-		// running TraceHook because TraceHook treats panic'd frames
-		// differently and will do less with them. If it needs to
-		// understand that we are in a panic state, it can do that via
-		// the event type passed above.
-		fr.status = StPanic
-		// We don't need an interpreter traceback. So turn that off.
-		os.Setenv("GOTRACEBACK", "0")
-		panic(targetPanic{fr.get(instr.X)})
-		os.Setenv("GOTRACEBACK", gotraceback)
+		fr.sourcePanic(genericInstr, ToInspect(fr.get(instr.X), nil))
 
 	case *ssa2.Send:
 		fr.get(instr.Chan).(chan Value) <- copyVal(fr.get(instr.X))
@@ -276,9 +251,18 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		idx := fr.get(instr.Index)
 		switch x := x.(type) {
 		case []Value:
+			i := asInt(idx)
+			if i > len(x) {
+				fr.sourcePanic(genericInstr, "index out of range")
+			}
 			fr.env[instr] = &x[asInt(idx)]
 		case *Value: // *array
-			fr.env[instr] = &(*x).(array)[asInt(idx)]
+			ary := (*x).(array)
+			i := asInt(idx)
+			if i > len(ary) {
+				fr.sourcePanic(genericInstr, "index out of range")
+			}
+			fr.env[instr] = &ary[asInt(idx)]
 		default:
 			panic(fmt.Sprintf("unexpected x type in IndexAddr: %T", x))
 		}
@@ -530,7 +514,7 @@ func runFrame(fr *Frame) {
 		fr.panicking = true
 		fr.panic = recover()
 		if InstTracing() || GlobalStmtTracing() {
-			fmt.Fprintf(os.Stderr, "Panicking: %T %v.\n", fr.panic, fr.panic)
+			fmt.Fprintf(os.Stderr, "Panicking (error type %T): %v.\n", fr.panic, fr.panic)
 			debug.PrintStack()
 		}
 		fr.runDefers()

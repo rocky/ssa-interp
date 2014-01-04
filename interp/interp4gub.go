@@ -7,7 +7,11 @@ alike.
 
 */
 package interp
-import "github.com/rocky/ssa-interp"
+import (
+	"fmt"
+	"os"
+	"github.com/rocky/ssa-interp"
+)
 
 func (i  *interpreter) Global(name string, pkg *ssa2.Package)  (v *Value, ok bool) {
 	v, ok = i.globals[pkg.Var(name)]
@@ -25,10 +29,46 @@ func GetInterpreter() *interpreter {
 	return i
 }
 
-// interpreter accessors
+/**** interpreter accessors ****/
+
 func (fr *Frame) Get(key ssa2.Value) Value { return fr.get(key) }
 func SetGlobal(i *interpreter, pkg *ssa2.Package, name string, v Value) {
 	setGlobal(i, pkg, name, v)
+}
+
+// sourcePanic is a panic in the source code rather than a normal panic
+// which would be in the interpreter code
+func (fr *Frame) sourcePanic(genericInstr ssa2.Instruction, mess string) {
+	fmt.Fprintf(os.Stderr, "panic: %s\n", mess)
+	gotraceback := os.Getenv("GOTRACEBACK")
+	switch gotraceback {
+	case "0":
+		//do nothing
+	case "1":
+		runtime۰Gotraceback(fr)
+	case "2", "crash":
+		runtime۰Gotraceback(fr)
+		for _, goTop := range fr.i.goTops {
+			otherFr := goTop.Fr
+			if otherFr != fr {
+				runtime۰Gotraceback(otherFr)
+			}
+		}
+	}
+
+	TraceHook(fr, &genericInstr, ssa2.PANIC)
+	// Don't know if setting fr.status really does anything, but
+	// just to try to be totally Kosher. We do this *after*
+	// running TraceHook because TraceHook treats panic'd frames
+	// differently and will do less with them. If it needs to
+	// understand that we are in a panic state, it can do that via
+	// the event type passed above.
+	fr.status = StPanic
+	// We don't need an interpreter traceback. So turn that off.
+	os.Setenv("GOTRACEBACK", "0")
+	panic(mess)
+	println("XXX 4")
+	os.Setenv("GOTRACEBACK", gotraceback)
 }
 
 func (i *interpreter) Program() *ssa2.Program { return i.prog }

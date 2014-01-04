@@ -44,7 +44,7 @@ Kind = interface
 Type = interp.Value
 "\"quoted\" string with backslash \\"
 # eval exprs[100]
-** Error evaluating expression 'exprs[100]' (reflect: slice index out of range)
+** Error evaluating expression 'exprs[100]' (slice index out of range)
 
 # eval exprs[-9]
 ** Error evaluating expression 'exprs[-9]' (invalid slice index -9 (index must be non-negative))

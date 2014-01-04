@@ -13,8 +13,8 @@ func runtime۰Gotraceback(fr *Frame) {
 	// the currently loaded file.
 	var lines [][]byte
 	var lastFile string
-	for i := 0; ; i++ {
-		pc, file, line, ok := runtime۰Caller(fr, i)
+	for ; fr != nil; fr = fr.Caller(0) {
+		pc, file, line, ok := runtime۰Caller(fr, 0)
 		if !ok {
 			break
 		}
