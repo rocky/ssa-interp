@@ -39,13 +39,13 @@ var gorootTestTests = []string{
 	"varinit.go",
 	"escape3.go",
 	"initcomma.go",
-	// "cmp.go",  // FIXME (rocky) reinstate
+	"cmp.go",
 	"compos.go",
 	"turing.go",
 	"indirect.go",
 	"complit.go",
 	"for.go",
-	// "struct0.go", // FIXME (rocky) reinstate
+	"struct0.go",
 	"intcvt.go",
 	"printbig.go",
 	"deferprint.go",
@@ -64,11 +64,12 @@ var gorootTestTests = []string{
 	"gc.go",
 	"simassign.go",
 	"iota.go",
-	"goprint.go", // doesn't actually assert anything
+	// "nilptr2.go",  // rocky FIXME: reinstate
+	"goprint.go", // doesn't actually assert anything (cmpout)
 	"utf.go",
 	"method.go",
 	"char_lit.go",
-	// "env.go", // FIXME (rocky) reinstate
+	"env.go",
 	"int_lit.go",
 	"string_lit.go",
 	"defer.go",
@@ -81,6 +82,7 @@ var gorootTestTests = []string{
 	"zerodivide.go",
 	"convert.go",
 	"convT2X.go",
+	"switch.go",
 	"initialize.go",
 	"ddd.go",
 	"blank.go", // partly disabled
@@ -131,6 +133,7 @@ var testdataTests = []string{
 	"boundmeth.go",
 	"coverage.go",
 	"fieldprom.go",
+	"ifaceconv.go",
 	"ifaceprom.go",
 	"initorder.go",
 	"methprom.go",
@@ -294,24 +297,23 @@ func TestGorootTest(t *testing.T) {
 	printFailures(failures)
 }
 
-// FIXME: (rocky) reinstate
-// // TestTestmainPackage runs the interpreter on a synthetic "testmain" package.
-// func TestTestmainPackage(t *testing.T) {
-// 	success := func(exitcode int, output string) error {
-// 		if exitcode == 0 {
-// 			return fmt.Errorf("unexpected success")
-// 		}
-// 		if !strings.Contains(output, "FAIL: TestFoo") {
-// 			return fmt.Errorf("missing failure log for TestFoo")
-// 		}
-// 		if !strings.Contains(output, "FAIL: TestBar") {
-// 			return fmt.Errorf("missing failure log for TestBar")
-// 		}
-// 		// TODO(adonovan): test benchmarks too
-// 		return nil
-// 	}
-// 	run(t, "testdata"+slash, "a_test.go", success)
-// }
+// TestTestmainPackage runs the interpreter on a synthetic "testmain" package.
+func TestTestmainPackage(t *testing.T) {
+	success := func(exitcode int, output string) error {
+		if exitcode == 0 {
+			return fmt.Errorf("unexpected success")
+		}
+		if !strings.Contains(output, "FAIL: TestFoo") {
+			return fmt.Errorf("missing failure log for TestFoo")
+		}
+		if !strings.Contains(output, "FAIL: TestBar") {
+			return fmt.Errorf("missing failure log for TestBar")
+		}
+		// TODO(adonovan): test benchmarks too
+		return nil
+	}
+	run(t, "testdata"+slash, "a_test.go", success)
+}
 
 // CreateTestMainPackage should return nil if there were no tests.
 func TestNullTestmainPackage(t *testing.T) {
