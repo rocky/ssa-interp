@@ -1071,7 +1071,7 @@ func callBuiltin(caller *Frame, fn *ssa2.Builtin, args []Value) Value {
 	case "panic":
 		// ssa2.Panic handles most cases; this is only for "go
 		// panic" or "defer panic".
-		panic(targetPanic{args[0]})
+		caller.sourcePanic(toString(args[0]))
 
 	case "recover":
 		return doRecover(caller)

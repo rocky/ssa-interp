@@ -193,5 +193,7 @@ func main() {
 		fmt.Println("Running....")
 		interp.Interpret(main, interpMode, interpTraceMode, main.Object.Path(),
 			prog_args)
+	} else {
+		fmt.Println(`Built ok, but not running because "-run" option not given`)
 	}
 }

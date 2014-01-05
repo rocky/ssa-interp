@@ -26,9 +26,7 @@
 // are currently broken.  TODO(adonovan): provide a metacircular
 // implementation of Mutex avoiding the broken atomic primitives.
 //
-// * recover is only partially implemented.  Also, the interpreter
-// makes no attempt to distinguish target panics from interpreter
-// crashes.
+// * recover is only partially implemented.
 //
 // * map iteration is asymptotically inefficient.
 //
@@ -169,7 +167,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		fr.runDefers()
 
 	case *ssa2.Panic:
-		fr.sourcePanic(genericInstr, ToInspect(fr.get(instr.X), nil))
+		fr.sourcePanic(ToInspect(fr.get(instr.X), nil))
 
 	case *ssa2.Send:
 		fr.get(instr.Chan).(chan Value) <- copyVal(fr.get(instr.X))
@@ -252,15 +250,15 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		switch x := x.(type) {
 		case []Value:
 			i := asInt(idx)
-			if i > len(x) {
-				fr.sourcePanic(genericInstr, "index out of range")
+			if i < 0 || i > len(x) {
+				fr.sourcePanic("index out of range")
 			}
 			fr.env[instr] = &x[asInt(idx)]
 		case *Value: // *array
 			ary := (*x).(array)
 			i := asInt(idx)
-			if i > len(ary) {
-				fr.sourcePanic(genericInstr, "index out of range")
+			if i < 0 || i > len(ary) {
+				fr.sourcePanic("index out of range")
 			}
 			fr.env[instr] = &ary[asInt(idx)]
 		default:
@@ -380,7 +378,7 @@ func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
 		// Interface method invocation.
 		recv := v.(iface)
 		if recv.t == nil {
-			panic("method invoked on nil interface")
+			fr.sourcePanic("method invoked on nil interface")
 		}
 		if f := lookupMethod(fr.i, recv.t, call.Method); f == nil {
 			// Unreachable in well-typed programs.
@@ -398,13 +396,13 @@ func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
 
 // call interprets a call to a function (function, builtin or closure)
 // fn with arguments args, returning its result.
-// callpos is the position of the callsite.
+// caller is the frame of the callsite.
 //
 func call(i *interpreter, goNum int, caller *Frame,	fn Value, args []Value) Value {
 	switch fn := fn.(type) {
 	case *ssa2.Function:
 		if fn == nil {
-			panic("call of nil function") // nil of func type
+			caller.sourcePanic("call of nil function")
 		}
 		return callSSA(i, goNum, caller, fn, args, nil)
 	case *closure:
@@ -417,7 +415,7 @@ func call(i *interpreter, goNum int, caller *Frame,	fn Value, args []Value) Valu
 
 // callSSA interprets a call to function fn with arguments args,
 // and lexical environment env, returning its result.
-// callpos is the position of the callsite.
+// caller is the frame of the callsite.
 //
 func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args []Value, env []Value) Value {
 	if InstTracing() {
@@ -441,7 +439,7 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 			return ext(caller, args)
 		}
 		if fn.Blocks == nil {
-			caller.sourcePanic(caller.block.Instrs[caller.pc], "no code for function: " + name)
+			caller.sourcePanic("no code for function: " + name)
 		}
 	}
 	fr := &Frame{
@@ -509,6 +507,8 @@ func runFrame(fr *Frame) {
 			return // normal return
 		}
 		if fr.i.Mode&DisableRecover != 0 {
+			// We don't need an interpreter traceback. So turn that off.
+			os.Setenv("GOTRACEBACK", "0")
 			return // let interpreter crash
 		}
 		fr.panicking = true

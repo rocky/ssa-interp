@@ -213,6 +213,11 @@ func ext۰runtime۰getgoroot(fr *Frame, args []Value) Value {
 	return os.Getenv("GOROOT")
 }
 
+func ext۰runtime۰Goexit(fr *Frame, args []Value) Value {
+	fr.sourcePanic("Goexit not implemented using panic instead")
+	return nil
+}
+
 func ext۰strings۰IndexByte(fn *Frame, args []Value) Value {
 	// func IndexByte(s string, c byte) int
 	s := args[0].(string)

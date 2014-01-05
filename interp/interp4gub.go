@@ -1,10 +1,10 @@
-/*
+// Copyright 2013-2014 Rocky Bernstein.
 
+/*
 This file contains definitions beyond interp.go need for the gub
 debugger. This could be merged into interp.go but we keep it separate so
 as to make diff'ing our ssa.go and the unmodified ssa.go look more
 alike.
-
 */
 package interp
 import (
@@ -38,7 +38,7 @@ func SetGlobal(i *interpreter, pkg *ssa2.Package, name string, v Value) {
 
 // sourcePanic is a panic in the source code rather than a normal panic
 // which would be in the interpreter code
-func (fr *Frame) sourcePanic(genericInstr ssa2.Instruction, mess string) {
+func (fr *Frame) sourcePanic(mess string) {
 	fmt.Fprintf(os.Stderr, "panic: %s\n", mess)
 	gotraceback := os.Getenv("GOTRACEBACK")
 	switch gotraceback {
@@ -56,7 +56,7 @@ func (fr *Frame) sourcePanic(genericInstr ssa2.Instruction, mess string) {
 		}
 	}
 
-	TraceHook(fr, &genericInstr, ssa2.PANIC)
+	TraceHook(fr, &fr.block.Instrs[fr.pc], ssa2.PANIC)
 	// Don't know if setting fr.status really does anything, but
 	// just to try to be totally Kosher. We do this *after*
 	// running TraceHook because TraceHook treats panic'd frames
@@ -65,10 +65,8 @@ func (fr *Frame) sourcePanic(genericInstr ssa2.Instruction, mess string) {
 	// the event type passed above.
 	fr.status = StPanic
 	// We don't need an interpreter traceback. So turn that off.
-	os.Setenv("GOTRACEBACK", "0")
+	//os.Setenv("GOTRACEBACK", "0")
 	panic(mess)
-	println("XXX 4")
-	os.Setenv("GOTRACEBACK", gotraceback)
 }
 
 func (i *interpreter) Program() *ssa2.Program { return i.prog }

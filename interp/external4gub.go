@@ -87,8 +87,12 @@ func ext۰debug۰function(fr *Frame, args []Value) Value {
 // a range error down the line on 32-bit linux, I think when casting
 // to a uintptr.
 func EncodePC(fr *Frame) uint {
+	if fr == nil { return 0xbadbad }
 	fnNum := fn2Num(fr.fn)
-	bpc := uint(fr.block.Index << 8) + uint(fr.pc & 0xff)
+	// We don't always have basic blocks. Sigh
+	blockIndex := 0xff
+	if fr.block != nil { blockIndex = fr.block.Index }
+	bpc := uint(blockIndex << 8) + uint(fr.pc & 0xff)
 	return uint(fnNum << 16) | (bpc & 0x00ffff)
 }
 

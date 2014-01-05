@@ -44,6 +44,7 @@ const (
 	StRunning RunStatusType = iota
 	StComplete
 	StPanic
+	StGoPanic
 )
 
 type TraceHookFunc func(*Frame, *ssa2.Instruction, ssa2.TraceEvent)
