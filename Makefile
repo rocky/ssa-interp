@@ -1,7 +1,7 @@
 # Comments starting with #: below are remake GNU Makefile comments. See
 # https://github.com/rocky/remake/wiki/Rake-tasks-for-gnu-make
 
-.PHONY: all builder interp check test check-quick check-interp check-interp-quick test-quick
+.PHONY: all builder interp check test check-quick check-interp check-interp-quick test-quick clean
 
 #: Same as tortoise
 all: tortoise
@@ -57,3 +57,9 @@ check-gub:
 #: Shorter debugger tests
 check-gub-quick:
 	(cd gub && go test -i && go test -test.short)
+
+#: Remove derived files.
+clean:
+	for file in tortoise ; do \
+		[ -e $$file ] && rm $$file; \
+	done

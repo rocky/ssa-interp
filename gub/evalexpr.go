@@ -155,7 +155,11 @@ func EvalExpr(expr string) (*[]reflect.Value, error) {
 	env := &evalEnv
 	ctx := &eval.Ctx{expr}
 	if e, err := parser.ParseExpr(expr); err != nil {
-		Errmsg("Failed to parse expression '%s' (%v)\n", expr, err)
+		if pair := eval.FormatErrorPos(expr, err.Error()); len(pair) == 2 {
+			Msg(pair[0])
+			Msg(pair[1])
+		}
+		Errmsg("parse error: %v", err)
 		return nil, err
 	} else if cexpr, errs := eval.CheckExpr(ctx, e, env); len(errs) != 0 {
 		Errmsg("Error checking expression '%s' (%v)\n", expr, errs)

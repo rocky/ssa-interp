@@ -34,8 +34,7 @@ true
 ## 1 << 8
 ## eval 1 << 8
 # y(
-** Failed to parse expression 'y(' (1:3: expected ')', found 'EOF')
-
+** parse error: 1:3: expected ')', found 'EOF'
 # exprs
 exprs is in the environment
 	exprs = {"\"quoted\" string with backslash \\", "f(3.14)*2 + c", "-2  ", " 5 == 6", "5\t< 6", "1+2", "(1+2)*3", "1 << n", "1 << 8", "y("}
