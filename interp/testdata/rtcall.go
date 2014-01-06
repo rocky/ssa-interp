@@ -1,8 +1,6 @@
 package main
 
 import "runtime"
-import "fmt"
-import "os"
 
 func caller() {
 	//FIXME add a test to make sure file, pc from Callers matches

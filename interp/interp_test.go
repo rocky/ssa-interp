@@ -131,11 +131,13 @@ var gorootTestTests = []string{
 // These are files in go.tools/ssa/interp/testdata/.
 var testdataTests = []string{
 	"boundmeth.go",
+	"rtcall.go", // rocky: added for runtime.Caller
 	"coverage.go",
 	"fieldprom.go",
 	"ifaceconv.go",
 	"ifaceprom.go",
 	"initorder.go",
+	"math.go", // rocky: added from math/all_test.go
 	"methprom.go",
 	"mrvchain.go",
 	// "recover.go", FIXME - reinstate

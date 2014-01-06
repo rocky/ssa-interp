@@ -64,9 +64,20 @@ var externals = map[string]externalFn{
 	"(reflect.rtype).String":          ext۰reflect۰rtype۰String,
 	"bytes.Equal":                     ext۰bytes۰Equal,
 	"bytes.IndexByte":                 ext۰bytes۰IndexByte,
+	"strings.IndexByte":               ext۰strings۰IndexByte,
 	"hash/crc32.haveSSE42":            ext۰crc32۰haveSSE42,
 	"math.Abs":                        ext۰math۰Abs,
+	"math.Acos":                       ext۰math۰Acos,
+	"math.Asin":                       ext۰math۰Asin,
+	"math.Atan":                       ext۰math۰Atan,
+	"math.Atan2":                      ext۰math۰Atan2,
+	"math.Ceil":                       ext۰math۰Ceil,
+	"math.Cos":                        ext۰math۰Cos,
 	"math.Exp":                        ext۰math۰Exp,
+	"math.Log":                        ext۰math۰Log,
+	"math.Log1p":                      ext۰math۰Log1p,
+	"math.Max":                        ext۰math۰Max,
+	"math.Sqrt":                       ext۰math۰Sqrt,
 	"runtime/debug.function":          ext۰debug۰function,
 	"runtime/debug.PrintStack":        ext۰debug۰PrintStack,
 	// "(big.nat).shl":                   ext۰big۰shl,
@@ -77,6 +88,7 @@ var externals = map[string]externalFn{
 	"math.Float32frombits":            ext۰math۰Float32frombits,
 	"math.Float64bits":                ext۰math۰Float64bits,
 	"math.Float64frombits":            ext۰math۰Float64frombits,
+	"math.Log2":                       ext۰math۰Log2,
 	"math.Min":                        ext۰math۰Min,
 	"os.Exit":                         ext۰os۰Exit,
 	"reflect.New":                     ext۰reflect۰New,
@@ -95,6 +107,7 @@ var externals = map[string]externalFn{
 	"runtime.ReadMemStats":            ext۰runtime۰ReadMemStats,
 	"runtime.SetFinalizer":            ext۰runtime۰SetFinalizer,
 	"runtime.getgoroot":               ext۰runtime۰getgoroot,
+	"runtime.Goexit":                  ext۰runtime۰Goexit,
 	"runtime.Stack":                   ext۰runtime۰Stack,
 	"sync.runtime_registerPool":       ext۰sync۰runtime_registerPool,
 	"sync.runtime_Syncsemcheck":       ext۰sync۰runtime_Syncsemcheck,
@@ -190,6 +203,30 @@ func ext۰math۰Abs(fr *Frame, args []Value) Value {
 	return math.Abs(args[0].(float64))
 }
 
+func ext۰math۰Acos(fr *Frame, args []Value) Value {
+	return math.Acos(args[0].(float64))
+}
+
+func ext۰math۰Asin(fr *Frame, args []Value) Value {
+	return math.Asin(args[0].(float64))
+}
+
+func ext۰math۰Atan(fr *Frame, args []Value) Value {
+	return math.Atan(args[0].(float64))
+}
+
+func ext۰math۰Atan2(fr *Frame, args []Value) Value {
+	return math.Atan2(args[0].(float64), args[1].(float64))
+}
+
+func ext۰math۰Ceil(fr *Frame, args []Value) Value {
+	return math.Ceil(args[0].(float64))
+}
+
+func ext۰math۰Cos(fr *Frame, args []Value) Value {
+	return math.Cos(args[0].(float64))
+}
+
 func ext۰math۰Exp(fr *Frame, args []Value) Value {
 	return math.Exp(args[0].(float64))
 }
@@ -198,8 +235,28 @@ func ext۰math۰Float32bits(fr *Frame, args []Value) Value {
 	return math.Float32bits(args[0].(float32))
 }
 
+func ext۰math۰Log(fr *Frame, args []Value) Value {
+	return math.Log(args[0].(float64))
+}
+
+func ext۰math۰Log1p(fr *Frame, args []Value) Value {
+	return math.Log1p(args[0].(float64))
+}
+
+func ext۰math۰Log2(fr *Frame, args []Value) Value {
+	return math.Log2(args[0].(float64))
+}
+
+func ext۰math۰Max(fn *Frame, args []Value) Value {
+	return math.Max(args[0].(float64), args[1].(float64))
+}
+
 func ext۰math۰Min(fn *Frame, args []Value) Value {
 	return math.Min(args[0].(float64), args[1].(float64))
+}
+
+func ext۰math۰Sqrt(fr *Frame, args []Value) Value {
+	return math.Sqrt(args[0].(float64))
 }
 
 func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
@@ -355,10 +412,6 @@ func valueToBytes(v Value) []byte {
 // hash/crc32/crc32_amd64.go:12:func haveSSE42() bool
 // hash/crc32/crc32_amd64.go:16:func castagnoliSSE42(crc uint32, p []byte) uint32
 // math/abs.go:12:func Abs(x float64) float64
-// math/asin.go:19:func Asin(x float64) float64
-// math/asin.go:51:func Acos(x float64) float64
-// math/atan.go:95:func Atan(x float64) float64
-// math/atan2.go:29:func Atan2(y, x float64) float64
 // math/big/arith_decl.go:8:func mulWW(x, y Word) (z1, z0 Word)
 // math/big/arith_decl.go:9:func divWW(x1, x0, y Word) (q, r Word)
 // math/big/arith_decl.go:10:func addVV(z, x, y []Word) (c Word)
@@ -377,19 +430,14 @@ func valueToBytes(v Value) []byte {
 // math/exp.go:135:func Exp2(x float64) float64
 // math/expm1.go:124:func Expm1(x float64) float64
 // math/floor.go:13:func Floor(x float64) float64
-// math/floor.go:36:func Ceil(x float64) float64
 // math/floor.go:48:func Trunc(x float64) float64
 // math/frexp.go:16:func Frexp(f float64) (frac float64, exp int)
 // math/hypot.go:17:func Hypot(p, q float64) float64
 // math/ldexp.go:14:func Ldexp(frac float64, exp int) float64
-// math/log.go:80:func Log(x float64) float64
 // math/log10.go:9:func Log10(x float64) float64
-// math/log10.go:17:func Log2(x float64) float64
-// math/log1p.go:95:func Log1p(x float64) float64
 // math/mod.go:21:func Mod(x, y float64) float64
 // math/modf.go:13:func Modf(f float64) (int float64, frac float64)
 // math/remainder.go:37:func Remainder(x, y float64) float64
-// math/sin.go:117:func Cos(x float64) float64
 // math/sin.go:174:func Sin(x float64) float64
 // math/sincos.go:15:func Sincos(x float64) (sin, cos float64)
 // math/sqrt.go:14:func Sqrt(x float64) float64
