@@ -74,6 +74,8 @@ var externals = map[string]externalFn{
 	"math.Ceil":                       ext۰math۰Ceil,
 	"math.Cos":                        ext۰math۰Cos,
 	"math.Exp":                        ext۰math۰Exp,
+	"math.Frexp":                      ext۰math۰Frexp,
+	"math.Ldexp":                      ext۰math۰Ldexp,
 	"math.Log":                        ext۰math۰Log,
 	"math.Log1p":                      ext۰math۰Log1p,
 	"math.Max":                        ext۰math۰Max,
@@ -231,8 +233,17 @@ func ext۰math۰Exp(fr *Frame, args []Value) Value {
 	return math.Exp(args[0].(float64))
 }
 
+func ext۰math۰Frexp(fr *Frame, args []Value) Value {
+	frac, int := math.Frexp(args[0].(float64))
+	return tuple{frac, int}
+}
+
 func ext۰math۰Float32bits(fr *Frame, args []Value) Value {
 	return math.Float32bits(args[0].(float32))
+}
+
+func ext۰math۰Ldexp(fr *Frame, args []Value) Value {
+	return math.Ldexp(args[0].(float64), args[1].(int))
 }
 
 func ext۰math۰Log(fr *Frame, args []Value) Value {
@@ -411,7 +422,6 @@ func valueToBytes(v Value) []byte {
 // crypto/aes/cipher_asm.go:13:func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
 // hash/crc32/crc32_amd64.go:12:func haveSSE42() bool
 // hash/crc32/crc32_amd64.go:16:func castagnoliSSE42(crc uint32, p []byte) uint32
-// math/abs.go:12:func Abs(x float64) float64
 // math/big/arith_decl.go:8:func mulWW(x, y Word) (z1, z0 Word)
 // math/big/arith_decl.go:9:func divWW(x1, x0, y Word) (q, r Word)
 // math/big/arith_decl.go:10:func addVV(z, x, y []Word) (c Word)
@@ -425,22 +435,17 @@ func valueToBytes(v Value) []byte {
 // math/big/arith_decl.go:18:func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
 // math/big/arith_decl.go:19:func bitLen(x Word) (n int)
 // math/dim.go:13:func Dim(x, y float64) float64
-// math/dim.go:26:func Max(x, y float64) float64
-// math/exp.go:14:func Exp(x float64) float64
 // math/exp.go:135:func Exp2(x float64) float64
 // math/expm1.go:124:func Expm1(x float64) float64
 // math/floor.go:13:func Floor(x float64) float64
 // math/floor.go:48:func Trunc(x float64) float64
-// math/frexp.go:16:func Frexp(f float64) (frac float64, exp int)
 // math/hypot.go:17:func Hypot(p, q float64) float64
-// math/ldexp.go:14:func Ldexp(frac float64, exp int) float64
 // math/log10.go:9:func Log10(x float64) float64
 // math/mod.go:21:func Mod(x, y float64) float64
 // math/modf.go:13:func Modf(f float64) (int float64, frac float64)
 // math/remainder.go:37:func Remainder(x, y float64) float64
 // math/sin.go:174:func Sin(x float64) float64
 // math/sincos.go:15:func Sincos(x float64) (sin, cos float64)
-// math/sqrt.go:14:func Sqrt(x float64) float64
 // math/tan.go:82:func Tan(x float64) float64
 // os/file_posix.go:14:func sigpipe() // implemented in package runtime
 // os/signal/signal_unix.go:15:func signal_enable(uint32)
@@ -458,9 +463,6 @@ func valueToBytes(v Value) []byte {
 // runtime/debug.go:166:func BlockProfile(p []BlockProfileRecord) (n int, ok bool)
 // runtime/debug.go:172:func Stack(buf []byte, all bool) int
 // runtime/error.go:81:func typestring(interface{}) string
-// runtime/extern.go:19:func Goexit()
-// runtime/extern.go:34:func Callers(skip int, pc []uintptr) int
-// runtime/extern.go:51:func FuncForPC(pc uintptr) *Func
 // runtime/extern.go:68:func funcline_go(*Func, uintptr) (string, int)
 // runtime/extern.go:71:func mid() uint32
 // runtime/pprof/pprof.go:667:func runtime_cyclesPerSecond() int64
