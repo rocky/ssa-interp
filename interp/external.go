@@ -8,7 +8,6 @@ package interp
 // external or because they use "unsafe" or "reflect" operations.
 
 import (
-	"math"
 	"os"
 	"runtime"
 	"syscall"
@@ -81,13 +80,18 @@ var externals = map[string]externalFn{
 	"math.Hypot":                      ext۰math۰Hypot,
 	"math.Ldexp":                      ext۰math۰Ldexp,
 	"math.Log":                        ext۰math۰Log,
+	"math.Log10":                      ext۰math۰Log10,
 	"math.Log1p":                      ext۰math۰Log1p,
 	"math.Max":                        ext۰math۰Max,
 	"math.Min":                        ext۰math۰Min,
 	"math.Mod":                        ext۰math۰Mod,
 	"math.Modf":                       ext۰math۰Modf,
+	"math.Remainder":                  ext۰math۰Remainder,
+	"math.Sin":                        ext۰math۰Sin,
 	"math.Sincos":                     ext۰math۰Sincos,
 	"math.Sqrt":                       ext۰math۰Sqrt,
+	"math.Tan":                        ext۰math۰Tan,
+	"math.Trunc":                      ext۰math۰Trunc,
 	"runtime/debug.function":          ext۰debug۰function,
 	"runtime/debug.PrintStack":        ext۰debug۰PrintStack,
 	// "(big.nat).shl":                   ext۰big۰shl,
@@ -194,117 +198,6 @@ func ext۰bytes۰IndexByte(fr *Frame, args []Value) Value {
 
 func ext۰crc32۰haveSSE42(fr *Frame, args []Value) Value {
 	return false
-}
-
-func ext۰math۰Float64frombits(fr *Frame, args []Value) Value {
-	return math.Float64frombits(args[0].(uint64))
-}
-
-func ext۰math۰Float64bits(fr *Frame, args []Value) Value {
-	return math.Float64bits(args[0].(float64))
-}
-
-func ext۰math۰Float32frombits(fr *Frame, args []Value) Value {
-	return math.Float32frombits(args[0].(uint32))
-}
-
-func ext۰math۰Abs(fr *Frame, args []Value) Value {
-	return math.Abs(args[0].(float64))
-}
-
-func ext۰math۰Acos(fr *Frame, args []Value) Value {
-	return math.Acos(args[0].(float64))
-}
-
-func ext۰math۰Asin(fr *Frame, args []Value) Value {
-	return math.Asin(args[0].(float64))
-}
-
-func ext۰math۰Atan(fr *Frame, args []Value) Value {
-	return math.Atan(args[0].(float64))
-}
-
-func ext۰math۰Atan2(fr *Frame, args []Value) Value {
-	return math.Atan2(args[0].(float64), args[1].(float64))
-}
-
-func ext۰math۰Ceil(fr *Frame, args []Value) Value {
-	return math.Ceil(args[0].(float64))
-}
-
-func ext۰math۰Cos(fr *Frame, args []Value) Value {
-	return math.Cos(args[0].(float64))
-}
-
-func ext۰math۰Dim(fr *Frame, args []Value) Value {
-	return math.Dim(args[0].(float64), args[1].(float64))
-}
-
-func ext۰math۰Exp(fr *Frame, args []Value) Value {
-	return math.Exp(args[0].(float64))
-}
-
-func ext۰math۰Expm1(fr *Frame, args []Value) Value {
-	return math.Expm1(args[0].(float64))
-}
-
-func ext۰math۰Float32bits(fr *Frame, args []Value) Value {
-	return math.Float32bits(args[0].(float32))
-}
-
-func ext۰math۰Floor(fr *Frame, args []Value) Value {
-	return math.Floor(args[0].(float64))
-}
-
-func ext۰math۰Frexp(fr *Frame, args []Value) Value {
-	frac, int := math.Frexp(args[0].(float64))
-	return tuple{frac, int}
-}
-
-func ext۰math۰Hypot(fr *Frame, args []Value) Value {
-	return math.Hypot(args[0].(float64), args[1].(float64))
-}
-
-func ext۰math۰Ldexp(fr *Frame, args []Value) Value {
-	return math.Ldexp(args[0].(float64), args[1].(int))
-}
-
-func ext۰math۰Log(fr *Frame, args []Value) Value {
-	return math.Log(args[0].(float64))
-}
-
-func ext۰math۰Log1p(fr *Frame, args []Value) Value {
-	return math.Log1p(args[0].(float64))
-}
-
-func ext۰math۰Log2(fr *Frame, args []Value) Value {
-	return math.Log2(args[0].(float64))
-}
-
-func ext۰math۰Max(fn *Frame, args []Value) Value {
-	return math.Max(args[0].(float64), args[1].(float64))
-}
-
-func ext۰math۰Min(fn *Frame, args []Value) Value {
-	return math.Min(args[0].(float64), args[1].(float64))
-}
-
-func ext۰math۰Mod(fn *Frame, args []Value) Value {
-	return math.Mod(args[0].(float64), args[1].(float64))
-}
-
-func ext۰math۰Modf(fn *Frame, args []Value) Value {
-	int, frac := math.Modf(args[0].(float64))
-	return tuple{int, frac}
-}
-
-func ext۰math۰Sqrt(fr *Frame, args []Value) Value {
-	return math.Sqrt(args[0].(float64))
-}
-
-func ext۰math۰Sincos(fr *Frame, args []Value) Value {
-	sin, cos := math.Sincos(args[0].(float64))
-	return tuple{sin, cos}
 }
 
 func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
@@ -471,12 +364,6 @@ func valueToBytes(v Value) []byte {
 // math/big/arith_decl.go:17:func addMulVVW(z, x []Word, y Word) (c Word)
 // math/big/arith_decl.go:18:func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
 // math/big/arith_decl.go:19:func bitLen(x Word) (n int)
-// math/exp.go:135:func Exp2(x float64) float64
-// math/log10.go:9:func Log10(x float64) float64
-// math/remainder.go:37:func Remainder(x, y float64) float64
-// math/sin.go:174:func Sin(x float64) float64
-// math/sincos.go:15:func Sincos(x float64) (sin, cos float64)
-// math/tan.go:82:func Tan(x float64) float64
 // os/file_posix.go:14:func sigpipe() // implemented in package runtime
 // os/signal/signal_unix.go:15:func signal_enable(uint32)
 // os/signal/signal_unix.go:16:func signal_recv() uint32
