@@ -73,12 +73,20 @@ var externals = map[string]externalFn{
 	"math.Atan2":                      ext۰math۰Atan2,
 	"math.Ceil":                       ext۰math۰Ceil,
 	"math.Cos":                        ext۰math۰Cos,
+	"math.Dim":                        ext۰math۰Dim,
 	"math.Exp":                        ext۰math۰Exp,
+	"math.Expm1":                      ext۰math۰Expm1,
+	"math.Floor":                      ext۰math۰Floor,
 	"math.Frexp":                      ext۰math۰Frexp,
+	"math.Hypot":                      ext۰math۰Hypot,
 	"math.Ldexp":                      ext۰math۰Ldexp,
 	"math.Log":                        ext۰math۰Log,
 	"math.Log1p":                      ext۰math۰Log1p,
 	"math.Max":                        ext۰math۰Max,
+	"math.Min":                        ext۰math۰Min,
+	"math.Mod":                        ext۰math۰Mod,
+	"math.Modf":                       ext۰math۰Modf,
+	"math.Sincos":                     ext۰math۰Sincos,
 	"math.Sqrt":                       ext۰math۰Sqrt,
 	"runtime/debug.function":          ext۰debug۰function,
 	"runtime/debug.PrintStack":        ext۰debug۰PrintStack,
@@ -91,7 +99,6 @@ var externals = map[string]externalFn{
 	"math.Float64bits":                ext۰math۰Float64bits,
 	"math.Float64frombits":            ext۰math۰Float64frombits,
 	"math.Log2":                       ext۰math۰Log2,
-	"math.Min":                        ext۰math۰Min,
 	"os.Exit":                         ext۰os۰Exit,
 	"reflect.New":                     ext۰reflect۰New,
 	"reflect.TypeOf":                  ext۰reflect۰TypeOf,
@@ -229,8 +236,24 @@ func ext۰math۰Cos(fr *Frame, args []Value) Value {
 	return math.Cos(args[0].(float64))
 }
 
+func ext۰math۰Dim(fr *Frame, args []Value) Value {
+	return math.Dim(args[0].(float64), args[1].(float64))
+}
+
 func ext۰math۰Exp(fr *Frame, args []Value) Value {
 	return math.Exp(args[0].(float64))
+}
+
+func ext۰math۰Expm1(fr *Frame, args []Value) Value {
+	return math.Expm1(args[0].(float64))
+}
+
+func ext۰math۰Float32bits(fr *Frame, args []Value) Value {
+	return math.Float32bits(args[0].(float32))
+}
+
+func ext۰math۰Floor(fr *Frame, args []Value) Value {
+	return math.Floor(args[0].(float64))
 }
 
 func ext۰math۰Frexp(fr *Frame, args []Value) Value {
@@ -238,8 +261,8 @@ func ext۰math۰Frexp(fr *Frame, args []Value) Value {
 	return tuple{frac, int}
 }
 
-func ext۰math۰Float32bits(fr *Frame, args []Value) Value {
-	return math.Float32bits(args[0].(float32))
+func ext۰math۰Hypot(fr *Frame, args []Value) Value {
+	return math.Hypot(args[0].(float64), args[1].(float64))
 }
 
 func ext۰math۰Ldexp(fr *Frame, args []Value) Value {
@@ -266,8 +289,22 @@ func ext۰math۰Min(fn *Frame, args []Value) Value {
 	return math.Min(args[0].(float64), args[1].(float64))
 }
 
+func ext۰math۰Mod(fn *Frame, args []Value) Value {
+	return math.Mod(args[0].(float64), args[1].(float64))
+}
+
+func ext۰math۰Modf(fn *Frame, args []Value) Value {
+	int, frac := math.Modf(args[0].(float64))
+	return tuple{int, frac}
+}
+
 func ext۰math۰Sqrt(fr *Frame, args []Value) Value {
 	return math.Sqrt(args[0].(float64))
+}
+
+func ext۰math۰Sincos(fr *Frame, args []Value) Value {
+	sin, cos := math.Sincos(args[0].(float64))
+	return tuple{sin, cos}
 }
 
 func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
@@ -434,15 +471,8 @@ func valueToBytes(v Value) []byte {
 // math/big/arith_decl.go:17:func addMulVVW(z, x []Word, y Word) (c Word)
 // math/big/arith_decl.go:18:func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
 // math/big/arith_decl.go:19:func bitLen(x Word) (n int)
-// math/dim.go:13:func Dim(x, y float64) float64
 // math/exp.go:135:func Exp2(x float64) float64
-// math/expm1.go:124:func Expm1(x float64) float64
-// math/floor.go:13:func Floor(x float64) float64
-// math/floor.go:48:func Trunc(x float64) float64
-// math/hypot.go:17:func Hypot(p, q float64) float64
 // math/log10.go:9:func Log10(x float64) float64
-// math/mod.go:21:func Mod(x, y float64) float64
-// math/modf.go:13:func Modf(f float64) (int float64, frac float64)
 // math/remainder.go:37:func Remainder(x, y float64) float64
 // math/sin.go:174:func Sin(x float64) float64
 // math/sincos.go:15:func Sincos(x float64) (sin, cos float64)
