@@ -5,15 +5,51 @@
 package big
 
 // implemented in arith_$GOARCH.s
-func mulWW(x, y Word) (z1, z0 Word)
-func divWW(x1, x0, y Word) (q, r Word)
-func addVV(z, x, y []Word) (c Word)
-func subVV(z, x, y []Word) (c Word)
-func addVW(z, x []Word, y Word) (c Word)
-func subVW(z, x []Word, y Word) (c Word)
-func shlVU(z, x []Word, s uint) (c Word)
-func shrVU(z, x []Word, s uint) (c Word)
-func mulAddVWW(z, x []Word, y, r Word) (c Word)
-func addMulVVW(z, x []Word, y Word) (c Word)
-func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
-func BitLen(x Word) (n int)
+
+func AddVV(z, x, y []Word) (c Word) {
+	return addVV_g(z, x, y)
+}
+
+func AddVW(z, x []Word, y Word) (c Word) {
+	return addVW_g(z, x, y)
+}
+
+func AddMulVVW(z, x []Word, y Word) (c Word) {
+	return addMulVVW_g(z, x, y)
+}
+
+func BitLen(x Word) (n int) {
+	return bitLen_g(x)
+}
+
+func DivWW(x1, x0, y Word) (q, r Word) {
+	return divWW_g(x1, x0, y)
+}
+
+func DivWVW(z []Word, xn Word, x []Word, y Word) (r Word) {
+	return divWVW_g(z, xn, x, y)
+}
+
+func MulAddVWW(z, x []Word, y, r Word) (c Word) {
+	return mulAddVWW_g(z, x, y, r)
+}
+
+func MulWW(x, y Word) (z1, z0 Word) {
+	return mulWW_g(x, y)
+}
+
+func ShlVU(z, x []Word, s uint) (c Word) {
+	return shlVU_g(z, x, s)
+}
+
+func ShrVU(z, x []Word, s uint) (c Word) {
+	return shrVU_g(z, x, s)
+}
+
+func SubVV(z, x, y []Word) (c Word) {
+	return subVV_g(z, x, y)
+}
+
+func SubVW(z, x []Word, y Word) (c Word) {
+	return subVW_g(z, x, y)
+}

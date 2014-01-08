@@ -70,7 +70,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
 
 // z1<<_W + z0 = x*y + c
 func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
-	z1, zz0 := mulWW(x, y)
+	z1, zz0 := MulWW(x, y)
 	if z0 = zz0 + c; z0 < zz0 {
 		z1++
 	}
@@ -104,12 +104,12 @@ func bitLen_g(x Word) (n int) {
 // The result is the integer n for which 2^n <= x < 2^(n+1).
 // If x == 0, the result is -1.
 func log2(x Word) int {
-	return BitLen(x) - 1
+	return bitLen_g(x) - 1
 }
 
 // Number of leading zeros in x.
 func leadingZeros(x Word) uint {
-	return uint(_W - BitLen(x))
+	return uint(_W - bitLen_g(x))
 }
 
 // q = (u1<<_W + u0 - r)/y

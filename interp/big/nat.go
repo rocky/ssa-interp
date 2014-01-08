@@ -130,9 +130,9 @@ func (z nat) add(x, y nat) nat {
 	// m > 0
 
 	z = z.make(m + 1)
-	c := addVV(z[0:n], x, y)
+	c := addVV_g(z[0:n], x, y)
 	if m > n {
-		c = addVW(z[n:m], x[n:], c)
+		c = addVW_g(z[n:m], x[n:], c)
 	}
 	z[m] = c
 
@@ -156,9 +156,9 @@ func (z nat) sub(x, y nat) nat {
 	// m > 0
 
 	z = z.make(m)
-	c := subVV(z[0:n], x, y)
+	c := subVV_g(z[0:n], x, y)
 	if m > n {
-		c = subVW(z[n:], x[n:], c)
+		c = subVW_g(z[n:], x[n:], c)
 	}
 	if c != 0 {
 		panic("underflow")
@@ -202,7 +202,7 @@ func (z nat) mulAddWW(x nat, y, r Word) nat {
 	// m > 0
 
 	z = z.make(m + 1)
-	z[m] = mulAddVWW(z[0:m], x, y, r)
+	z[m] = mulAddVWW_g(z[0:m], x, y, r)
 
 	return z.norm()
 }
@@ -213,7 +213,7 @@ func basicMul(z, x, y nat) {
 	z[0 : len(x)+len(y)].clear() // initialize z
 	for i, d := range y {
 		if d != 0 {
-			z[len(x)+i] = addMulVVW(z[i:i+len(x)], x, d)
+			z[len(x)+i] = addMulVVW_g(z[i:i+len(x)], x, d)
 		}
 	}
 }
@@ -221,15 +221,15 @@ func basicMul(z, x, y nat) {
 // Fast version of z[0:n+n>>1].add(z[0:n+n>>1], x[0:n]) w/o bounds checks.
 // Factored out for readability - do not use outside karatsuba.
 func karatsubaAdd(z, x nat, n int) {
-	if c := addVV(z[0:n], z, x); c != 0 {
-		addVW(z[n:n+n>>1], z[n:], c)
+	if c := addVV_g(z[0:n], z, x); c != 0 {
+		addVW_g(z[n:n+n>>1], z[n:], c)
 	}
 }
 
 // Like karatsubaAdd, but does subtract.
 func karatsubaSub(z, x nat, n int) {
-	if c := subVV(z[0:n], z, x); c != 0 {
-		subVW(z[n:n+n>>1], z[n:], c)
+	if c := subVV_g(z[0:n], z, x); c != 0 {
+		subVW_g(z[n:n+n>>1], z[n:], c)
 	}
 }
 
@@ -298,16 +298,16 @@ func karatsuba(z, x, y nat) {
 	// compute xd (or the negative value if underflow occurs)
 	s := 1 // sign of product xd*yd
 	xd := z[2*n : 2*n+n2]
-	if subVV(xd, x1, x0) != 0 { // x1-x0
+	if subVV_g(xd, x1, x0) != 0 { // x1-x0
 		s = -s
-		subVV(xd, x0, x1) // x0-x1
+		subVV_g(xd, x0, x1) // x0-x1
 	}
 
 	// compute yd (or the negative value if underflow occurs)
 	yd := z[2*n+n2 : 3*n]
-	if subVV(yd, y0, y1) != 0 { // y0-y1
+	if subVV_g(yd, y0, y1) != 0 { // y0-y1
 		s = -s
-		subVV(yd, y1, y0) // y1-y0
+		subVV_g(yd, y1, y0) // y1-y0
 	}
 
 	// p = (x1-x0)*(y0-y1) == x1*y0 - x1*y1 - x0*y0 + x0*y1 for s > 0
@@ -347,10 +347,10 @@ func alias(x, y nat) bool {
 // slice, and we don't need to normalize z after each addition)
 func addAt(z, x nat, i int) {
 	if n := len(x); n > 0 {
-		if c := addVV(z[i:i+n], z[i:], x); c != 0 {
+		if c := addVV_g(z[i:i+n], z[i:], x); c != 0 {
 			j := i + n
 			if j < len(z) {
-				addVW(z[j:], z[j:], c)
+				addVW_g(z[j:], z[j:], c)
 			}
 		}
 	}
@@ -493,7 +493,7 @@ func (z nat) divW(x nat, y Word) (q nat, r Word) {
 	}
 	// m > 0
 	z = z.make(m)
-	r = divWVW(z, 0, x, y)
+	r = divWVW_g(z, 0, x, y)
 	q = z.norm()
 	return
 }
@@ -550,10 +550,10 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	if shift > 0 {
 		// do not modify v, it may be used by another goroutine simultaneously
 		v1 := make(nat, n)
-		shlVU(v1, v, shift)
+		shlVU_g(v1, v, shift)
 		v = v1
 	}
-	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
+	u[len(uIn)] = shlVU_g(u[0:len(uIn)], uIn, shift)
 
 	// D2.
 	for j := m; j >= 0; j-- {
@@ -561,10 +561,10 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 		qhat := Word(_M)
 		if u[j+n] != v[n-1] {
 			var rhat Word
-			qhat, rhat = divWW(u[j+n], u[j+n-1], v[n-1])
+			qhat, rhat = divWW_g(u[j+n], u[j+n-1], v[n-1])
 
 			// x1 | x2 = q̂v_{n-2}
-			x1, x2 := mulWW(qhat, v[n-2])
+			x1, x2 := mulWW_g(qhat, v[n-2])
 			// test if q̂v_{n-2} > br̂ + u_{j+n-2}
 			for greaterThan(x1, x2, rhat, u[j+n-2]) {
 				qhat--
@@ -574,16 +574,16 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 				if rhat < prevRhat {
 					break
 				}
-				x1, x2 = mulWW(qhat, v[n-2])
+				x1, x2 = mulWW_g(qhat, v[n-2])
 			}
 		}
 
 		// D4.
-		qhatv[n] = mulAddVWW(qhatv[0:n], v, qhat, 0)
+		qhatv[n] = mulAddVWW_g(qhatv[0:n], v, qhat, 0)
 
-		c := subVV(u[j:j+len(qhatv)], u[j:], qhatv)
+		c := subVV_g(u[j:j+len(qhatv)], u[j:], qhatv)
 		if c != 0 {
-			c := addVV(u[j:j+n], u[j:], v)
+			c := addVV_g(u[j:j+n], u[j:], v)
 			u[j+n] += c
 			qhat--
 		}
@@ -592,7 +592,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	}
 
 	q = q.norm()
-	shrVU(u, u, shift)
+	shrVU_g(u, u, shift)
 	r = u.norm()
 
 	return q, r
@@ -601,7 +601,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 // Length of x in bits. x must be normalized.
 func (x nat) bitLen() int {
 	if i := len(x) - 1; i >= 0 {
-		return i*_W + BitLen(x[i])
+		return i*_W + bitLen_g(x[i])
 	}
 	return 0
 }
@@ -968,7 +968,7 @@ func divisors(m int, b Word, ndigits int, bb Word) []divisor {
 
 				// optimization: exploit aggregated extra bits in macro blocks
 				larger = nat(nil).set(table[i].bbb)
-				for mulAddVWW(larger, larger, b, 0) == 0 {
+				for mulAddVWW_g(larger, larger, b, 0) == 0 {
 					table[i].bbb = table[i].bbb.set(larger)
 					table[i].ndigits++
 				}
@@ -1047,7 +1047,7 @@ func (z nat) shl(x nat, s uint) nat {
 
 	n := m + int(s/_W)
 	z = z.make(n + 1)
-	z[n] = shlVU(z[n-m:n], x, s%_W)
+	z[n] = shlVU_g(z[n-m:n], x, s%_W)
 	z[0 : n-m].clear()
 
 	return z.norm()
@@ -1063,7 +1063,7 @@ func (z nat) shr(x nat, s uint) nat {
 	// n > 0
 
 	z = z.make(n)
-	shrVU(z, x[m-n:], s%_W)
+	shrVU_g(z, x[m-n:], s%_W)
 
 	return z.norm()
 }
@@ -1186,7 +1186,7 @@ func (x nat) modW(d Word) (r Word) {
 	// TODO(agl): we don't actually need to store the q value.
 	var q nat
 	q = q.make(len(x))
-	return divWVW(q, 0, x, d)
+	return divWVW_g(q, 0, x, d)
 }
 
 // random creates a random integer in [0..limit), using the space in z if
