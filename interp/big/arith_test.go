@@ -87,19 +87,19 @@ func TestFunVV(t *testing.T) {
 	for _, a := range sumVV {
 		arg := a
 		testFunVV(t, "addVV_g", addVV_g, arg)
-		testFunVV(t, "AddVV", AddVV, arg)
+		testFunVV(t, "addVV", addVV, arg)
 
 		arg = argVV{a.z, a.y, a.x, a.c}
 		testFunVV(t, "addVV_g symmetric", addVV_g, arg)
-		testFunVV(t, "AddVV symmetric", AddVV, arg)
+		testFunVV(t, "addVV symmetric", addVV, arg)
 
 		arg = argVV{a.x, a.z, a.y, a.c}
 		testFunVV(t, "subVV_g", subVV_g, arg)
-		testFunVV(t, "subVV", SubVV, arg)
+		testFunVV(t, "subVV", subVV, arg)
 
 		arg = argVV{a.y, a.z, a.x, a.c}
 		testFunVV(t, "subVV_g symmetric", subVV_g, arg)
-		testFunVV(t, "subVV symmetric", SubVV, arg)
+		testFunVV(t, "subVV symmetric", subVV, arg)
 	}
 }
 
@@ -129,16 +129,16 @@ func benchmarkFunVV(b *testing.B, f funVV, n int) {
 	}
 }
 
-func BenchmarkAddVV_1(b *testing.B)   { benchmarkFunVV(b, AddVV, 1) }
-func BenchmarkAddVV_2(b *testing.B)   { benchmarkFunVV(b, AddVV, 2) }
-func BenchmarkAddVV_3(b *testing.B)   { benchmarkFunVV(b, AddVV, 3) }
-func BenchmarkAddVV_4(b *testing.B)   { benchmarkFunVV(b, AddVV, 4) }
-func BenchmarkAddVV_5(b *testing.B)   { benchmarkFunVV(b, AddVV, 5) }
-func BenchmarkAddVV_1e1(b *testing.B) { benchmarkFunVV(b, AddVV, 1e1) }
-func BenchmarkAddVV_1e2(b *testing.B) { benchmarkFunVV(b, AddVV, 1e2) }
-func BenchmarkAddVV_1e3(b *testing.B) { benchmarkFunVV(b, AddVV, 1e3) }
-func BenchmarkAddVV_1e4(b *testing.B) { benchmarkFunVV(b, AddVV, 1e4) }
-func BenchmarkAddVV_1e5(b *testing.B) { benchmarkFunVV(b, AddVV, 1e5) }
+func BenchmarkAddVV_1(b *testing.B)   { benchmarkFunVV(b, addVV, 1) }
+func BenchmarkAddVV_2(b *testing.B)   { benchmarkFunVV(b, addVV, 2) }
+func BenchmarkAddVV_3(b *testing.B)   { benchmarkFunVV(b, addVV, 3) }
+func BenchmarkAddVV_4(b *testing.B)   { benchmarkFunVV(b, addVV, 4) }
+func BenchmarkAddVV_5(b *testing.B)   { benchmarkFunVV(b, addVV, 5) }
+func BenchmarkAddVV_1e1(b *testing.B) { benchmarkFunVV(b, addVV, 1e1) }
+func BenchmarkAddVV_1e2(b *testing.B) { benchmarkFunVV(b, addVV, 1e2) }
+func BenchmarkAddVV_1e3(b *testing.B) { benchmarkFunVV(b, addVV, 1e3) }
+func BenchmarkAddVV_1e4(b *testing.B) { benchmarkFunVV(b, addVV, 1e4) }
+func BenchmarkAddVV_1e5(b *testing.B) { benchmarkFunVV(b, addVV, 1e5) }
 
 type funVW func(z, x []Word, y Word) (c Word)
 type argVW struct {
@@ -226,28 +226,28 @@ func TestFunVW(t *testing.T) {
 	for _, a := range sumVW {
 		arg := a
 		testFunVW(t, "addVW_g", addVW_g, arg)
-		testFunVW(t, "addVW", AddVW, arg)
+		testFunVW(t, "addVW", addVW, arg)
 
 		arg = argVW{a.x, a.z, a.y, a.c}
 		testFunVW(t, "subVW_g", subVW_g, arg)
-		testFunVW(t, "subVW", SubVW, arg)
+		testFunVW(t, "subVW", subVW, arg)
 	}
 
 	shlVW_g := makeFunVW(shlVU_g)
-	shlVW := makeFunVW(ShlVU)
+	shlVW := makeFunVW(shlVU)
 	for _, a := range lshVW {
 		arg := a
 		testFunVW(t, "shlVU_g", shlVW_g, arg)
 		testFunVW(t, "shlVU", shlVW, arg)
 	}
 
-	// shrVW_g := makeFunVW(shrVU_g)
-	// shrVW := makeFunVW(ShrVU)
-	// for _, a := range rshVW {
-	// 	arg := a
-	// 	testFunVW(t, "shrVU_g", shrVW_g, arg)
-	// 	testFunVW(t, "shrVU", ShrVW_g, arg)
-	// }
+	shrVW_g := makeFunVW(shrVU_g)
+	shrVW := makeFunVW(shrVU)
+	for _, a := range rshVW {
+		arg := a
+		testFunVW(t, "shrVU_g", shrVW_g, arg)
+		testFunVW(t, "shrVU", shrVW, arg)
+	}
 }
 
 func benchmarkFunVW(b *testing.B, f funVW, n int) {
@@ -261,16 +261,16 @@ func benchmarkFunVW(b *testing.B, f funVW, n int) {
 	}
 }
 
-func BenchmarkAddVW_1(b *testing.B)   { benchmarkFunVW(b, AddVW, 1) }
-func BenchmarkAddVW_2(b *testing.B)   { benchmarkFunVW(b, AddVW, 2) }
-func BenchmarkAddVW_3(b *testing.B)   { benchmarkFunVW(b, AddVW, 3) }
-func BenchmarkAddVW_4(b *testing.B)   { benchmarkFunVW(b, AddVW, 4) }
-func BenchmarkAddVW_5(b *testing.B)   { benchmarkFunVW(b, AddVW, 5) }
-func BenchmarkAddVW_1e1(b *testing.B) { benchmarkFunVW(b, AddVW, 1e1) }
-func BenchmarkAddVW_1e2(b *testing.B) { benchmarkFunVW(b, AddVW, 1e2) }
-func BenchmarkAddVW_1e3(b *testing.B) { benchmarkFunVW(b, AddVW, 1e3) }
-func BenchmarkAddVW_1e4(b *testing.B) { benchmarkFunVW(b, AddVW, 1e4) }
-func BenchmarkAddVW_1e5(b *testing.B) { benchmarkFunVW(b, AddVW, 1e5) }
+func BenchmarkAddVW_1(b *testing.B)   { benchmarkFunVW(b, addVW, 1) }
+func BenchmarkAddVW_2(b *testing.B)   { benchmarkFunVW(b, addVW, 2) }
+func BenchmarkAddVW_3(b *testing.B)   { benchmarkFunVW(b, addVW, 3) }
+func BenchmarkAddVW_4(b *testing.B)   { benchmarkFunVW(b, addVW, 4) }
+func BenchmarkAddVW_5(b *testing.B)   { benchmarkFunVW(b, addVW, 5) }
+func BenchmarkAddVW_1e1(b *testing.B) { benchmarkFunVW(b, addVW, 1e1) }
+func BenchmarkAddVW_1e2(b *testing.B) { benchmarkFunVW(b, addVW, 1e2) }
+func BenchmarkAddVW_1e3(b *testing.B) { benchmarkFunVW(b, addVW, 1e3) }
+func BenchmarkAddVW_1e4(b *testing.B) { benchmarkFunVW(b, addVW, 1e4) }
+func BenchmarkAddVW_1e5(b *testing.B) { benchmarkFunVW(b, addVW, 1e5) }
 
 type funVWW func(z, x []Word, y, r Word) (c Word)
 type argVWW struct {
@@ -349,12 +349,12 @@ func TestFunVWW(t *testing.T) {
 	for _, a := range prodVWW {
 		arg := a
 		testFunVWW(t, "mulAddVWW_g", mulAddVWW_g, arg)
-		testFunVWW(t, "MulAddVWW", MulAddVWW, arg)
+		testFunVWW(t, "mulAddVWW", mulAddVWW, arg)
 
 		if a.y != 0 && a.r < a.y {
 			arg := argWVW{a.x, a.c, a.z, a.y, a.r}
 			testFunWVW(t, "divWVW_g", divWVW_g, arg)
-			testFunWVW(t, "divWVW", DivWVW, arg)
+			testFunWVW(t, "divWVW", divWVW, arg)
 		}
 	}
 }
@@ -403,7 +403,7 @@ func benchmarkAddMulVVW(b *testing.B, n int) {
 	b.SetBytes(int64(n * _W))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		AddMulVVW(z, x, y)
+		addMulVVW(z, x, y)
 	}
 }
 
@@ -429,7 +429,7 @@ func testWordBitLen(t *testing.T, fname string, f func(Word) int) {
 }
 
 func TestWordBitLen(t *testing.T) {
-	testWordBitLen(t, "bitLen", BitLen)
+	testWordBitLen(t, "bitLen", bitLen)
 	testWordBitLen(t, "bitLen_g", bitLen_g)
 }
 
@@ -437,7 +437,7 @@ func TestWordBitLen(t *testing.T) {
 func benchmarkBitLenN(b *testing.B, nbits uint) {
 	testword := Word((uint64(1) << nbits) - 1)
 	for i := 0; i < b.N; i++ {
-		BitLen(testword)
+		bitLen(testword)
 	}
 }
 

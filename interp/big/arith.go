@@ -14,7 +14,11 @@ type Word uintptr
 const (
 	// Compute the size _S of a Word in bytes.
 	_m    = ^Word(0)
-	_logS = _m>>8&1 + _m>>16&1 + _m>>32&1
+
+	// FIXME: when go (go.tools) issue #7080 is fixed
+	// _logS = _m>>8&1 + _m>>16&1 + _m>>32&1
+	_logS = 2
+
 	_S    = 1 << _logS
 
 	_W = _S << 3 // word size in bits
@@ -70,7 +74,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
 
 // z1<<_W + z0 = x*y + c
 func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
-	z1, zz0 := MulWW(x, y)
+	z1, zz0 := mulWW(x, y)
 	if z0 = zz0 + c; z0 < zz0 {
 		z1++
 	}
@@ -104,12 +108,12 @@ func bitLen_g(x Word) (n int) {
 // The result is the integer n for which 2^n <= x < 2^(n+1).
 // If x == 0, the result is -1.
 func log2(x Word) int {
-	return bitLen_g(x) - 1
+	return bitLen(x) - 1
 }
 
 // Number of leading zeros in x.
 func leadingZeros(x Word) uint {
-	return uint(_W - bitLen_g(x))
+	return uint(_W - bitLen(x))
 }
 
 // q = (u1<<_W + u0 - r)/y

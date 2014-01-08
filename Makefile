@@ -15,8 +15,12 @@ builder:
 	go install
 
 #: Build the interpeter
-interp: builder
+interp: builder big
 	(cd interp && go install)
+
+#: Build our replacement for math/big
+big:
+	(cd interp/big && go install)
 
 #: Build the debugger
 gub: interp

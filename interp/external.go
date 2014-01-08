@@ -92,6 +92,11 @@ var externals = map[string]externalFn{
 	"math.Sqrt":                       ext۰math۰Sqrt,
 	"math.Tan":                        ext۰math۰Tan,
 	"math.Trunc":                      ext۰math۰Trunc,
+
+	"math/big.bitLen":                 ext۰math۰big۰bitLen,
+	"math/big.mulAddVWW":              ext۰math۰big۰mulAddVWW,
+	"math/big.shlVU":                  ext۰math۰big۰shlVU,
+
 	"runtime/debug.function":          ext۰debug۰function,
 	"runtime/debug.PrintStack":        ext۰debug۰PrintStack,
 	// "(big.nat).shl":                   ext۰big۰shl,
@@ -358,7 +363,6 @@ func valueToBytes(v Value) []byte {
 // math/big/arith_decl.go:11:func subVV(z, x, y []Word) (c Word)
 // math/big/arith_decl.go:12:func addVW(z, x []Word, y Word) (c Word)
 // math/big/arith_decl.go:13:func subVW(z, x []Word, y Word) (c Word)
-// math/big/arith_decl.go:14:func shlVU(z, x []Word, s uint) (c Word)
 // math/big/arith_decl.go:15:func shrVU(z, x []Word, s uint) (c Word)
 // math/big/arith_decl.go:16:func mulAddVWW(z, x []Word, y, r Word) (c Word)
 // math/big/arith_decl.go:17:func addMulVVW(z, x []Word, y Word) (c Word)

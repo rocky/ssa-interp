@@ -9,6 +9,7 @@ package interp
 
 import (
 	"math"
+	"github.com/rocky/ssa-interp/interp/big"
 )
 
 func ext۰math۰Float64frombits(fr *Frame, args []Value) Value {
@@ -141,3 +142,41 @@ func ext۰math۰Tan(fr *Frame, args []Value) Value {
 func ext۰math۰Trunc(fr *Frame, args []Value) Value {
 	return math.Trunc(args[0].(float64))
 }
+
+func ext۰math۰big۰bitLen(fr *Frame, args []Value) Value {
+	return big.BitLen(args[0].(big.Word))
+}
+
+func ext۰math۰big۰mulAddVWW(fr *Frame, args []Value) Value {
+	return big.MulAddVWW(args[0].([]big.Word), args[1].([]big.Word),
+		args[2].(big.Word), args[3].(big.Word))
+}
+
+func ext۰math۰big۰shlVU(fr *Frame, args []Value) Value {
+
+	z := []big.Word {}
+	za := args[0].([]Value)
+	for _, v := range za {
+		z = append(z, v.(big.Word))
+	}
+	x := []big.Word {}
+	xa := args[1].([]Value)
+	for _, v := range xa {
+		x = append(x, v.(big.Word))
+	}
+	return big.ShlVU(z, x, args[2].(uint))
+}
+
+// The set of remaining native functions we need to implement (as needed):
+
+// math/big/arith_decl.go:8:func mulWW(x, y Word) (z1, z0 Word)
+// math/big/arith_decl.go:9:func divWW(x1, x0, y Word) (q, r Word)
+// math/big/arith_decl.go:10:func addVV(z, x, y []Word) (c Word)
+// math/big/arith_decl.go:11:func subVV(z, x, y []Word) (c Word)
+// math/big/arith_decl.go:12:func addVW(z, x []Word, y Word) (c Word)
+// math/big/arith_decl.go:13:func subVW(z, x []Word, y Word) (c Word)
+// math/big/arith_decl.go:14:func shlVU(z, x []Word, s uint) (c Word)
+// math/big/arith_decl.go:15:func shrVU(z, x []Word, s uint) (c Word)
+// math/big/arith_decl.go:16:func mulAddVWW(z, x []Word, y, r Word) (c Word)
+// math/big/arith_decl.go:17:func addMulVVW(z, x []Word, y Word) (c Word)
+// math/big/arith_decl.go:18:func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
