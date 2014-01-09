@@ -1,10 +1,10 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2014 Rocky Bernstein.
 
 package gubcmd
 
 import (
 	"github.com/rocky/ssa-interp/gub"
-	"github.com/rocky/ssa-interp/interp"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func init() {
@@ -44,7 +44,7 @@ func EvalCommand(args []string) {
 				} else {
 					gub.Section("Kind = Type = %v", kind)
 				}
-				gub.Msg("%s", interp.ToInspect(value.Interface(), nil))
+				gub.Msg("%s", spew.Sdump(value.Interface(), nil))
 			} else {
 				if len(expr) == 0 {
 					gub.Section("Kind=Slice")
@@ -56,7 +56,7 @@ func EvalCommand(args []string) {
 						if v.Interface() == nil {
 							gub.MsgNoCr("nil")
 						} else {
-							gub.MsgNoCr("%v", v.Interface())
+							gub.MsgNoCr(spew.Sdump(v.Interface()))
 						}
 						if i < size-1 { gub.MsgNoCr(", ") }
 					}

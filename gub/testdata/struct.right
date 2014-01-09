@@ -23,7 +23,18 @@ record is in the environment at scope 3
 # eval record
 Kind = struct
 Type = interp.Structure
-{first: "Hello,", second: "World!",}
+(interp.Structure) {
+ fields: ([]interp.Value) {
+  (string) "Hello,",
+  (string) "World!"
+ },
+ fieldnames: ([]string) {
+  (string) "first",
+  (string) "second"
+ }
+}
+(interface {}) <nil>
+
 # next
 Step over...
 --- main()
@@ -36,11 +47,26 @@ testdata/struct.go:12:2
 # eval record
 Kind = struct
 Type = interp.Structure
-{first: "Hello,", second: "World!",}
+(interp.Structure) {
+ fields: ([]interp.Value) {
+  (string) "Hello,",
+  (string) "World!"
+ },
+ fieldnames: ([]string) {
+  (string) "first",
+  (string) "second"
+ }
+}
+(interface {}) <nil>
+
 # eval record.first
 Kind = Type = string
-"Hello,"
+(string) "Hello,"
+(interface {}) <nil>
+
 # eval record.second
 Kind = Type = string
-"World!"
+(string) "World!"
+(interface {}) <nil>
+
 gub: That's all folks...

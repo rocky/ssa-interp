@@ -17,16 +17,24 @@ Step over...
 testdata/expr.go:101:3-35
 # Should be able to see expr
 Kind = Type = string
-"\"quoted\" string with backslash \\ foo "
+(string) "\"quoted\" string with backslash \\ foo "
+(interface {}) <nil>
+
 # -2
 Kind = Type = int64
--2
+(int64) -2
+(interface {}) <nil>
+
 # 5 == 6
 Kind = Type = bool
-false
+(bool) false
+(interface {}) <nil>
+
 # 5 < 6
 Kind = Type = bool
-true
+(bool) true
+(interface {}) <nil>
+
 # 1 << n
 ** Error evaluating expression '1 << n' (n undefined)
 
@@ -43,7 +51,9 @@ exprs is in the environment
 # eval exprs[0]
 Kind = interface
 Type = interp.Value
-"\"quoted\" string with backslash \\"
+(string) "\"quoted\" string with backslash \\"
+(interface {}) <nil>
+
 # eval exprs[100]
 ** Error evaluating expression 'exprs[100]' (slice index out of range)
 
@@ -52,31 +62,48 @@ Type = interp.Value
 
 # eval os.O_RDWR | 4
 Kind = Type = int64
-6
+(int64) 6
+(interface {}) <nil>
+
 # eval os.Args
 Kind = slice
 Type = []interp.Value
-{"main"}
+([]interp.Value) {
+ (string) "main"
+}
+(interface {}) <nil>
+
 # eval os.Args[0]
 Kind = interface
 Type = interp.Value
-"main"
+(string) "main"
+(interface {}) <nil>
+
 # eval "we have: " + exprs[5] + "."
 Kind = Type = string
-"we have: 1+2."
+(string) "we have: 1+2."
+(interface {}) <nil>
+
 # eval len("abc") # -- builtin len() with string
 Kind = Type = int
-3
+(int) 3
+(interface {}) <nil>
+
 # eval len(exprs) # -- builtin len() with array
 Kind = Type = int
-10
+(int) 10
+(interface {}) <nil>
+
 # eval fmt.Println("Hi there!") # -- Eval package fn
 Hi there!
 Kind = Multi-Value
-10, nil
+(int) 10
+, nil
 ## FIXME eval should handle types better
 ## Shouldn't need the int(20) below
 # eval strconv.Atoi("13") + int(20) # -- Eval package fn expression
 Kind = Type = int
-33
+(int) 33
+(interface {}) <nil>
+
 gub: That's all folks...
