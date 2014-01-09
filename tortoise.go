@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"code.google.com/p/go.tools/go/types"
 	"code.google.com/p/go.tools/importer"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
@@ -85,6 +86,17 @@ func main() {
 	args := flag.Args()
 
 	impctx := importer.Config{Build: &build.Default}
+	// TODO(adonovan): make go/types choose its default Sizes from
+	// build.Default or a specified *build.Context.
+	var wordSize int64 = 8
+	switch impctx.Build.GOARCH {
+	case "386", "arm":
+		wordSize = 4
+	}
+	impctx.TypeChecker.Sizes = &types.StdSizes{
+		MaxAlign: 8,
+		WordSize: wordSize,
+	}
 
 	var mode ssa2.BuilderMode = ssa2.NaiveForm
 
@@ -191,8 +203,12 @@ func main() {
 		}
 
 		fmt.Println("Running....")
-		interp.Interpret(main, interpMode, interpTraceMode, main.Object.Path(),
-			prog_args)
+		if runtime.GOARCH != impctx.Build.GOARCH {
+			log.Fatalf("Cross-interpretation is not yet supported (target has GOARCH %s, interpreter has %s).",
+				impctx.Build.GOARCH, runtime.GOARCH)
+		}
+
+		interp.Interpret(main, interpMode, interpTraceMode, impctx.TypeChecker.Sizes, main.Object.Path(), prog_args)
 	} else {
 		fmt.Println(`Built ok, but not running because "-run" option not given`)
 	}

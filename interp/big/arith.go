@@ -15,9 +15,7 @@ const (
 	// Compute the size _S of a Word in bytes.
 	_m    = ^Word(0)
 
-	// FIXME: when go (go.tools) issue #7080 is fixed
-	// _logS = _m>>8&1 + _m>>16&1 + _m>>32&1
-	_logS = 2
+	_logS = _m>>8&1 + _m>>16&1 + _m>>32&1
 
 	_S    = 1 << _logS
 
