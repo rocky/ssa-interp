@@ -157,12 +157,14 @@ func ext۰math۰big۰shlVU(fr *Frame, args []Value) Value {
 	z := []big.Word {}
 	za := args[0].([]Value)
 	for _, v := range za {
-		z = append(z, v.(big.Word))
+		w := big.Word(v.(uintptr))
+		z = append(z, w)
 	}
 	x := []big.Word {}
 	xa := args[1].([]Value)
 	for _, v := range xa {
-		x = append(x, v.(big.Word))
+		w := big.Word(v.(uintptr))
+		x = append(x, w)
 	}
 	return big.ShlVU(z, x, args[2].(uint))
 }

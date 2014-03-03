@@ -38,7 +38,7 @@ import (
 	"sync/atomic"
 
 	"code.google.com/p/go.tools/go/exact"
-	"code.google.com/p/go.tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 type opaqueType struct {

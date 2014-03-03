@@ -4,7 +4,7 @@ package ssa2
 // Currently it checks CFG invariants but little at the instruction level.
 
 import (
-	"code.google.com/p/go.tools/go/types"
+	"github.com/rocky/go-types"
 	"fmt"
 	"io"
 	"os"

@@ -17,8 +17,8 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/importer"
+	"github.com/rocky/go-types"
+	"github.com/rocky/go-importer"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 	"github.com/rocky/ssa-interp/gub"

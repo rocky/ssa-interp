@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"code.google.com/p/go.tools/go/exact"
-	"code.google.com/p/go.tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 // CreateTestMainPackage creates and returns a synthetic "main"

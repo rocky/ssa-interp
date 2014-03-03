@@ -42,8 +42,8 @@ import (
 	"sync"
 	"unsafe"
 
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/go/types/typemap"
+	"github.com/rocky/go-types"
+	"github.com/rocky/go-types/typemap"
 	"github.com/rocky/ssa-interp"
 )
 

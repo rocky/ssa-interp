@@ -50,7 +50,7 @@ import (
 	"runtime"
 	"runtime/debug"
 
-	"code.google.com/p/go.tools/go/types"
+	"github.com/rocky/go-types"
 	"github.com/rocky/ssa-interp"
 )
 

@@ -14,9 +14,9 @@ import (
 	"sync"
 
 	"code.google.com/p/go.tools/go/exact"
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/go/types/typemap"
-	"code.google.com/p/go.tools/importer"
+	"github.com/rocky/go-types"
+	"github.com/rocky/go-types/typemap"
+	"github.com/rocky/go-importer"
 )
 
 // A Program is a partial or complete Go program converted to SSA form.

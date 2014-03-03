@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"code.google.com/p/go.tools/go/types"
-	"code.google.com/p/go.tools/importer"
+	"github.com/rocky/go-types"
+	"github.com/rocky/go-importer"
 	"github.com/rocky/ssa-interp"
 )
 
