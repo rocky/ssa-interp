@@ -6,9 +6,9 @@ go:
 
 script:
   - go get "code.google.com/p/go.tools/go/exact"
-  - go get "code.google.com/p/go.tools/go/types"
+  - go get "github.com/rocky/go-types"
   - go get "code.google.com/p/go.tools/go/types/typemap"
-  - go get "code.google.com/p/go.tools/importer"
+  - go get "gitub-.com/rocky/go-importer"
   - go test -v
   - cd interp
   - go test -v
@@ -17,7 +17,7 @@ script:
   - go get "code.google.com/p/go-columnize"
   - go get "github.com/mgutz/ansi"
   - go get "github.com/rocky/go-eval"
-  - go get "github.com/rocky/go-fish"
+  # - go get "github.com/rocky/go-fish"
   - go build tortoise.go
   - cd gub
   - go build
