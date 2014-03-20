@@ -13,8 +13,8 @@ import (
 	"github.com/rocky/go-types"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"github.com/rocky/go-fish"
-	"github.com/0xfaded/eval"
+	// "github.com/rocky/go-fish"
+	"github.com/rocky/go-eval"
 )
 
 // interp2reflectVal converts between an interp.Value which the
@@ -260,5 +260,7 @@ func init() {
 	eval.SetEvalIdentExprCallback(EvalIdentExpr)
 	eval.SetEvalSelectorExprCallback(EvalSelectorExpr)
 	eval.SetUserConversion(myConvertFunc)
-	evalEnv = repl.MakeEvalEnv()
+	// evalEnv = repl.MakeEvalEnv()
+
+	evalEnv = *makeNullEnv()
 }
