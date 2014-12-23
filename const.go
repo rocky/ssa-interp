@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssa2
 
 // This file defines the Const SSA value type.
 
@@ -18,26 +18,26 @@ import (
 // NewConst returns a new constant of the specified value and type.
 // val must be valid according to the specification of Const.Value.
 //
-func NewConst(val exact.Value, typ types.Type) *Const {
-	return &Const{typ, val}
+func NewConst(val exact.Value, typ types.Type, pos token.Pos, end token.Pos) *Const {
+	return &Const{typ, val, pos, end}
 }
 
 // intConst returns an 'int' constant that evaluates to i.
 // (i is an int64 in case the host is narrower than the target.)
 func intConst(i int64) *Const {
-	return NewConst(exact.MakeInt64(i), tInt)
+	return NewConst(exact.MakeInt64(i), tInt, token.NoPos, token.NoPos)
 }
 
 // nilConst returns a nil constant of the specified type, which may
 // be any reference type, including interfaces.
 //
 func nilConst(typ types.Type) *Const {
-	return NewConst(nil, typ)
+	return NewConst(nil, typ, token.NoPos, token.NoPos)
 }
 
 // stringConst returns a 'string' constant that evaluates to s.
 func stringConst(s string) *Const {
-	return NewConst(exact.MakeString(s), tString)
+	return NewConst(exact.MakeString(s), tString, token.NoPos, token.NoPos)
 }
 
 // zeroConst returns a new "zero" constant of the specified type,
@@ -49,11 +49,11 @@ func zeroConst(t types.Type) *Const {
 	case *types.Basic:
 		switch {
 		case t.Info()&types.IsBoolean != 0:
-			return NewConst(exact.MakeBool(false), t)
+			return NewConst(exact.MakeBool(false), t, token.NoPos, token.NoPos)
 		case t.Info()&types.IsNumeric != 0:
-			return NewConst(exact.MakeInt64(0), t)
+			return NewConst(exact.MakeInt64(0), t, token.NoPos, token.NoPos)
 		case t.Info()&types.IsString != 0:
-			return NewConst(exact.MakeString(""), t)
+			return NewConst(exact.MakeString(""), t, token.NoPos, token.NoPos)
 		case t.Kind() == types.UnsafePointer:
 			fallthrough
 		case t.Kind() == types.UntypedNil:
@@ -64,7 +64,7 @@ func zeroConst(t types.Type) *Const {
 	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
 		return nilConst(t)
 	case *types.Named:
-		return NewConst(zeroConst(t.Underlying()).Value, t)
+		return NewConst(zeroConst(t.Underlying()).Value, t, token.NoPos, token.NoPos)
 	case *types.Array, *types.Struct, *types.Tuple:
 		panic(fmt.Sprint("zeroConst applied to aggregate:", t))
 	}

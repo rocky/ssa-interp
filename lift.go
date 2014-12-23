@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssa2
 
 // This file defines the lifting pass which tries to "lift" Alloc
 // cells (new/local variables) into SSA registers, replacing loads

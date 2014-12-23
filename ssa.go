@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssa2
 
 // This package defines a high-level intermediate representation for
 // Go programs using static single-assignment (SSA) form.
@@ -55,6 +55,8 @@ type Package struct {
 	ninit    int32               // number of init functions
 	info     *loader.PackageInfo // package ASTs and type information
 	needRTTI typeutil.Map        // types for which runtime type info is needed
+	locs   []LocInst            // slice of start source-code positions
+	TypeScope2Scope map[*types.Scope]*Scope // Maps a type.scope to our Scope
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,
@@ -94,6 +96,7 @@ type NamedConst struct {
 	object *types.Const
 	Value  *Const
 	pos    token.Pos
+	endP   token.Pos
 	pkg    *Package
 }
 
@@ -299,6 +302,7 @@ type Function struct {
 	method    *types.Selection // info about provenance of synthetic methods
 	Signature *types.Signature
 	pos       token.Pos
+	endP      token.Pos
 
 	Synthetic string        // provenance of synthetic function; "" for true source functions
 	syntax    ast.Node      // *ast.Func{Decl,Lit}; replaced with simple ast.Node after build, unless debug mode
@@ -390,6 +394,7 @@ type Parameter struct {
 	object    types.Object // a *types.Var; nil for non-source locals
 	typ       types.Type
 	pos       token.Pos
+	endP      token.Pos
 	parent    *Function
 	referrers []Instruction
 }
@@ -418,6 +423,8 @@ type Parameter struct {
 type Const struct {
 	typ   types.Type
 	Value exact.Value
+	pos   token.Pos
+	endP  token.Pos
 }
 
 // A Global is a named Value holding the address of a package-level
@@ -431,6 +438,7 @@ type Global struct {
 	object types.Object // a *types.Var; may be nil for synthetics e.g. init$guard
 	typ    types.Type
 	pos    token.Pos
+	endP  token.Pos
 
 	Pkg *Package
 }
@@ -457,6 +465,7 @@ type Global struct {
 type Builtin struct {
 	name string
 	sig  *types.Signature
+	endP token.Pos
 }
 
 // Value-defining instructions  ----------------------------------------
@@ -491,7 +500,7 @@ type Builtin struct {
 // 	t1 = new int
 //
 type Alloc struct {
-	register
+	Register
 	Comment string
 	Heap    bool
 	index   int // dense numbering; for lifting
@@ -510,7 +519,7 @@ type Alloc struct {
 // 	t2 = phi [0.start: t0, 1.if.then: t1, ...]
 //
 type Phi struct {
-	register
+	Register
 	Comment string  // a hint as to its purpose
 	Edges   []Value // Edges[i] is value for Block().Preds[i]
 }
@@ -531,7 +540,7 @@ type Phi struct {
 // 	t7 = invoke t5.Println(...t6)
 //
 type Call struct {
-	register
+	Register
 	Call CallCommon
 }
 
@@ -543,7 +552,7 @@ type Call struct {
 // 	t1 = t0 + 1:int
 //
 type BinOp struct {
-	register
+	Register
 	// One of:
 	// ADD SUB MUL QUO REM          + - * / %
 	// AND OR XOR SHL SHR AND_NOT   & | ^ << >> &~
@@ -571,7 +580,7 @@ type BinOp struct {
 // 	t2 = <-t1,ok
 //
 type UnOp struct {
-	register
+	Register
 	Op      token.Token // One of: NOT SUB ARROW MUL XOR ! - <- * ^
 	X       Value
 	CommaOk bool
@@ -596,7 +605,7 @@ type UnOp struct {
 // 	t1 = changetype *int <- IntPtr (t0)
 //
 type ChangeType struct {
-	register
+	Register
 	X Value
 }
 
@@ -625,7 +634,7 @@ type ChangeType struct {
 // 	t1 = convert []byte <- string (t0)
 //
 type Convert struct {
-	register
+	Register
 	X Value
 }
 
@@ -642,7 +651,7 @@ type Convert struct {
 // 	t1 = change interface interface{} <- I (t0)
 //
 type ChangeInterface struct {
-	register
+	Register
 	X Value
 }
 
@@ -653,7 +662,7 @@ type ChangeInterface struct {
 // of X, and Program.Method(m) to find the implementation of a method.
 //
 // To construct the zero value of an interface type T, use:
-// 	NewConst(exact.MakeNil(), T, pos)
+// 	NewConst(exact.MakeNil(), T, pos. token.NoPos, token.NoPos)
 //
 // Pos() returns the ast.CallExpr.Lparen, if the instruction arose
 // from an explicit conversion in the source.
@@ -663,7 +672,7 @@ type ChangeInterface struct {
 // 	t2 = make Stringer <- t0
 //
 type MakeInterface struct {
-	register
+	Register
 	X Value
 }
 
@@ -680,7 +689,7 @@ type MakeInterface struct {
 // 	t1 = make closure bound$(main.I).add [i]
 //
 type MakeClosure struct {
-	register
+	Register
 	Fn       Value   // always a *Function
 	Bindings []Value // values for each free variable in Fn.FreeVars
 }
@@ -698,7 +707,7 @@ type MakeClosure struct {
 // 	t1 = make StringIntMap t0
 //
 type MakeMap struct {
-	register
+	Register
 	Reserve Value // initial space reservation; nil => default
 }
 
@@ -715,7 +724,7 @@ type MakeMap struct {
 // 	t0 = make IntChan 0
 //
 type MakeChan struct {
-	register
+	Register
 	Size Value // int; size of buffer; zero => synchronous.
 }
 
@@ -737,7 +746,7 @@ type MakeChan struct {
 // 	t1 = make StringSlice 1:int t0
 //
 type MakeSlice struct {
-	register
+	Register
 	Len Value
 	Cap Value
 }
@@ -759,7 +768,7 @@ type MakeSlice struct {
 // 	t1 = slice t0[1:]
 //
 type Slice struct {
-	register
+	Register
 	X              Value // slice, string, or *array
 	Low, High, Max Value // each may be nil
 }
@@ -781,7 +790,7 @@ type Slice struct {
 // 	t1 = &t0.name [#1]
 //
 type FieldAddr struct {
-	register
+	Register
 	X     Value // *struct
 	Field int   // index into X.Type().Deref().(*types.Struct).Fields
 }
@@ -799,7 +808,7 @@ type FieldAddr struct {
 // 	t1 = t0.name [#1]
 //
 type Field struct {
-	register
+	Register
 	X     Value // struct
 	Field int   // index into X.Type().(*types.Struct).Fields
 }
@@ -822,7 +831,7 @@ type Field struct {
 // 	t2 = &t0[t1]
 //
 type IndexAddr struct {
-	register
+	Register
 	X     Value // slice or *array,
 	Index Value // numeric index
 }
@@ -836,7 +845,7 @@ type IndexAddr struct {
 // 	t2 = t0[t1]
 //
 type Index struct {
-	register
+	Register
 	X     Value // array
 	Index Value // integer index
 }
@@ -856,7 +865,7 @@ type Index struct {
 // 	t5 = t3[t4],ok
 //
 type Lookup struct {
-	register
+	Register
 	X       Value // string or map
 	Index   Value // numeric or key-typed index
 	CommaOk bool  // return a value,ok pair
@@ -909,7 +918,7 @@ type SelectState struct {
 // 	t4 = select blocking []
 //
 type Select struct {
-	register
+	Register
 	States   []*SelectState
 	Blocking bool
 }
@@ -927,7 +936,7 @@ type Select struct {
 // 	t0 = range "hello":string
 //
 type Range struct {
-	register
+	Register
 	X Value // string or map
 }
 
@@ -950,7 +959,7 @@ type Range struct {
 // 	t1 = next t0
 //
 type Next struct {
-	register
+	Register
 	Iter     Value
 	IsString bool // true => string iterator; false => map iterator.
 }
@@ -991,7 +1000,7 @@ type Next struct {
 // 	t3 = typeassert,ok t2.(T)
 //
 type TypeAssert struct {
-	register
+	Register
 	X            Value
 	AssertedType types.Type
 	CommaOk      bool
@@ -1007,7 +1016,7 @@ type TypeAssert struct {
 // 	t1 = extract t0 #1
 //
 type Extract struct {
-	register
+	Register
 	Tuple Value
 	Index int
 }
@@ -1071,6 +1080,7 @@ type Return struct {
 	anInstruction
 	Results []Value
 	pos     token.Pos
+	endP token.Pos
 }
 
 // The RunDefers instruction pops and invokes the entire stack of
@@ -1107,6 +1117,7 @@ type Panic struct {
 	anInstruction
 	X   Value // an interface{}
 	pos token.Pos
+	endP token.Pos
 }
 
 // The Go instruction creates a new goroutine and calls the specified
@@ -1125,6 +1136,7 @@ type Go struct {
 	anInstruction
 	Call CallCommon
 	pos  token.Pos
+	endP token.Pos
 }
 
 // The Defer instruction pushes the specified call onto a stack of
@@ -1143,6 +1155,7 @@ type Defer struct {
 	anInstruction
 	Call CallCommon
 	pos  token.Pos
+	endP token.Pos
 }
 
 // The Send instruction sends X on channel Chan.
@@ -1156,6 +1169,7 @@ type Send struct {
 	anInstruction
 	Chan, X Value
 	pos     token.Pos
+	endP    token.Pos
 }
 
 // The Store instruction stores Val at address Addr.
@@ -1171,6 +1185,7 @@ type Store struct {
 	Addr Value
 	Val  Value
 	pos  token.Pos
+	endP token.Pos
 }
 
 // The MapUpdate instruction updates the association of Map[Key] to
@@ -1188,6 +1203,7 @@ type MapUpdate struct {
 	Key   Value
 	Value Value
 	pos   token.Pos
+	endP  token.Pos
 }
 
 // A DebugRef instruction maps a source-level expression Expr to the
@@ -1233,7 +1249,7 @@ type DebugRef struct {
 
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
 
-// register is a mix-in embedded by all SSA values that are also
+// Register is a mix-in embedded by all SSA values that are also
 // instructions, i.e. virtual registers, and provides a uniform
 // implementation of most of the Value interface: Value.Name() is a
 // numbered register (e.g. "t0"); the other methods are field accessors.
@@ -1246,11 +1262,12 @@ type DebugRef struct {
 // semantics are determined only by identity; names exist only to
 // facilitate debugging.
 //
-type register struct {
+type Register struct {
 	anInstruction
 	num       int        // "name" of virtual register, e.g. "t0".  Not guaranteed unique.
 	typ       types.Type // type of virtual register
 	pos       token.Pos  // position of source expression, or NoPos
+	endP      token.Pos  // end position of source expression, or NoPos
 	referrers []Instruction
 }
 
@@ -1316,6 +1333,7 @@ type CallCommon struct {
 	Method *types.Func // abstract method (invoke mode)
 	Args   []Value     // actual parameters (in static method call, includes receiver)
 	pos    token.Pos   // position of CallExpr.Lparen, iff explicit in source
+	endP   token.Pos   // position of CallExpr.Raren,  iff explicit in source
 }
 
 // IsInvoke returns true if this call has "invoke" (not "call") mode.
@@ -1434,19 +1452,20 @@ func (v *Parameter) Name() string              { return v.name }
 func (v *Parameter) Object() types.Object      { return v.object }
 func (v *Parameter) Referrers() *[]Instruction { return &v.referrers }
 func (v *Parameter) Pos() token.Pos            { return v.pos }
+func (v *Parameter) Endp() token.Pos           { return v.endP }
 func (v *Parameter) Parent() *Function         { return v.parent }
 
 func (v *Alloc) Type() types.Type          { return v.typ }
 func (v *Alloc) Referrers() *[]Instruction { return &v.referrers }
 func (v *Alloc) Pos() token.Pos            { return v.pos }
 
-func (v *register) Type() types.Type          { return v.typ }
-func (v *register) setType(typ types.Type)    { v.typ = typ }
-func (v *register) Name() string              { return fmt.Sprintf("t%d", v.num) }
-func (v *register) setNum(num int)            { v.num = num }
-func (v *register) Referrers() *[]Instruction { return &v.referrers }
-func (v *register) Pos() token.Pos            { return v.pos }
-func (v *register) setPos(pos token.Pos)      { v.pos = pos }
+func (v *Register) Type() types.Type          { return v.typ }
+func (v *Register) setType(typ types.Type)    { v.typ = typ }
+func (v *Register) Name() string              { return fmt.Sprintf("t%d", v.num) }
+func (v *Register) setNum(num int)            { v.num = num }
+func (v *Register) Referrers() *[]Instruction { return &v.referrers }
+func (v *Register) Pos() token.Pos            { return v.pos }
+func (v *Register) setPos(pos token.Pos)      { v.pos = pos }
 
 func (v *anInstruction) Parent() *Function          { return v.block.parent }
 func (v *anInstruction) Block() *BasicBlock         { return v.block }

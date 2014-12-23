@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssa2
 
 // This file implements the CREATE phase of SSA construction.
 // See builder.go for explanation.
@@ -79,7 +79,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	case *types.Const:
 		c := &NamedConst{
 			object: obj,
-			Value:  NewConst(obj.Val(), obj.Type()),
+			Value:  NewConst(obj.Val(), obj.Type(), obj.Pos(), obj.Pos()),
 			pkg:    pkg,
 		}
 		pkg.values[obj] = c.Value
@@ -92,6 +92,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			object: obj,
 			typ:    types.NewPointer(obj.Type()), // address
 			pos:    obj.Pos(),
+			endP:   obj.Pos(),
 		}
 		pkg.values[obj] = g
 		pkg.Members[name] = g
@@ -103,6 +104,7 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			Signature: obj.Type().(*types.Signature),
 			syntax:    syntax,
 			pos:       obj.Pos(),
+			endP:      obj.Pos(),
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
 		}

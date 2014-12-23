@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssa2
 
 // This file defines utilities for working with source positions
 // or source-level named entities ("objects").
@@ -213,13 +213,13 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 
 	// Universal constant? {true,false,nil}
 	if obj.Parent() == types.Universe {
-		return NewConst(obj.Val(), obj.Type())
+		return NewConst(obj.Val(), obj.Type(), obj.Pos(), obj.Pos())
 	}
 	// Package-level named constant?
 	if v := prog.packageLevelValue(obj); v != nil {
 		return v.(*Const)
 	}
-	return NewConst(obj.Val(), obj.Type())
+	return NewConst(obj.Val(), obj.Type(), obj.Pos(), obj.Pos())
 }
 
 // VarValue returns the SSA Value that corresponds to a specific

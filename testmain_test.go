@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa_test
+package ssa2_test
 
 // Tests of FindTests.  CreateTestMainPackage is tested via the interpreter.
 // TODO(adonovan): test the 'pkgs' result from FindTests.

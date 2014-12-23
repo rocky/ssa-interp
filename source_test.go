@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa_test
+package ssa2_test
 
 // This file defines tests of source-level debugging utilities.
 

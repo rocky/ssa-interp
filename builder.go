@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssa2
 
 // This file implements the BUILD phase of SSA construction.
 //
@@ -65,7 +65,7 @@ var (
 	// SSA Value constants.
 	vZero = intConst(0)
 	vOne  = intConst(1)
-	vTrue = NewConst(exact.MakeBool(true), tBool)
+	vTrue = NewConst(exact.MakeBool(true), tBool, token.NoPos, token.NoPos)
 )
 
 // builder holds state associated with the package currently being built.
@@ -133,11 +133,11 @@ func (b *builder) logicalBinop(fn *Function, e *ast.BinaryExpr) Value {
 	switch e.Op {
 	case token.LAND:
 		b.cond(fn, e.X, rhs, done)
-		short = NewConst(exact.MakeBool(false), t)
+		short = NewConst(exact.MakeBool(false), t, e.Pos(), e.End())
 
 	case token.LOR:
 		b.cond(fn, e.X, done, rhs)
-		short = NewConst(exact.MakeBool(true), t)
+		short = NewConst(exact.MakeBool(true), t, e.Pos(), e.End())
 	}
 
 	// Is rhs unreachable?
@@ -452,7 +452,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 
 	// Is expression a constant?
 	if tv.Value != nil {
-		return NewConst(tv.Value, tv.Type)
+		return NewConst(tv.Value, tv.Type, e.Pos(), e.End())
 	}
 
 	var v Value
@@ -1889,7 +1889,9 @@ start:
 			op = token.SUB
 		}
 		loc := b.addr(fn, s.X, false)
-		b.assignOp(fn, loc, NewConst(exact.MakeInt64(1), loc.typ()), op)
+		b.assignOp(fn, loc,
+			NewConst(exact.MakeInt64(1), loc.typ(), s.X.Pos(), s.X.End()),
+			op)
 
 	case *ast.AssignStmt:
 		switch s.Tok {

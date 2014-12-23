@@ -18,7 +18,7 @@ import (
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/ssa/interp"
+	"github.com/rocky/ssa-interp/interp"
 	"golang.org/x/tools/go/types"
 )
 

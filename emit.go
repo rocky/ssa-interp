@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssa2
 
 // Helpers for emitting SSA instructions.
 
@@ -222,7 +222,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 			// constant of the destination type and
 			// (initially) the same abstract value.
 			// We don't truncate the value yet.
-			return NewConst(c.Value, typ)
+			return NewConst(c.Value, typ, c.pos, c.endP)
 		}
 
 		// We're converting from constant to non-constant type,

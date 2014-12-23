@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa_test
+package ssa2_test
 
 import (
 	"bytes"
@@ -12,11 +12,11 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/ssa"
+	"github.com/rocky/ssa-interp"
 	"golang.org/x/tools/go/types"
 )
 
-func isEmpty(f *ssa.Function) bool { return f.Blocks == nil }
+func isEmpty(f *ssa2.Function) bool { return f.Blocks == nil }
 
 // Tests that programs partially loaded from gc object files contain
 // functions with no code for the external portions, but are otherwise ok.
@@ -56,7 +56,7 @@ func main() {
 		return
 	}
 
-	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
+	prog := ssa2.Create(iprog, ssa2.SanityCheckFunctions)
 	mainPkg := prog.Package(iprog.Created[0].Pkg)
 	mainPkg.Build()
 
@@ -91,7 +91,7 @@ func main() {
 
 		for _, mem := range pkg.Members {
 			switch mem := mem.(type) {
-			case *ssa.Function:
+			case *ssa2.Function:
 				// Functions at package level.
 				if isExt && !isEmpty(mem) {
 					t.Errorf("external function %s is non-empty", mem)
@@ -99,7 +99,7 @@ func main() {
 					t.Errorf("function %s is empty", mem)
 				}
 
-			case *ssa.Type:
+			case *ssa2.Type:
 				// Methods of named types T.
 				// (In this test, all exported methods belong to *T not T.)
 				if !isExt {
@@ -132,7 +132,7 @@ func main() {
 	for _, b := range mainPkg.Func("main").Blocks {
 		for _, instr := range b.Instrs {
 			switch instr := instr.(type) {
-			case ssa.CallInstruction:
+			case ssa2.CallInstruction:
 				call := instr.Common()
 				if want := expectedCallee[callNum]; want != "N/A" {
 					got := call.StaticCallee().String()
@@ -224,7 +224,7 @@ func TestTypesWithMethodSets(t *testing.T) {
 			t.Errorf("test 'package %s': Load: %s", f.Name.Name, err)
 			continue
 		}
-		prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
+		prog := ssa2.Create(iprog, ssa2.SanityCheckFunctions)
 		mainPkg := prog.Package(iprog.Created[0].Pkg)
 		prog.BuildAll()
 
@@ -250,7 +250,7 @@ func TestTypesWithMethodSets(t *testing.T) {
 // can be lowered to global initializers.
 func TestInit(t *testing.T) {
 	tests := []struct {
-		mode        ssa.BuilderMode
+		mode        ssa2.BuilderMode
 		input, want string
 	}{
 		{0, `package A; import _ "errors"; var i int = 42`,
@@ -270,7 +270,7 @@ func init():
 	return
 
 `},
-		{ssa.BareInits, `package B; import _ "errors"; var i int = 42`,
+		{ssa2.BareInits, `package B; import _ "errors"; var i int = 42`,
 			`# Name: B.init
 # Package: B
 # Synthetic: package initializer
@@ -296,7 +296,7 @@ func init():
 			t.Errorf("test 'package %s': Load: %s", f.Name.Name, err)
 			continue
 		}
-		prog := ssa.Create(iprog, test.mode)
+		prog := ssa2.Create(iprog, test.mode)
 		mainPkg := prog.Package(iprog.Created[0].Pkg)
 		prog.BuildAll()
 		initFunc := mainPkg.Func("init")
