@@ -17,11 +17,11 @@ package interp
 // - chan value
 // - []value --- slices
 // - iface --- interfaces.
-// - Structure --- structs.  Fields are ordered and accessed by numeric indices.
+// - structure --- structs.  Fields are ordered and accessed by numeric indices.
 // - array --- arrays.
 // - *value --- pointers.  Careful: *value is a distinct type from *array etc.
-// - *ssa2.Function \
-//   *ssa2.Builtin   } --- functions.
+// - *ssa.Function \
+//   *ssa.Builtin   } --- functions.  A nil 'func' is always of type *ssa.Function.
 //   *closure      /
 // - tuple --- as returned by Return, Next, "value,ok" modes, etc.
 // - iter --- iterators from 'range' over map or string.
@@ -42,38 +42,34 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/rocky/go-types"
-	"github.com/rocky/go-types/typemap"
-	"github.com/rocky/ssa-interp"
+	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
-type Value interface{}
+type value interface{}
 
-type tuple []Value
+type tuple []value
 
-type array []Value
+type array []value
 
 type iface struct {
 	t types.Type // never an "untyped" type
-	v Value
+	v value
 }
 
-type Structure struct {
-	fields    []Value
-	fieldnames[]string  // Check: does this need to be last because
-						// generation uses address of fields?
-}
+type structure []value
 
 // For map, array, *array, slice, string or channel.
 type iter interface {
-	// next returns a Tuple (key, Value, ok).
-	// key and Value are unaliased, e.g. copies of the sequence element.
+	// next returns a Tuple (key, value, ok).
+	// key and value are unaliased, e.g. copies of the sequence element.
 	next() tuple
 }
 
 type closure struct {
-	fn  *ssa2.Function
-	env []Value
+	Fn  *ssa.Function
+	Env []value
 }
 
 type bad struct{}
@@ -96,11 +92,11 @@ func hashString(s string) int {
 
 var (
 	mu     sync.Mutex
-	hasher = typemap.MakeHasher()
+	hasher = typeutil.MakeHasher()
 )
 
 // hashType returns a hash for t such that
-// types.IsIdentical(x, y) => hashType(x) == hashType(y).
+// types.Identical(x, y) => hashType(x) == hashType(y).
 func hashType(t types.Type) int {
 	mu.Lock()
 	h := int(hasher.Hash(t))
@@ -149,12 +145,12 @@ func (x array) hash(t types.Type) int {
 	return h
 }
 
-func (x Structure) eq(t types.Type, _y interface{}) bool {
-	y := _y.(Structure)
+func (x structure) eq(t types.Type, _y interface{}) bool {
+	y := _y.(structure)
 	tStruct := t.Underlying().(*types.Struct)
 	for i, n := 0, tStruct.NumFields(); i < n; i++ {
 		if f := tStruct.Field(i); !f.Anonymous() {
-			if !equals(f.Type(), x.fields[i], y.fields[i]) {
+			if !equals(f.Type(), x[i], y[i]) {
 				return false
 			}
 		}
@@ -162,23 +158,23 @@ func (x Structure) eq(t types.Type, _y interface{}) bool {
 	return true
 }
 
-func (x Structure) hash(t types.Type) int {
+func (x structure) hash(t types.Type) int {
 	tStruct := t.Underlying().(*types.Struct)
 	h := 0
 	for i, n := 0, tStruct.NumFields(); i < n; i++ {
 		if f := tStruct.Field(i); !f.Anonymous() {
-			h += hash(f.Type(), x.fields[i])
+			h += hash(f.Type(), x[i])
 		}
 	}
 	return h
 }
 
-// nil-tolerant variant of types.IsIdentical.
+// nil-tolerant variant of types.Identical.
 func sameType(x, y types.Type) bool {
 	if x == nil {
 		return y == nil
 	}
-	return y != nil && types.IsIdentical(x, y)
+	return y != nil && types.Identical(x, y)
 }
 
 func (x iface) eq(t types.Type, _y interface{}) bool {
@@ -195,14 +191,14 @@ func (x rtype) hash(_ types.Type) int {
 }
 
 func (x rtype) eq(_ types.Type, y interface{}) bool {
-	return types.IsIdentical(x.t, y.(rtype).t)
+	return types.Identical(x.t, y.(rtype).t)
 }
 
 // equals returns true iff x and y are equal according to Go's
 // linguistic equivalence relation for type t.
 // In a well-typed program, the dynamic types of x and y are
 // guaranteed equal.
-func equals(t types.Type, x, y Value) bool {
+func equals(t types.Type, x, y value) bool {
 	switch x := x.(type) {
 	case bool:
 		return x == y.(bool)
@@ -238,11 +234,11 @@ func equals(t types.Type, x, y Value) bool {
 		return x == y.(complex128)
 	case string:
 		return x == y.(string)
-	case *Value:
-		return x == y.(*Value)
-	case chan Value:
-		return x == y.(chan Value)
-	case Structure:
+	case *value:
+		return x == y.(*value)
+	case chan value:
+		return x == y.(chan value)
+	case structure:
 		return x.eq(t, y)
 	case array:
 		return x.eq(t, y)
@@ -259,7 +255,7 @@ func equals(t types.Type, x, y Value) bool {
 }
 
 // Returns an integer hash of x such that equals(x, y) => hash(x) == hash(y).
-func hash(t types.Type, x Value) int {
+func hash(t types.Type, x value) int {
 	switch x := x.(type) {
 	case bool:
 		if x {
@@ -298,11 +294,11 @@ func hash(t types.Type, x Value) int {
 		return int(real(x))
 	case string:
 		return hashString(x)
-	case *Value:
+	case *value:
 		return int(uintptr(unsafe.Pointer(x)))
-	case chan Value:
+	case chan value:
 		return int(uintptr(reflect.ValueOf(x).Pointer()))
-	case Structure:
+	case structure:
 		return x.hash(t)
 	case array:
 		return x.hash(t)
@@ -314,36 +310,32 @@ func hash(t types.Type, x Value) int {
 	panic(fmt.Sprintf("%T is unhashable", x))
 }
 
-// copyVal returns a copy of Value v.
+// copyVal returns a copy of value v.
 // TODO(adonovan): add tests of aliasing and mutation.
-func copyVal(v Value) Value {
+func copyVal(v value) value {
 	if v == nil {
 		panic("copyVal(nil)")
 	}
 	switch v := v.(type) {
 	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64, complex64, complex128, string, unsafe.Pointer:
 		return v
-	case map[Value]Value:
+	case map[value]value:
 		return v
 	case *hashmap:
 		return v
-	case chan Value:
+	case chan value:
 		return v
-	case *Value:
+	case *value:
 		return v
-	case *ssa2.Function, *ssa2.Builtin, *closure:
+	case *ssa.Function, *ssa.Builtin, *closure:
 		return v
 	case iface:
 		return v
-	case []Value:
+	case []value:
 		return v
-	case Structure:
-		a := Structure{
-			fields    : make([]Value, len(v.fields)),
-			fieldnames: v.fieldnames,
-			// Add tags?
-		}
-		copy(a.fields, v.fields)
+	case structure:
+		a := make(structure, len(v))
+		copy(a, v)
 		return a
 	case array:
 		a := make(array, len(v))
@@ -360,112 +352,109 @@ func copyVal(v Value) Value {
 // Prints in the style of built-in println.
 // (More or less; in gc println is actually a compiler intrinsic and
 // can distinguish println(1) from println(interface{}(1)).)
-func toWriter(w io.Writer, v Value) {
+func writeValue(buf *bytes.Buffer, v value) {
 	switch v := v.(type) {
 	case nil, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64, complex64, complex128, string:
-		fmt.Fprintf(w, "%v", v)
+		fmt.Fprintf(buf, "%v", v)
 
-	case map[Value]Value:
-		io.WriteString(w, "map[")
+	case map[value]value:
+		buf.WriteString("map[")
 		sep := ""
 		for k, e := range v {
-			io.WriteString(w, sep)
+			buf.WriteString(sep)
 			sep = " "
-			toWriter(w, k)
-			io.WriteString(w, ":")
-			toWriter(w, e)
+			writeValue(buf, k)
+			buf.WriteString(":")
+			writeValue(buf, e)
 		}
-		io.WriteString(w, "]")
+		buf.WriteString("]")
 
 	case *hashmap:
-		io.WriteString(w, "map[")
+		buf.WriteString("map[")
 		sep := " "
 		for _, e := range v.table {
 			for e != nil {
-				io.WriteString(w, sep)
+				buf.WriteString(sep)
 				sep = " "
-				toWriter(w, e.key)
-				io.WriteString(w, ":")
-				toWriter(w, e.Value)
+				writeValue(buf, e.key)
+				buf.WriteString(":")
+				writeValue(buf, e.value)
 				e = e.next
 			}
 		}
-		io.WriteString(w, "]")
+		buf.WriteString("]")
 
-	case chan Value:
-		fmt.Fprintf(w, "%v", v) // (an address)
+	case chan value:
+		fmt.Fprintf(buf, "%v", v) // (an address)
 
-	case *Value:
+	case *value:
 		if v == nil {
-			io.WriteString(w, "<nil>")
+			buf.WriteString("<nil>")
 		} else {
-			fmt.Fprintf(w, "%p", v)
+			fmt.Fprintf(buf, "%p", v)
 		}
 
 	case iface:
-		fmt.Fprintf(w, "(%s, ", v.t)
-		toWriter(w, v.v)
-		io.WriteString(w, ")")
+		fmt.Fprintf(buf, "(%s, ", v.t)
+		writeValue(buf, v.v)
+		buf.WriteString(")")
 
-	case Structure:
-		io.WriteString(w, "{")
-		for i, e := range v.fields {
+	case structure:
+		buf.WriteString("{")
+		for i, e := range v {
 			if i > 0 {
-				io.WriteString(w, ", ")
+				buf.WriteString(" ")
 			}
-			if v.fieldnames[i] != "" {
-				fmt.Fprintf(w, "%s: ", v.fieldnames[i])
-			}
-			toWriter(w, e)
+			writeValue(buf, e)
 		}
-		io.WriteString(w, "}")
+		buf.WriteString("}")
 
 	case array:
-		io.WriteString(w, "[")
+		buf.WriteString("[")
 		for i, e := range v {
 			if i > 0 {
-				io.WriteString(w, " ")
+				buf.WriteString(" ")
 			}
-			toWriter(w, e)
+			writeValue(buf, e)
 		}
-		io.WriteString(w, "]")
+		buf.WriteString("]")
 
-	case []Value:
-		io.WriteString(w, "[")
+	case []value:
+		buf.WriteString("[")
 		for i, e := range v {
 			if i > 0 {
-				io.WriteString(w, " ")
+				buf.WriteString(" ")
 			}
-			toWriter(w, e)
+			writeValue(buf, e)
 		}
-		io.WriteString(w, "]")
+		buf.WriteString("]")
 
-	case *ssa2.Function, *ssa2.Builtin, *closure:
-		fmt.Fprintf(w, "%p", v) // (an address)
+	case *ssa.Function, *ssa.Builtin, *closure:
+		fmt.Fprintf(buf, "%p", v) // (an address)
 
 	case rtype:
-		io.WriteString(w, v.t.String())
+		buf.WriteString(v.t.String())
 
 	case tuple:
 		// Unreachable in well-formed Go programs
-		io.WriteString(w, "(")
+		buf.WriteString("(")
 		for i, e := range v {
 			if i > 0 {
-				io.WriteString(w, ", ")
+				buf.WriteString(", ")
 			}
-			toWriter(w, e)
+			writeValue(buf, e)
 		}
-		io.WriteString(w, ")")
+		buf.WriteString(")")
 
 	default:
-		fmt.Fprintf(w, "<%T>", v)
+		fmt.Fprintf(buf, "<%T>", v)
 	}
 }
 
-// Implements printing of Go Values in the style of built-in println.
-func toString(v Value) string {
+// Implements printing of Go values in the style of built-in println.
+func toString(v value) string {
 	var b bytes.Buffer
-	toWriter(&b, v)
+	writeValue(&b, v)
 	return b.String()
 }
 
@@ -490,7 +479,7 @@ func (it *stringIter) next() tuple {
 	return okv
 }
 
-type mapIter chan [2]Value
+type mapIter chan [2]value
 
 func (it mapIter) next() tuple {
 	kv, ok := <-it

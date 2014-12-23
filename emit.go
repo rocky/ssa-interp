@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa2
+package ssa
 
 // Helpers for emitting SSA instructions.
 
@@ -11,20 +11,16 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/types"
 )
 
-const (
-	debugMe bool = false
-)
 // emitNew emits to f a new (heap Alloc) instruction allocating an
-// object of type typ.  pos and endP are the optional source location.
+// object of type typ.  pos is the optional source location.
 //
-func emitNew(f *Function, typ types.Type, pos token.Pos, endP token.Pos) *Alloc {
+func emitNew(f *Function, typ types.Type, pos token.Pos) *Alloc {
 	v := &Alloc{Heap: true}
 	v.setType(types.NewPointer(typ))
 	v.setPos(pos)
-	v.setEnd(endP)
 	f.emit(v)
 	return v
 }
@@ -65,7 +61,7 @@ func emitDebugRef(f *Function, e ast.Expr, v Value, isAddr bool) {
 		X:      v,
 		Expr:   e,
 		IsAddr: isAddr,
-		Object: obj,
+		object: obj,
 	})
 }
 
@@ -122,7 +118,7 @@ func emitCompare(f *Function, op token.Token, x, y Value, pos token.Pos) Value {
 		}
 	}
 
-	if types.IsIdentical(xt, yt) {
+	if types.Identical(xt, yt) {
 		// no conversion necessary
 	} else if _, ok := xt.(*types.Interface); ok {
 		y = emitConv(f, y, x.Type())
@@ -152,7 +148,7 @@ func emitCompare(f *Function, op token.Token, x, y Value, pos token.Pos) Value {
 //
 func isValuePreserving(ut_src, ut_dst types.Type) bool {
 	// Identical underlying types?
-	if types.IsIdentical(ut_dst, ut_src) {
+	if types.Identical(ut_dst, ut_src) {
 		return true
 	}
 
@@ -165,11 +161,6 @@ func isValuePreserving(ut_src, ut_dst types.Type) bool {
 	case *types.Pointer:
 		// Conversion between pointers with identical base types?
 		_, ok := ut_src.(*types.Pointer)
-		return ok
-
-	case *types.Signature:
-		// Conversion from (T) func f() method to f(T) function?
-		_, ok := ut_src.(*types.Signature)
 		return ok
 	}
 	return false
@@ -184,7 +175,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	t_src := val.Type()
 
 	// Identical types?  Conversion is a no-op.
-	if types.IsIdentical(t_src, typ) {
+	if types.Identical(t_src, typ) {
 		return val
 	}
 
@@ -223,23 +214,37 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 		return f.emit(mi)
 	}
 
-	// Conversion of a constant to a non-interface type results in
-	// a new constant of the destination type and (initially) the
-	// same abstract value.  We don't compute the representation
-	// change yet; this defers the point at which the number of
-	// possible representations explodes.
+	// Conversion of a compile-time constant value?
 	if c, ok := val.(*Const); ok {
-		return NewConst(c.Value, typ, c.pos, c.endP)
+		if _, ok := ut_dst.(*types.Basic); ok || c.IsNil() {
+			// Conversion of a compile-time constant to
+			// another constant type results in a new
+			// constant of the destination type and
+			// (initially) the same abstract value.
+			// We don't truncate the value yet.
+			return NewConst(c.Value, typ)
+		}
+
+		// We're converting from constant to non-constant type,
+		// e.g. string -> []byte/[]rune.
 	}
 
-	// A representation-changing conversion.
-	c := &Convert{X: val}
-	c.setType(typ)
-	return f.emit(c)
+	// A representation-changing conversion?
+	// At least one of {ut_src,ut_dst} must be *Basic.
+	// (The other may be []byte or []rune.)
+	_, ok1 := ut_src.(*types.Basic)
+	_, ok2 := ut_dst.(*types.Basic)
+	if ok1 || ok2 {
+		c := &Convert{X: val}
+		c.setType(typ)
+		return f.emit(c)
+	}
+
+	panic(fmt.Sprintf("in %s: cannot convert %s (%s) to %s", f, val, val.Type(), typ))
 }
 
 // emitStore emits to f an instruction to store value val at location
-// addr, applying implicit conversions as required by assignabilty rules.
+// addr, applying implicit conversions as required by assignability rules.
 //
 func emitStore(f *Function, addr, val Value) *Store {
 	s := &Store{
@@ -272,28 +277,6 @@ func emitIf(f *Function, cond Value, tblock, fblock *BasicBlock) {
 	f.currentBlock = nil
 }
 
-// emitTrace emits to f an instruction to which acts as a
-// placeholder for the kind of high-level event that is
-// coming up next: a new statement, the return from a function
-// and so on. I'd like this to be a flag an instruction, but that
-// was too difficult or ugly to be able for the high-level
-// builder call to be able to access the first generated instruction.
-// So instead we make it it's own instruction.
-
-func emitTrace(f *Function, event TraceEvent, start token.Pos, end token.Pos) Value {
-	t := &Trace{Event: event, Start: start, End: end, Breakpoint: false}
-	// fmt.Printf("event %s StartPos %d EndPos %d\n", Event2Name[event])
-	fset := f.Prog.Fset
-	pkg := f.Pkg
-	pkg.locs = append(pkg.locs, LocInst{pos: start, endP:end,
-		Fn: nil, Trace: t})
-	if (debugMe) {
-		fmt.Printf("Emitting event %s\n\tFrom: %s\n\tTo: %s\n",
-			Event2Name[event], fset.Position(start), fset.Position(end)	)
-	}
-	return f.emit(t)
-}
-
 // emitExtract emits to f an instruction to extract the index'th
 // component of tuple.  It returns the extracted value.
 //
@@ -316,16 +299,15 @@ func emitTypeAssert(f *Function, x Value, t types.Type, pos token.Pos) Value {
 // emitTypeTest emits to f a type test value,ok := x.(t) and returns
 // a (value, ok) tuple.  x.Type() must be an interface.
 //
-func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos, endP token.Pos) Value {
+func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos) Value {
 	a := &TypeAssert{
 		X:            x,
 		AssertedType: t,
 		CommaOk:      true,
 	}
 	a.setPos(pos)
-	a.setEnd(endP)
 	a.setType(types.NewTuple(
-		types.NewVar(token.NoPos, nil, "value", t),
+		newVar("value", t),
 		varOk,
 	))
 	return f.emit(a)
@@ -406,15 +388,16 @@ func emitImplicitSelections(f *Function, v Value, indices []int) Value {
 // If wantAddr, the input must be a pointer-to-struct and the result
 // will be the field's address; otherwise the result will be the
 // field's value.
+// Ident id is used for position and debug info.
 //
-func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, pos token.Pos) Value {
+func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, id *ast.Ident) Value {
 	fld := deref(v.Type()).Underlying().(*types.Struct).Field(index)
 	if isPointer(v.Type()) {
 		instr := &FieldAddr{
 			X:     v,
 			Field: index,
 		}
-		instr.setPos(pos)
+		instr.setPos(id.Pos())
 		instr.setType(types.NewPointer(fld.Type()))
 		v = f.emit(instr)
 		// Load the field's value iff we don't want its address.
@@ -426,11 +409,30 @@ func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, pos toke
 			X:     v,
 			Field: index,
 		}
-		instr.setPos(pos)
+		instr.setPos(id.Pos())
 		instr.setType(fld.Type())
 		v = f.emit(instr)
 	}
+	emitDebugRef(f, id, v, wantAddr)
 	return v
+}
+
+// zeroValue emits to f code to produce a zero value of type t,
+// and returns it.
+//
+func zeroValue(f *Function, t types.Type) Value {
+	switch t.Underlying().(type) {
+	case *types.Struct, *types.Array:
+		return emitLoad(f, f.addLocal(t, token.NoPos))
+	default:
+		return zeroConst(t)
+	}
+}
+
+// emitMemClear emits to f code to zero the value pointed to by ptr.
+func emitMemClear(f *Function, ptr Value) {
+	// TODO(adonovan): define and use a 'memclr' intrinsic for aggregate types.
+	emitStore(f, ptr, zeroValue(f, deref(ptr.Type())))
 }
 
 // createRecoverBlock emits to f a block of code to return after a
@@ -448,7 +450,7 @@ func createRecoverBlock(f *Function) {
 	}
 	saved := f.currentBlock
 
-	f.Recover = f.newBasicBlock("recover", nil)
+	f.Recover = f.newBasicBlock("recover")
 	f.currentBlock = f.Recover
 
 	var results []Value
@@ -461,16 +463,9 @@ func createRecoverBlock(f *Function) {
 		R := f.Signature.Results()
 		for i, n := 0, R.Len(); i < n; i++ {
 			T := R.At(i).Type()
-			var v Value
 
 			// Return zero value of each result type.
-			switch T.Underlying().(type) {
-			case *types.Struct, *types.Array:
-				v = emitLoad(f, f.addLocal(T, token.NoPos, token.NoPos, nil))
-			default:
-				v = zeroConst(T)
-			}
-			results = append(results, v)
+			results = append(results, zeroValue(f, T))
 		}
 	}
 	f.emit(&Return{Results: results})

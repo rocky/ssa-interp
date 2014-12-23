@@ -1,8 +1,8 @@
 package main
 
-// Test of initialization order of package-level vars.
+import "fmt"
 
-type T int
+// Test of initialization order of package-level vars.
 
 var counter int
 
@@ -12,44 +12,56 @@ func next() int {
 	return c
 }
 
-func (T) next() int {
-	return next()
+func next2() (x int, y int) {
+	x = next()
+	y = next()
+	return
 }
 
-var t T
-
-func makeOrder1() [6]int {
-	return [6]int{f1, b1, d1, e1, c1, a1}
+func makeOrder() int {
+	_, _, _, _ = f, b, d, e
+	return 0
 }
-
-func makeOrder2() [6]int {
-	return [6]int{f2, b2, d2, e2, c2, a2}
-}
-
-var order1 = makeOrder1()
 
 func main() {
-	// order1 is a package-level variable:
-	// [a-f]1 are initialized is reference order.
-	if order1 != [6]int{0, 1, 2, 3, 4, 5} {
-		panic(order1)
-	}
-
-	// order2 is a local variable:
-	// [a-f]2 are initialized in lexical order.
-	var order2 = makeOrder2()
-	if order2 != [6]int{11, 7, 9, 10, 8, 6} {
-		panic(order2)
+	// Initialization constraints:
+	// - {f,b,c/d,e} < order  (ref graph traversal)
+	// - order < {a}          (lexical order)
+	// - b < c/d < e < f      (lexical order)
+	// Solution: a b c/d e f
+	abcdef := [6]int{a, b, c, d, e, f}
+	if abcdef != [6]int{0, 1, 2, 3, 4, 5} {
+		panic(abcdef)
 	}
 }
 
-// The references traversal visits through calls to package-level
-// functions (next), method expressions (T.next) and methods (t.next).
+var order = makeOrder()
 
-var a1, b1 = next(), next()
-var c1, d1 = T.next(0), T.next(0)
-var e1, f1 = t.next(), t.next()
+var a, b = next(), next()
+var c, d = next2()
+var e, f = next(), next()
 
-var a2, b2 = next(), next()
-var c2, d2 = T.next(0), T.next(0)
-var e2, f2 = t.next(), t.next()
+// ------------------------------------------------------------------------
+
+var order2 []string
+
+func create(x int, name string) int {
+	order2 = append(order2, name)
+	return x
+}
+
+var C = create(B+1, "C")
+var A, B = create(1, "A"), create(2, "B")
+
+// Initialization order of package-level value specs.
+func init() {
+	x := fmt.Sprint(order2)
+	// Result varies by toolchain.  This is a spec bug.
+	if x != "[B C A]" && // gc
+		x != "[A B C]" { // go/types
+		panic(x)
+	}
+	if C != 3 {
+		panic(c)
+	}
+}

@@ -1,1 +1,0 @@
-Write a series of tests where we compare output run from the interpreter versus output from go run.

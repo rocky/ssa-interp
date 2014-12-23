@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa2
+package ssa
 
 // This file defines the Const SSA value type.
 
@@ -11,27 +11,33 @@ import (
 	"go/token"
 	"strconv"
 
-	"code.google.com/p/go.tools/go/exact"
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/exact"
+	"golang.org/x/tools/go/types"
 )
 
 // NewConst returns a new constant of the specified value and type.
 // val must be valid according to the specification of Const.Value.
 //
-func NewConst(val exact.Value, typ types.Type, pos token.Pos, end token.Pos) *Const {
-	return &Const{typ, val, pos, end}
+func NewConst(val exact.Value, typ types.Type) *Const {
+	return &Const{typ, val}
 }
 
-// intConst returns an untyped integer constant that evaluates to i.
+// intConst returns an 'int' constant that evaluates to i.
+// (i is an int64 in case the host is narrower than the target.)
 func intConst(i int64) *Const {
-	return NewConst(exact.MakeInt64(i), types.Typ[types.UntypedInt], token.NoPos, token.NoPos)
+	return NewConst(exact.MakeInt64(i), tInt)
 }
 
 // nilConst returns a nil constant of the specified type, which may
 // be any reference type, including interfaces.
 //
 func nilConst(typ types.Type) *Const {
-	return NewConst(nil, typ, token.NoPos, token.NoPos)
+	return NewConst(nil, typ)
+}
+
+// stringConst returns a 'string' constant that evaluates to s.
+func stringConst(s string) *Const {
+	return NewConst(exact.MakeString(s), tString)
 }
 
 // zeroConst returns a new "zero" constant of the specified type,
@@ -43,11 +49,11 @@ func zeroConst(t types.Type) *Const {
 	case *types.Basic:
 		switch {
 		case t.Info()&types.IsBoolean != 0:
-			return NewConst(exact.MakeBool(false), t, token.NoPos, token.NoPos)
+			return NewConst(exact.MakeBool(false), t)
 		case t.Info()&types.IsNumeric != 0:
-			return NewConst(exact.MakeInt64(0), t, token.NoPos, token.NoPos)
+			return NewConst(exact.MakeInt64(0), t)
 		case t.Info()&types.IsString != 0:
-			return NewConst(exact.MakeString(""), t, token.NoPos, token.NoPos)
+			return NewConst(exact.MakeString(""), t)
 		case t.Kind() == types.UnsafePointer:
 			fallthrough
 		case t.Kind() == types.UntypedNil:
@@ -58,34 +64,37 @@ func zeroConst(t types.Type) *Const {
 	case *types.Pointer, *types.Slice, *types.Interface, *types.Chan, *types.Map, *types.Signature:
 		return nilConst(t)
 	case *types.Named:
-		return NewConst(zeroConst(t.Underlying()).Value, t, token.NoPos, token.NoPos)
+		return NewConst(zeroConst(t.Underlying()).Value, t)
 	case *types.Array, *types.Struct, *types.Tuple:
 		panic(fmt.Sprint("zeroConst applied to aggregate:", t))
 	}
 	panic(fmt.Sprint("zeroConst: unexpected ", t))
 }
 
-func (c *Const) valstring() string {
+func (c *Const) RelString(from *types.Package) string {
+	var s string
 	if c.Value == nil {
-		return "nil"
+		s = "nil"
 	} else if c.Value.Kind() == exact.String {
-		s := exact.StringVal(c.Value)
+		s = exact.StringVal(c.Value)
 		const max = 20
+		// TODO(adonovan): don't cut a rune in half.
 		if len(s) > max {
 			s = s[:max-3] + "..." // abbreviate
 		}
-		return strconv.Quote(s)
+		s = strconv.Quote(s)
 	} else {
-		return c.Value.String()
+		s = c.Value.String()
 	}
+	return s + ":" + relType(c.Type(), from)
 }
 
 func (c *Const) Name() string {
-	return fmt.Sprintf("%s:%s", c.valstring(), c.typ)
+	return c.RelString(nil)
 }
 
-func (v *Const) String() string {
-	return v.Name()
+func (c *Const) String() string {
+	return c.Name()
 }
 
 func (c *Const) Type() types.Type {
@@ -95,6 +104,8 @@ func (c *Const) Type() types.Type {
 func (c *Const) Referrers() *[]Instruction {
 	return nil
 }
+
+func (c *Const) Parent() *Function { return nil }
 
 func (c *Const) Pos() token.Pos {
 	return token.NoPos

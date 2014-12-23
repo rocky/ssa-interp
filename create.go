@@ -2,60 +2,58 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa2
+package ssa
 
 // This file implements the CREATE phase of SSA construction.
 // See builder.go for explanation.
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"os"
-	"strings"
+	"sync"
 
-	"github.com/rocky/go-types"
-	"github.com/rocky/go-importer"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/types"
 )
 
 // BuilderMode is a bitmask of options for diagnostics and checking.
 type BuilderMode uint
 
 const (
-	LogPackages          BuilderMode = 1 << iota // Dump package inventory to stderr
-	LogFunctions                                 // Dump function SSA code to stderr
-	LogSource                                    // Show source locations as SSA builder progresses
+	PrintPackages        BuilderMode = 1 << iota // Print package inventory to stdout
+	PrintFunctions                               // Print function SSA code to stdout
+	LogSource                                    // Log source locations as SSA builder progresses
 	SanityCheckFunctions                         // Perform sanity checking of function bodies
 	NaiveForm                                    // Build naïve SSA form: don't replace local loads/stores with registers
 	BuildSerially                                // Build packages serially, not in parallel.
-	DebugInfo                                    // Include DebugRef Globally
+	GlobalDebug                                  // Enable debug info for all packages
+	BareInits                                    // Build init functions without guards or calls to dependent inits
 )
 
-// NewProgram returns a new SSA Program initially containing no
-// packages.
+// Create returns a new SSA Program.  An SSA Package is created for
+// each transitively error-free package of iprog.
 //
-// fset specifies the mapping from token positions to source location
-// that will be used by all ASTs of this program.
+// Code for bodies of functions is not built until Build() is called
+// on the result.
 //
 // mode controls diagnostics and checking during SSA construction.
 //
-func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
+func Create(iprog *loader.Program, mode BuilderMode) *Program {
 	prog := &Program{
-		Fset:                fset,
-		PackagesByPath:      make(map[string]*Package),
-		PackagesByName:      make(map[string]*Package),
-		packages:            make(map[*types.Package]*Package),
-		builtins:            make(map[*types.Builtin]*Builtin),
-		boundMethodWrappers: make(map[*types.Func]*Function),
-		ifaceMethodWrappers: make(map[*types.Func]*Function),
-		mode:                mode,
+		Fset:     iprog.Fset,
+		imported: make(map[string]*Package),
+		packages: make(map[*types.Package]*Package),
+		thunks:   make(map[selectionKey]*Function),
+		bounds:   make(map[*types.Func]*Function),
+		mode:     mode,
 	}
 
-	// Create Values for built-in functions.
-	for _, name := range types.Universe.Names() {
-		if obj, ok := types.Universe.Lookup(name).(*types.Builtin); ok {
-			// FIXME: end position is not right
-			prog.builtins[obj] = &Builtin{obj, obj.Pos()}
+	for _, info := range iprog.AllPackages {
+		// TODO(adonovan): relax this constraint if the
+		// program contains only "soft" errors.
+		if info.TransitivelyErrorFree {
+			prog.CreatePackage(info)
 		}
 	}
 
@@ -73,85 +71,45 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 	name := obj.Name()
 	switch obj := obj.(type) {
 	case *types.TypeName:
-		pkg.values[obj] = nil // for needMethods
 		pkg.Members[name] = &Type{
 			object: obj,
 			pkg:    pkg,
 		}
 
 	case *types.Const:
-		pos  := obj.Pos()
-		endP := obj.Pos()
-		if syntax != nil {
-			if try := syntax.Pos(); try != token.NoPos { pos = try }
-			if try := syntax.End(); try != token.NoPos { endP = try }
-		}
 		c := &NamedConst{
 			object: obj,
-			Value:  NewConst(obj.Val(), obj.Type(), pos, endP),
+			Value:  NewConst(obj.Val(), obj.Type()),
 			pkg:    pkg,
 		}
 		pkg.values[obj] = c.Value
 		pkg.Members[name] = c
 
 	case *types.Var:
-		spec, _ := syntax.(*ast.ValueSpec)
-		pos  := obj.Pos()
-		endP := obj.Pos()
-		if syntax != nil {
-			// if try := syntax.Pos(); try != token.NoPos { pos = try }
-			if try := syntax.End(); try != token.NoPos { endP = try }
-		}
 		g := &Global{
 			Pkg:    pkg,
 			name:   name,
 			object: obj,
 			typ:    types.NewPointer(obj.Type()), // address
-			pos:    pos,
-			endP:   endP,
-			spec:   spec,
+			pos:    obj.Pos(),
 		}
 		pkg.values[obj] = g
 		pkg.Members[name] = g
 
 	case *types.Func:
-		var fs *funcSyntax
-		var scope *Scope = nil
-		if decl, ok := syntax.(*ast.FuncDecl); ok {
-			fs = &funcSyntax{
-				functype:  decl.Type,
-				recvField: decl.Recv,
-				body:      decl.Body,
-			}
-			scope = pkg.TypeScope2Scope[pkg.info.Scopes[decl.Type]]
-			scope.node = &syntax
-		}
-		pos  := obj.Pos()
-		endP := obj.Pos()
-		if syntax != nil {
-			// if try := syntax.Pos(); try != token.NoPos { pos = try }
-			if try := syntax.End(); try != token.NoPos { endP = try }
-		}
 		fn := &Function{
 			name:      name,
 			object:    obj,
 			Signature: obj.Type().(*types.Signature),
 			syntax:    syntax,
-			pos:       pos,
-			endP:      endP,
+			pos:       obj.Pos(),
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
-			Breakpoint: false,
-			Scope     : scope,
-			LocalsByName: make(map[NameScope]uint),
 		}
 		if syntax == nil {
 			fn.Synthetic = "loaded from gc object file"
 		}
 
-		if fs != nil && fs.body != nil {
-			fn.endP =  fs.body.End()
-		}
 		pkg.values[obj] = fn
 		if fn.Signature.Recv() == nil {
 			pkg.Members[name] = fn // package-level function
@@ -174,7 +132,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 			for _, spec := range decl.Specs {
 				for _, id := range spec.(*ast.ValueSpec).Names {
 					if !isBlankIdent(id) {
-						memberFromObject(pkg, pkg.objectOf(id), nil)
+						memberFromObject(pkg, pkg.info.Defs[id], nil)
 					}
 				}
 			}
@@ -183,7 +141,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 			for _, spec := range decl.Specs {
 				for _, id := range spec.(*ast.ValueSpec).Names {
 					if !isBlankIdent(id) {
-						memberFromObject(pkg, pkg.objectOf(id), spec)
+						memberFromObject(pkg, pkg.info.Defs[id], spec)
 					}
 				}
 			}
@@ -192,7 +150,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 			for _, spec := range decl.Specs {
 				id := spec.(*ast.TypeSpec).Name
 				if !isBlankIdent(id) {
-					memberFromObject(pkg, pkg.objectOf(id), nil)
+					memberFromObject(pkg, pkg.info.Defs[id], nil)
 				}
 			}
 		}
@@ -203,7 +161,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 			return // no object
 		}
 		if !isBlankIdent(id) {
-			memberFromObject(pkg, pkg.objectOf(id), decl)
+			memberFromObject(pkg, pkg.info.Defs[id], decl)
 		}
 	}
 }
@@ -217,10 +175,7 @@ func membersFromDecl(pkg *Package, decl ast.Decl) {
 // The real work of building SSA form for each function is not done
 // until a subsequent call to Package.Build().
 //
-func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
-	if info.Err != nil {
-		panic(fmt.Sprintf("package %s has errors: %s", info, info.Err))
-	}
+func (prog *Program) CreatePackage(info *loader.PackageInfo) *Package {
 	if p := prog.packages[info.Pkg]; p != nil {
 		return p // already loaded
 	}
@@ -231,31 +186,17 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		values:  make(map[types.Object]Value),
 		Object:  info.Pkg,
 		info:    info, // transient (CREATE and BUILD phases)
-		locs:    make([] LocInst, 0),
-		TypeScope2Scope: make(map[*types.Scope]*Scope),
 	}
 
-	// 0 scope number is pkg init function
-	scope    := assignScopeId(info.Pkg.Scope(), 0)
-
-	// FIXME: rocky I think this in there some other way now in the types interface
-	// p.Ast2Scope[scope.Node()] = scope
-
-	scopeId := ScopeId(1)
-	AssignScopeIds(p, info.Pkg.Scope(), &scopeId)
-
 	// Add init() function.
-	p.Init = &Function{
+	p.init = &Function{
 		name:      "init",
 		Signature: new(types.Signature),
 		Synthetic: "package initializer",
-		LocalsByName: make(map[NameScope]uint),
-		Breakpoint: false,
-		Scope:     scope,
 		Pkg:       p,
 		Prog:      prog,
 	}
-	p.Members[p.Init.name] = p.Init
+	p.Members[p.init.name] = p.init
 
 	// CREATE phase.
 	// Allocate all package members: vars, funcs, consts and types.
@@ -283,53 +224,36 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		}
 	}
 
-	// Add initializer guard variable.
-	initguard := &Global{
-		Pkg:  p,
-		name: "init$guard",
-		typ:  types.NewPointer(tBool),
+	if prog.mode&BareInits == 0 {
+		// Add initializer guard variable.
+		initguard := &Global{
+			Pkg:  p,
+			name: "init$guard",
+			typ:  types.NewPointer(tBool),
+		}
+		p.Members[initguard.Name()] = initguard
 	}
-	p.Members[initguard.Name()] = initguard
 
-	if prog.mode&LogPackages != 0 {
-		p.DumpTo(os.Stderr)
+	if prog.mode&GlobalDebug != 0 {
+		p.SetDebugMode(true)
+	}
+
+	if prog.mode&PrintPackages != 0 {
+		printMu.Lock()
+		p.WriteTo(os.Stdout)
+		printMu.Unlock()
 	}
 
 	if info.Importable {
-		prog.PackagesByPath[info.Pkg.Path()] = p
+		prog.imported[info.Pkg.Path()] = p
 	}
-	prog.PackagesByName[p.Object.Name()] = p
 	prog.packages[p.Object] = p
-
-	if prog.mode&SanityCheckFunctions != 0 {
-		sanityCheckPackage(p)
-	}
 
 	return p
 }
 
-// CreatePackages creates SSA Packages for all error-free packages
-// loaded by the specified Importer.
-//
-// If all packages were error-free, it is safe to call
-// prog.BuildAll(), and nil is returned.  Otherwise an error is
-// returned.
-//
-func (prog *Program) CreatePackages(imp *importer.Importer) error {
-	var errpkgs []string
-	for _, info := range imp.AllPackages() {
-		if info.Err != nil {
-			errpkgs = append(errpkgs, info.Pkg.Path())
-		} else {
-			prog.CreatePackage(info)
-		}
-	}
-	if errpkgs != nil {
-		return fmt.Errorf("couldn't create these SSA packages due to type errors: %s",
-			strings.Join(errpkgs, ", "))
-	}
-	return nil
-}
+// printMu serializes printing of Packages/Functions to stdout
+var printMu sync.Mutex
 
 // AllPackages returns a new slice containing all packages in the
 // program prog in unspecified order.
@@ -350,5 +274,5 @@ func (prog *Program) AllPackages() []*Package {
 // or the ad-hoc main package created 'go build foo.go'.
 //
 func (prog *Program) ImportedPackage(path string) *Package {
-	return prog.PackagesByPath[path]
+	return prog.imported[path]
 }
