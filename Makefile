@@ -22,7 +22,7 @@ big:
 	(cd interp/big && go install)
 
 #: Build tortoise
-gub: cmd
+cmd:
 	(cd cmd && go build tortoise)
 
 #: Build the debugger
