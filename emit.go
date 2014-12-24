@@ -325,13 +325,14 @@ func emitTypeAssert(f *Function, x Value, t types.Type, pos token.Pos) Value {
 // emitTypeTest emits to f a type test value,ok := x.(t) and returns
 // a (value, ok) tuple.  x.Type() must be an interface.
 //
-func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos) Value {
+func emitTypeTest(f *Function, x Value, t types.Type, pos token.Pos, endP token.Pos) Value {
 	a := &TypeAssert{
 		X:            x,
 		AssertedType: t,
 		CommaOk:      true,
 	}
 	a.setPos(pos)
+	a.setEnd(endP)
 	a.setType(types.NewTuple(
 		newVar("value", t),
 		varOk,

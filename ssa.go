@@ -450,9 +450,10 @@ type Global struct {
 	object types.Object // a *types.Var; may be nil for synthetics e.g. init$guard
 	typ    types.Type
 	pos    token.Pos
-	endP  token.Pos
+	endP   token.Pos
 
 	Pkg *Package
+	spec *ast.ValueSpec // ast of global variable
 }
 
 // A Builtin represents a specific use of a built-in function, e.g. len.

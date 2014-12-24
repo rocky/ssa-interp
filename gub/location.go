@@ -51,7 +51,7 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 		}
 		s += fmt.Sprintf("(%s).%s()", fn.Params[0].Type(), name)
 	} else {
-		s += name
+		s += fmt.Sprintf("%s.%s", fn.Pkg.Object.Path(), name)
 		if len(name) > 0 { s += "()" }
 	}
 

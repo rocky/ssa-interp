@@ -208,7 +208,8 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 		return fn.emit(lookup)
 
 	case *ast.TypeAssertExpr:
-		return emitTypeTest(fn, b.expr(fn, e.X), typ.At(0).Type(), e.Lparen)
+		t := fn.Pkg.typeOf(e).(*types.Tuple).At(0).Type()
+		return emitTypeTest(fn, b.expr(fn, e.X), t, e.X.Pos(), e.X.End())
 
 	case *ast.UnaryExpr: // must be receive <-
 		unop := &UnOp{
@@ -293,6 +294,7 @@ func (b *builder) builtin(fn *Function, obj *types.Builtin, args []ast.Expr,
 		fn.emit(&Panic{
 			X:   emitConv(fn, b.expr(fn, args[0]), tEface),
 			pos: pos,
+			endP: endP,
 		})
 		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 		return vTrue // any non-nil Value will do
@@ -338,6 +340,8 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 
 	case *ast.CompositeLit:
 		t := deref(fn.Pkg.typeOf(e))
+		// obj := fn.Pkg.objectOf(e)  // ?? FIXME figure out how to do
+		// scope := fn.Pkg.TypeScope2Scope[obj.Parent()]
 		var v *Alloc
 		if escaping {
 			v = emitNew(fn, t, e.Pos(), e.End())
@@ -515,10 +519,13 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 				switch y := y.(type) {
 				case *Convert:
 					y.pos = e.Lparen
+					y.endP = e.Rparen
 				case *ChangeType:
 					y.pos = e.Lparen
+					y.endP = e.Rparen
 				case *MakeInterface:
 					y.pos = e.Lparen
+					y.endP = e.Rparen
 				}
 			}
 			return y
@@ -770,7 +777,8 @@ func (b *builder) receiver(fn *Function, e ast.Expr, wantAddr, escaping bool, se
 // occurring in e.
 //
 func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
-	c.pos = e.Lparen
+	c.pos  = e.Pos()
+	c.endP = e.End()
 
 	// Is this a method call?
 	if selector, ok := unparen(e.Fun).(*ast.SelectorExpr); ok {
@@ -1314,7 +1322,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 				condv = emitCompare(fn, token.EQL, x, nilConst(x.Type()), token.NoPos)
 				ti = x
 			} else {
-				yok := emitTypeTest(fn, x, casetype, cc.Case)
+				yok := emitTypeTest(fn, x, casetype, cc.Case, token.NoPos)
 				ti = emitExtract(fn, yok, 0)
 				condv = emitExtract(fn, yok, 1)
 			}
@@ -1938,14 +1946,14 @@ start:
 	case *ast.GoStmt:
 		// The "intrinsics" new/make/len/cap are forbidden here.
 		// panic is treated like an ordinary function call.
-		v := Go{pos: s.Go}
+		v := Go{pos: s.Go, endP: s.End()}
 		b.setCall(fn, s.Call, &v.Call)
 		fn.emit(&v)
 
 	case *ast.DeferStmt:
 		// The "intrinsics" new/make/len/cap are forbidden here.
 		// panic is treated like an ordinary function call.
-		v := Defer{pos: s.Defer}
+		v := Defer{pos: s.Defer, endP: s.End()}
 		b.setCall(fn, s.Call, &v.Call)
 		fn.emit(&v)
 
@@ -1988,7 +1996,7 @@ start:
 				results = append(results, emitLoad(fn, r))
 			}
 		}
-		fn.emit(&Return{Results: results, pos: s.Return})
+		fn.emit(&Return{Results: results, pos: s.Pos(), endP: s.End()})
 		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 
 	case *ast.BranchStmt:
@@ -2157,6 +2165,8 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 	}
 	var fn *Function
 	if decl.Recv == nil && id.Name == "init" {
+		/* ROCKY FIXME: location info isn't getting in. */
+		// fmt.Printf("+++1 %s init#%d %d\n", pkg, pkg.ninit, decl.Name.NamePos)
 		pkg.ninit++
 		fn = &Function{
 			name:      fmt.Sprintf("init#%d", pkg.ninit),
@@ -2164,6 +2174,7 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 			pos:       decl.Name.NamePos,
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
+			LocalsByName: make(map[NameScope]uint),
 			syntax:    decl,
 		}
 

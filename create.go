@@ -79,41 +79,78 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 		}
 
 	case *types.Const:
+		pos  := obj.Pos()
+		endP := obj.Pos()
+		if syntax != nil {
+			if try := syntax.Pos(); try != token.NoPos { pos = try }
+			if try := syntax.End(); try != token.NoPos { endP = try }
+		}
 		c := &NamedConst{
 			object: obj,
-			Value:  NewConst(obj.Val(), obj.Type(), obj.Pos(), obj.Pos()),
+			Value:  NewConst(obj.Val(), obj.Type(), pos, endP),
 			pkg:    pkg,
 		}
 		pkg.values[obj] = c.Value
 		pkg.Members[name] = c
 
 	case *types.Var:
+		spec, _ := syntax.(*ast.ValueSpec)
+		pos  := obj.Pos()
+		endP := obj.Pos()
+		if syntax != nil {
+			// if try := syntax.Pos(); try != token.NoPos { pos = try }
+			if try := syntax.End(); try != token.NoPos { endP = try }
+		}
 		g := &Global{
 			Pkg:    pkg,
 			name:   name,
 			object: obj,
 			typ:    types.NewPointer(obj.Type()), // address
-			pos:    obj.Pos(),
-			endP:   obj.Pos(),
+			pos:    pos,
+			endP:   endP,
+			spec:   spec,
 		}
 		pkg.values[obj] = g
 		pkg.Members[name] = g
 
 	case *types.Func:
+		var fs *funcSyntax
+		var scope *Scope = nil
+		if decl, ok := syntax.(*ast.FuncDecl); ok {
+			fs = &funcSyntax{
+				functype:  decl.Type,
+				recvField: decl.Recv,
+				body:      decl.Body,
+			}
+			scope = pkg.TypeScope2Scope[pkg.info.Scopes[decl.Type]]
+			scope.node = &syntax
+		}
+		pos  := obj.Pos()
+		endP := obj.Pos()
+		if syntax != nil {
+			// if try := syntax.Pos(); try != token.NoPos { pos = try }
+			if try := syntax.End(); try != token.NoPos { endP = try }
+		}
 		fn := &Function{
 			name:      name,
 			object:    obj,
 			Signature: obj.Type().(*types.Signature),
 			syntax:    syntax,
-			pos:       obj.Pos(),
-			endP:      obj.Pos(),
+			pos:       pos,
+			endP:      endP,
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
+			Breakpoint: false,
+			Scope     : scope,
+			LocalsByName: make(map[NameScope]uint),
 		}
 		if syntax == nil {
 			fn.Synthetic = "loaded from gc object file"
 		}
 
+		if fs != nil && fs.body != nil {
+			fn.endP =  fs.body.End()
+		}
 		pkg.values[obj] = fn
 		if fn.Signature.Recv() == nil {
 			pkg.Members[name] = fn // package-level function
@@ -190,13 +227,27 @@ func (prog *Program) CreatePackage(info *loader.PackageInfo) *Package {
 		values:  make(map[types.Object]Value),
 		Object:  info.Pkg,
 		info:    info, // transient (CREATE and BUILD phases)
+		locs:    make([] LocInst, 0),
+		TypeScope2Scope: make(map[*types.Scope]*Scope),
 	}
+
+	// 0 scope number is pkg init function
+	scope    := assignScopeId(info.Pkg.Scope(), 0)
+
+	// FIXME: rocky I think this in there some other way now in the types interface
+	// p.Ast2Scope[scope.Node()] = scope
+
+	scopeId := ScopeId(1)
+	AssignScopeIds(p, info.Pkg.Scope(), &scopeId)
 
 	// Add init() function.
 	p.init = &Function{
 		name:      "init",
 		Signature: new(types.Signature),
 		Synthetic: "package initializer",
+		LocalsByName: make(map[NameScope]uint),
+		Breakpoint: false,
+		Scope:     scope,
 		Pkg:       p,
 		Prog:      prog,
 	}

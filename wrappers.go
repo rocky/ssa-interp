@@ -72,6 +72,9 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 		Synthetic: description,
 		Prog:      prog,
 		pos:       obj.Pos(),
+		Breakpoint: false,
+		LocalsByName: make(map[NameScope]uint),
+		Scope     : nil,
 	}
 	fn.startBody(nil)
 	fn.addSpilledParam(recv)

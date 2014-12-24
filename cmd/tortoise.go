@@ -111,7 +111,7 @@ func doMain() error {
 	}
 
 	var mode ssa2.BuilderMode
-	// mode=ssa2.NaiveForm
+	mode=ssa2.NaiveForm
 	for _, c := range *buildFlag {
 		switch c {
 		case 'D':
@@ -223,6 +223,22 @@ func doMain() error {
 		if interpTraceMode & interp.EnableStmtTracing != 0 {
 			gubcmd.Init()
 			gub.Install(gubFlag)
+			fn := main.Func("main")
+			if fn != nil {
+				/* Set a breakpoint on the main routine */
+				interp.SetFnBreakpoint(fn)
+				bp := &gub.Breakpoint {
+					Hits: 0,
+					Id: gub.BreakpointNext(),
+					Pos: fn.Pos(),
+					EndP: fn.EndP(),
+					Ignore: 0,
+					Kind: "Function",
+					Temp: true,
+					Enabled: true,
+				}
+				gub.BreakpointAdd(bp)
+			}
 		}
 
 		fmt.Println("Running....")

@@ -148,6 +148,13 @@ type lblock struct {
 	_continue *BasicBlock
 }
 
+// funcSyntax holds the syntax tree for the function declaration and body.
+type funcSyntax struct {
+	recvField *ast.FieldList
+	body      *ast.BlockStmt
+	functype  *ast.FuncType
+}
+
 // labelledBlock returns the branch target associated with the
 // specified label, creating it if needed.
 //
@@ -390,7 +397,13 @@ func (f *Function) debugInfo() bool {
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 	l := f.addLocal(obj.Type(), obj.Pos(), obj.Pos(), nil)
 	l.Comment = obj.Name()
+	l.Scope = f.Pkg.TypeScope2Scope[obj.Parent()]
 	f.objects[obj] = l
+	nameScope := NameScope{
+		Name: obj.Name(),
+		Scope: l.Scope,
+	}
+	f.LocalsByName[nameScope] = uint(len(f.Locals))
 	return l
 }
 
@@ -670,7 +683,14 @@ func (f *Function) newBasicBlock(comment string, scope *Scope) *BasicBlock {
 // TODO(adonovan): think harder about the API here.
 //
 func (prog *Program) NewFunction(name string, sig *types.Signature, provenance string) *Function {
-	return &Function{Prog: prog, name: name, Signature: sig, Synthetic: provenance}
+	return &Function{
+		name: name,
+		Signature: sig,
+		Synthetic: provenance,
+		Breakpoint: false,
+		Scope: nil,
+		LocalsByName: make(map[NameScope]uint),
+	}
 }
 
 type extentNode [2]token.Pos

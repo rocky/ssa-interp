@@ -110,6 +110,9 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Synthetic: "package initializer",
 		Pkg:       testmain,
 		Prog:      prog,
+		Breakpoint: true,
+		Scope     : nil,
+		LocalsByName: make(map[NameScope]uint),
 	}
 	init.startBody(nil)
 

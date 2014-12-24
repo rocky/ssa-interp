@@ -84,7 +84,12 @@ func PrintStack(fr *interp.Frame, count int) {
 		if fr == curFrame {
 			pointer = "=> "
 		}
-		Msg("%s#%d %s", pointer, i, fr.FnAndParamString())
+		fn := fr.Fn()
+		if fn.Signature.Recv() != nil {
+			Msg("%s#%d %s", pointer, i, fr.FnAndParamString())
+		} else {
+			Msg("%s#%d %s.%s", pointer, i, fn.Pkg.Object.Path(), fr.FnAndParamString())
+		}
 		i++
 	}
 }

@@ -42,7 +42,8 @@ func run(t *testing.T, test testDatum) bool {
 		log.Fatal(err)
 	}
 
-	got, err  := exec.Command("../tortoise", "-run", "-interp=S", gubOpt, goFile).Output()
+	got, err  := exec.Command("../cmd/tortoise", "-run", "-interp=S",
+		gubOpt, goFile).Output()
 
 	if err != nil {
 		fmt.Printf("%s", got)
