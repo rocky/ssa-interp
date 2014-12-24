@@ -6,37 +6,37 @@ package interp
 
 import "syscall"
 
-func ext۰syscall۰Close(fr *frame, args []value) value {
+func ext۰syscall۰Close(fr *Frame, args []value) value {
 	panic("syscall.Close not yet implemented")
 }
-func ext۰syscall۰Fstat(fr *frame, args []value) value {
+func ext۰syscall۰Fstat(fr *Frame, args []value) value {
 	panic("syscall.Fstat not yet implemented")
 }
-func ext۰syscall۰Kill(fr *frame, args []value) value {
+func ext۰syscall۰Kill(fr *Frame, args []value) value {
 	panic("syscall.Kill not yet implemented")
 }
-func ext۰syscall۰Lstat(fr *frame, args []value) value {
+func ext۰syscall۰Lstat(fr *Frame, args []value) value {
 	panic("syscall.Lstat not yet implemented")
 }
-func ext۰syscall۰Open(fr *frame, args []value) value {
+func ext۰syscall۰Open(fr *Frame, args []value) value {
 	panic("syscall.Open not yet implemented")
 }
-func ext۰syscall۰ParseDirent(fr *frame, args []value) value {
+func ext۰syscall۰ParseDirent(fr *Frame, args []value) value {
 	panic("syscall.ParseDirent not yet implemented")
 }
-func ext۰syscall۰Read(fr *frame, args []value) value {
+func ext۰syscall۰Read(fr *Frame, args []value) value {
 	panic("syscall.Read not yet implemented")
 }
-func ext۰syscall۰ReadDirent(fr *frame, args []value) value {
+func ext۰syscall۰ReadDirent(fr *Frame, args []value) value {
 	panic("syscall.ReadDirent not yet implemented")
 }
-func ext۰syscall۰Stat(fr *frame, args []value) value {
+func ext۰syscall۰Stat(fr *Frame, args []value) value {
 	panic("syscall.Stat not yet implemented")
 }
-func ext۰syscall۰Write(fr *frame, args []value) value {
+func ext۰syscall۰Write(fr *Frame, args []value) value {
 	panic("syscall.Write not yet implemented")
 }
-func ext۰syscall۰RawSyscall(fr *frame, args []value) value {
+func ext۰syscall۰RawSyscall(fr *Frame, args []value) value {
 	return tuple{uintptr(0), uintptr(0), uintptr(syscall.ENOSYS)}
 }
 func syswrite(fd int, b []byte) (int, error) {

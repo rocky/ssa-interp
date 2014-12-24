@@ -50,8 +50,9 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 
-	"golang.org/x/tools/go/ssa"
+	"github.com/rocky/ssa-interp"
 	"golang.org/x/tools/go/types"
 )
 
@@ -63,78 +64,45 @@ const (
 	kJump
 )
 
-// Mode is a bitmask of options affecting the interpreter.
+// Mode is a bitmask of options influencing the interpreter.
 type Mode uint
 
 const (
-	DisableRecover Mode = 1 << iota // Disable recover() in target programs; show interpreter crash instead.
-	EnableTracing                   // Print a trace of all instructions as they are interpreted.
+	// Disable recover() in target programs; show interpreter crash instead.
+	DisableRecover Mode = 1 << iota
 )
 
-type methodSet map[string]*ssa.Function
+type methodSet map[string]*ssa2.Function
 
 // State shared between all interpreted goroutines.
 type interpreter struct {
-	osArgs             []value              // the value of os.Args
-	prog               *ssa.Program         // the SSA program
-	globals            map[ssa.Value]*value // addresses of global variables (immutable)
-	mode               Mode                 // interpreter options
-	reflectPackage     *ssa.Package         // the fake reflect package
-	errorMethods       methodSet            // the method set of reflect.error, which implements the error interface.
-	rtypeMethods       methodSet            // the method set of rtype, which implements the reflect.Type interface.
-	runtimeErrorString types.Type           // the runtime.errorString type
-	sizes              types.Sizes          // the effective type-sizing function
-}
+	osArgs             []Value               // the value of os.Args
+	prog               *ssa2.Program         // the SSA program
+	globals            map[ssa2.Value]*Value // addresses of global variables (immutable)
+	Mode               Mode                  // interpreter options
+	reflectPackage     *ssa2.Package         // the fake reflect package
+	errorMethods       methodSet             // the method set of reflect.error,
+                                             //  which implements the error interface.
+	rtypeMethods       methodSet             // the method set of rtype,
+                                             //  which implements the reflect.Type interface.
+	runtimeErrorString types.Type            // the runtime.errorString type
+	sizes              types.Sizes           // the effective type-sizing function
 
-type deferred struct {
-	fn    value
-	args  []value
-	instr *ssa.Defer
-	tail  *deferred
-}
-
-type frame struct {
-	i                *interpreter
-	caller           *frame
-	fn               *ssa.Function
-	block, prevBlock *ssa.BasicBlock
-	env              map[ssa.Value]value // dynamic values of SSA variables
-	locals           []value
-	defers           *deferred
-	result           value
-	panicking        bool
-	panic            interface{}
-}
-
-func (fr *frame) get(key ssa.Value) value {
-	switch key := key.(type) {
-	case nil:
-		// Hack; simplifies handling of optional attributes
-		// such as ssa.Slice.{Low,High}.
-		return nil
-	case *ssa.Function, *ssa.Builtin:
-		return key
-	case *ssa.Const:
-		return constValue(key)
-	case *ssa.Global:
-		if r, ok := fr.i.globals[key]; ok {
-			return r
-		}
-	}
-	if r, ok := fr.env[key]; ok {
-		return r
-	}
-	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
+	TraceMode      TraceMode                 // interpreter trace options
+	TraceEventMask ssa2.TraceEventMask
+	nGoroutines    int                       // number of goroutines
+	goTops         []*GoreState
 }
 
 // runDefer runs a deferred call d.
 // It always returns normally, but may set or clear fr.panic.
 //
-func (fr *frame) runDefer(d *deferred) {
-	if fr.i.mode&EnableTracing != 0 {
+func (fr *Frame) runDefer(d *deferred) {
+	if (fr.i.TraceMode & EnableTracing) != 0 {
 		fmt.Fprintf(os.Stderr, "%s: invoking deferred function call\n",
 			fr.i.prog.Fset.Position(d.instr.Pos()))
 	}
+	TraceHook(fr, nil, ssa2.TRACE_CALL)
 	var ok bool
 	defer func() {
 		if !ok {
@@ -143,35 +111,13 @@ func (fr *frame) runDefer(d *deferred) {
 			fr.panic = recover()
 		}
 	}()
-	call(fr.i, fr, d.instr.Pos(), d.fn, d.args)
+	call(fr.i, fr.goNum, fr, d.fn, d.args)
 	ok = true
-}
-
-// runDefers executes fr's deferred function calls in LIFO order.
-//
-// On entry, fr.panicking indicates a state of panic; if
-// true, fr.panic contains the panic value.
-//
-// On completion, if a deferred call started a panic, or if no
-// deferred call recovered from a previous state of panic, then
-// runDefers itself panics after the last deferred call has run.
-//
-// If there was no initial state of panic, or it was recovered from,
-// runDefers returns normally.
-//
-func (fr *frame) runDefers() {
-	for d := fr.defers; d != nil; d = d.tail {
-		fr.runDefer(d)
-	}
-	fr.defers = nil
-	if fr.panicking {
-		panic(fr.panic) // new panic, or still panicking
-	}
 }
 
 // lookupMethod returns the method set for type typ, which may be one
 // of the interpreter's fake types.
-func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa.Function {
+func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa2.Function {
 	switch typ {
 	case rtypeType:
 		return i.rtypeMethods[meth.Id()]
@@ -184,46 +130,46 @@ func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa.Functio
 // visitInstr interprets a single ssa.Instruction within the activation
 // record frame.  It returns a continuation value indicating where to
 // read the next instruction from.
-func visitInstr(fr *frame, instr ssa.Instruction) continuation {
+func visitInstr(fr *Frame, instr ssa2.Instruction) continuation {
 	switch instr := instr.(type) {
-	case *ssa.DebugRef:
+	case *ssa2.DebugRef:
 		// no-op
 
-	case *ssa.UnOp:
+	case *ssa2.UnOp:
 		fr.env[instr] = unop(instr, fr.get(instr.X))
 
-	case *ssa.BinOp:
+	case *ssa2.BinOp:
 		fr.env[instr] = binop(instr.Op, instr.X.Type(), fr.get(instr.X), fr.get(instr.Y))
 
-	case *ssa.Call:
+	case *ssa2.Call:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.env[instr] = call(fr.i, fr, instr.Pos(), fn, args)
+		fr.env[instr] = call(fr.i, fr.goNum, fr, fn, args)
 
-	case *ssa.ChangeInterface:
+	case *ssa2.ChangeInterface:
 		fr.env[instr] = fr.get(instr.X)
 
-	case *ssa.ChangeType:
+	case *ssa2.ChangeType:
 		fr.env[instr] = fr.get(instr.X) // (can't fail)
 
-	case *ssa.Convert:
+	case *ssa2.Convert:
 		fr.env[instr] = conv(instr.Type(), instr.X.Type(), fr.get(instr.X))
 
-	case *ssa.MakeInterface:
+	case *ssa2.MakeInterface:
 		fr.env[instr] = iface{t: instr.X.Type(), v: fr.get(instr.X)}
 
-	case *ssa.Extract:
+	case *ssa2.Extract:
 		fr.env[instr] = fr.get(instr.Tuple).(tuple)[instr.Index]
 
-	case *ssa.Slice:
+	case *ssa2.Slice:
 		fr.env[instr] = slice(fr.get(instr.X), fr.get(instr.Low), fr.get(instr.High), fr.get(instr.Max))
 
-	case *ssa.Return:
+	case *ssa2.Return:
 		switch len(instr.Results) {
 		case 0:
 		case 1:
 			fr.result = fr.get(instr.Results[0])
 		default:
-			var res []value
+			var res []Value
 			for _, r := range instr.Results {
 				res = append(res, fr.get(r))
 			}
@@ -232,19 +178,19 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		fr.block = nil
 		return kReturn
 
-	case *ssa.RunDefers:
+	case *ssa2.RunDefers:
 		fr.runDefers()
 
-	case *ssa.Panic:
+	case *ssa2.Panic:
 		panic(targetPanic{fr.get(instr.X)})
 
-	case *ssa.Send:
-		fr.get(instr.Chan).(chan value) <- copyVal(fr.get(instr.X))
+	case *ssa2.Send:
+		fr.get(instr.Chan).(chan Value) <- copyVal(fr.get(instr.X))
 
-	case *ssa.Store:
-		*fr.get(instr.Addr).(*value) = copyVal(fr.get(instr.Val))
+	case *ssa2.Store:
+		*fr.get(instr.Addr).(*Value) = copyVal(fr.get(instr.Val))
 
-	case *ssa.If:
+	case *ssa2.If:
 		succ := 1
 		if fr.get(instr.Cond).(bool) {
 			succ = 0
@@ -252,90 +198,91 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		fr.prevBlock, fr.block = fr.block, fr.block.Succs[succ]
 		return kJump
 
-	case *ssa.Jump:
+	case *ssa2.Jump:
 		fr.prevBlock, fr.block = fr.block, fr.block.Succs[0]
 		return kJump
 
-	case *ssa.Defer:
+	case *ssa2.Defer:
 		fn, args := prepareCall(fr, &instr.Call)
-		fr.defers = &deferred{
-			fn:    fn,
-			args:  args,
-			instr: instr,
-			tail:  fr.defers,
-		}
+		fr.defers = append(fr.defers, func() { call(fr.i, fr.goNum, fr, fn, args) })
+		// fr.defers = &deferred{
+		// 	fn:    fn,
+		// 	args:  args,
+		// 	instr: instr,
+		// 	tail:  fr.defers,
+		// }
 
-	case *ssa.Go:
+	case *ssa2.Go:
 		fn, args := prepareCall(fr, &instr.Call)
-		go call(fr.i, nil, instr.Pos(), fn, args)
+		go call(fr.i, fr.goNum, nil, fn, args)
 
-	case *ssa.MakeChan:
-		fr.env[instr] = make(chan value, asInt(fr.get(instr.Size)))
+	case *ssa2.MakeChan:
+		fr.env[instr] = make(chan Value, asInt(fr.get(instr.Size)))
 
-	case *ssa.Alloc:
-		var addr *value
+	case *ssa2.Alloc:
+		var addr *Value
 		if instr.Heap {
 			// new
-			addr = new(value)
+			addr = new(Value)
 			fr.env[instr] = addr
 		} else {
 			// local
-			addr = fr.env[instr].(*value)
+			addr = fr.env[instr].(*Value)
 		}
 		*addr = zero(deref(instr.Type()))
 
-	case *ssa.MakeSlice:
-		slice := make([]value, asInt(fr.get(instr.Cap)))
+	case *ssa2.MakeSlice:
+		slice := make([]Value, asInt(fr.get(instr.Cap)))
 		tElt := instr.Type().Underlying().(*types.Slice).Elem()
 		for i := range slice {
 			slice[i] = zero(tElt)
 		}
 		fr.env[instr] = slice[:asInt(fr.get(instr.Len))]
 
-	case *ssa.MakeMap:
+	case *ssa2.MakeMap:
 		reserve := 0
 		if instr.Reserve != nil {
 			reserve = asInt(fr.get(instr.Reserve))
 		}
 		fr.env[instr] = makeMap(instr.Type().Underlying().(*types.Map).Key(), reserve)
 
-	case *ssa.Range:
+	case *ssa2.Range:
 		fr.env[instr] = rangeIter(fr.get(instr.X), instr.X.Type())
 
-	case *ssa.Next:
+	case *ssa2.Next:
 		fr.env[instr] = fr.get(instr.Iter).(iter).next()
 
-	case *ssa.FieldAddr:
+	case *ssa2.FieldAddr:
 		x := fr.get(instr.X)
-		fr.env[instr] = &(*x.(*value)).(structure)[instr.Field]
+		fr.env[instr] = &(*x.(*Value)).(Structure).fields[instr.Field]
 
-	case *ssa.Field:
-		fr.env[instr] = copyVal(fr.get(instr.X).(structure)[instr.Field])
+	case *ssa2.Field:
+		fr.env[instr] = copyVal(fr.get(instr.X).(Structure).fields[instr.Field])
 
-	case *ssa.IndexAddr:
+	case *ssa2.IndexAddr:
 		x := fr.get(instr.X)
 		idx := fr.get(instr.Index)
 		switch x := x.(type) {
-		case []value:
+		case []Value:
 			fr.env[instr] = &x[asInt(idx)]
-		case *value: // *array
+		case *Value: // *array
 			fr.env[instr] = &(*x).(array)[asInt(idx)]
 		default:
 			panic(fmt.Sprintf("unexpected x type in IndexAddr: %T", x))
 		}
 
-	case *ssa.Index:
+	case *ssa2.Index:
 		fr.env[instr] = copyVal(fr.get(instr.X).(array)[asInt(fr.get(instr.Index))])
 
-	case *ssa.Lookup:
+	case *ssa2.Lookup:
 		fr.env[instr] = lookup(instr, fr.get(instr.X), fr.get(instr.Index))
 
-	case *ssa.MapUpdate:
+	case *ssa2.MapUpdate:
 		m := fr.get(instr.Map)
 		key := fr.get(instr.Key)
 		v := fr.get(instr.Value)
 		switch m := m.(type) {
-		case map[value]value:
+		case map[Value]Value:
 			m[key] = v
 		case *hashmap:
 			m.insert(key.(hashable), v)
@@ -343,17 +290,17 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 			panic(fmt.Sprintf("illegal map type: %T", m))
 		}
 
-	case *ssa.TypeAssert:
+	case *ssa2.TypeAssert:
 		fr.env[instr] = typeAssert(fr.i, instr, fr.get(instr.X).(iface))
 
-	case *ssa.MakeClosure:
-		var bindings []value
+	case *ssa2.MakeClosure:
+		var bindings []Value
 		for _, binding := range instr.Bindings {
 			bindings = append(bindings, fr.get(binding))
 		}
-		fr.env[instr] = &closure{instr.Fn.(*ssa.Function), bindings}
+		fr.env[instr] = &closure{instr.Fn.(*ssa2.Function), bindings}
 
-	case *ssa.Phi:
+	case *ssa2.Phi:
 		for i, pred := range instr.Block().Preds {
 			if fr.prevBlock == pred {
 				fr.env[instr] = fr.get(instr.Edges[i])
@@ -361,7 +308,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 			}
 		}
 
-	case *ssa.Select:
+	case *ssa2.Select:
 		var cases []reflect.SelectCase
 		if !instr.Blocking {
 			cases = append(cases, reflect.SelectCase{
@@ -392,10 +339,10 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 		r := tuple{chosen, recvOk}
 		for i, st := range instr.States {
 			if st.Dir == types.RecvOnly {
-				var v value
+				var v Value
 				if i == chosen && recvOk {
 					// No need to copy since send makes an unaliased copy.
-					v = recv.Interface().(value)
+					v = recv.Interface().(Value)
 				} else {
 					v = zero(st.Chan.Type().Underlying().(*types.Chan).Elem())
 				}
@@ -419,7 +366,7 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 // function call in a Call, Go or Defer instruction, performing
 // interface method lookup if needed.
 //
-func prepareCall(fr *frame, call *ssa.CallCommon) (fn value, args []value) {
+func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
 	v := fr.get(call.Value)
 	if call.Method == nil {
 		// Function call.
@@ -448,17 +395,17 @@ func prepareCall(fr *frame, call *ssa.CallCommon) (fn value, args []value) {
 // fn with arguments args, returning its result.
 // callpos is the position of the callsite.
 //
-func call(i *interpreter, caller *frame, callpos token.Pos, fn value, args []value) value {
+func call(i *interpreter, goNum int, caller *Frame, fn Value, args []Value) Value {
 	switch fn := fn.(type) {
-	case *ssa.Function:
+	case *ssa2.Function:
 		if fn == nil {
 			panic("call of nil function") // nil of func type
 		}
-		return callSSA(i, caller, callpos, fn, args, nil)
+		return callSSA(i, goNum, caller, fn, args, nil)
 	case *closure:
-		return callSSA(i, caller, callpos, fn.Fn, args, fn.Env)
-	case *ssa.Builtin:
-		return callBuiltin(caller, callpos, fn, args)
+		return callSSA(i, goNum, caller, fn.Fn, args, fn.Env)
+	case *ssa2.Builtin:
+		return callBuiltin(caller, fn, args)
 	}
 	panic(fmt.Sprintf("cannot call %T", fn))
 }
@@ -474,37 +421,53 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 // and lexical environment env, returning its result.
 // callpos is the position of the callsite.
 //
-func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function, args []value, env []value) value {
-	if i.mode&EnableTracing != 0 {
+func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args []Value, env []Value) Value {
+	if InstTracing() {
 		fset := fn.Prog.Fset
 		// TODO(adonovan): fix: loc() lies for external functions.
-		fmt.Fprintf(os.Stderr, "Entering %s%s.\n", fn, loc(fset, fn.Pos()))
+		loc := ssa2.FmtRangeWithFset(fset, fn.Pos(), fn.Endp())
+		if loc == "-" {
+			fmt.Fprintf(os.Stderr, "Entering %s...\n", fn)
+		} else {
+			fmt.Fprintf(os.Stderr, "Entering %s at %s...\n", fn, loc)
+		}
 		suffix := ""
 		if caller != nil {
-			suffix = ", resuming " + caller.fn.String() + loc(fset, callpos)
+			suffix = fmt.Sprintf(", resuming %s at %s", caller.fn.String(),
+				loc)
 		}
 		defer fmt.Fprintf(os.Stderr, "Leaving %s%s.\n", fn, suffix)
 	}
-	fr := &frame{
-		i:      i,
-		caller: caller, // for panic/recover
-		fn:     fn,
-	}
+
 	if fn.Parent() == nil {
 		name := fn.String()
 		if ext := externals[name]; ext != nil {
-			if i.mode&EnableTracing != 0 {
+			if InstTracing() {
 				fmt.Fprintln(os.Stderr, "\t(external)")
 			}
-			return ext(fr, args)
+			return ext(caller, args)
 		}
 		if fn.Blocks == nil {
-			panic("no code for function: " + name)
+			caller.sourcePanic("no code for function: " + name)
 		}
 	}
-	fr.env = make(map[ssa.Value]value)
+	fr := &Frame{
+		i:      i,
+		caller: caller, // for panic/recover
+		fn:     fn,
+		env     : make(map[ssa2.Value]Value),
+		block   : fn.Blocks[0],
+		locals  : make([]Value, len(fn.Locals)),
+		tracing : TRACE_STEP_NONE,
+		goNum   : goNum,
+		Var2Reg : make(map[string]string),
+		Reg2Var : make(map[string]string),
+	}
+	i.goTops[goNum].Fr = fr
+
+	fr.env = make(map[ssa2.Value]Value)
 	fr.block = fn.Blocks[0]
-	fr.locals = make([]value, len(fn.Locals))
+	fr.locals = make([]Value, len(fn.Locals))
 	for i, l := range fn.Locals {
 		fr.locals[i] = zero(deref(l.Type()))
 		fr.env[l] = &fr.locals[i]
@@ -541,38 +504,70 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 // undefined and fr.block contains the block at which to resume
 // control.
 //
-func runFrame(fr *frame) {
+func runFrame(fr *Frame) {
 	defer func() {
 		if fr.block == nil {
 			return // normal return
 		}
-		if fr.i.mode&DisableRecover != 0 {
+		if fr.i.Mode&DisableRecover != 0 {
+			// We don't need an interpreter traceback. So turn that off.
+			os.Setenv("GOTRACEBACK", "0")
 			return // let interpreter crash
 		}
 		fr.panicking = true
 		fr.panic = recover()
-		if fr.i.mode&EnableTracing != 0 {
-			fmt.Fprintf(os.Stderr, "Panicking: %T %v.\n", fr.panic, fr.panic)
+		if InstTracing() || GlobalStmtTracing() {
+			fmt.Fprintf(os.Stderr, "Panicking (error type %T): %v.\n", fr.panic, fr.panic)
+			debug.PrintStack()
 		}
 		fr.runDefers()
 		fr.block = fr.fn.Recover
+		if fr.block == nil {
+			fr.result = zero(fr.fn.Signature.Results())
+		}
 	}()
 
+	fn        := fr.fn
+	fr.startP = fn.Pos()
+	fr.endP   = fn.Pos()
+	if ((fr.tracing == TRACE_STEP_IN) &&
+		(len(fr.block.Instrs) > 0 && GlobalStmtTracing()) ||
+		fn.Breakpoint ) {
+		event := ssa2.CALL_ENTER
+		if fn.Breakpoint { event = ssa2.BREAKPOINT }
+		TraceHook(fr, &fr.block.Instrs[0], event)
+	}
 	for {
-		if fr.i.mode&EnableTracing != 0 {
+		var instr ssa2.Instruction
+		if InstTracing() {
 			fmt.Fprintf(os.Stderr, ".%s:\n", fr.block)
 		}
 	block:
-		for _, instr := range fr.block.Instrs {
-			if fr.i.mode&EnableTracing != 0 {
-				if v, ok := instr.(ssa.Value); ok {
+		// rocky: changed to allow for debugger "jump" command
+		for fr.pc = 0; fr.pc < uint(len(fr.block.Instrs)); fr.pc++ {
+			instr = fr.block.Instrs[fr.pc]
+			if InstTracing() {
+				fmt.Fprint(os.Stderr, fr.block.Index, fr.pc, "\t")
+				if v, ok := instr.(ssa2.Value); ok {
 					fmt.Fprintln(os.Stderr, "\t", v.Name(), "=", instr)
 				} else {
 					fmt.Fprintln(os.Stderr, "\t", instr)
 				}
 			}
+			if fr.tracing == TRACE_STEP_INSTRUCTION {
+				TraceHook(fr, &instr, ssa2.STEP_INSTRUCTION)
+			}
 			switch visitInstr(fr, instr) {
 			case kReturn:
+				switch return_instr := instr.(type) {
+				case *ssa2.Return:
+					fr.startP = return_instr.Pos()
+					fr.endP   = return_instr.EndP()
+				}
+				fr.status = StComplete
+				if (fr.tracing != TRACE_STEP_NONE) && GlobalStmtTracing() {
+					TraceHook(fr, &instr, ssa2.CALL_RETURN)
+				}
 				return
 			case kNext:
 				// no-op
@@ -584,12 +579,12 @@ func runFrame(fr *frame) {
 }
 
 // doRecover implements the recover() built-in.
-func doRecover(caller *frame) value {
+func doRecover(caller *Frame) Value {
 	// recover() must be exactly one level beneath the deferred
 	// function (two levels beneath the panicking function) to
 	// have any effect.  Thus we ignore both "defer recover()" and
 	// "defer f() -> g() -> recover()".
-	if caller.i.mode&DisableRecover == 0 &&
+	if caller.i.Mode&DisableRecover == 0 &&
 		caller != nil && !caller.panicking &&
 		caller.caller != nil && caller.caller.panicking {
 		caller.caller.panicking = false
@@ -613,7 +608,7 @@ func doRecover(caller *frame) value {
 }
 
 // setGlobal sets the value of a system-initialized global variable.
-func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
+func setGlobal(i *interpreter, pkg *ssa2.Package, name string, v Value) {
 	if g, ok := i.globals[pkg.Var(name)]; ok {
 		*g = v
 		return
@@ -621,7 +616,7 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 	panic("no global variable: " + pkg.Object.Path() + "." + name)
 }
 
-var environ []value
+var environ []Value
 
 func init() {
 	for _, s := range os.Environ() {
@@ -641,18 +636,25 @@ func init() {
 //
 // The SSA program must include the "runtime" package.
 //
-func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename string, args []string) (exitCode int) {
-	i := &interpreter{
+func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode, sizes types.Sizes, filename string, args []string) (exitCode int) {
+	i = &interpreter{
 		prog:    mainpkg.Prog,
-		globals: make(map[ssa.Value]*value),
-		mode:    mode,
+		globals: make(map[ssa2.Value]*Value),
+		Mode:    mode,
+		TraceMode: traceMode,
+		TraceEventMask: make(ssa2.TraceEventMask, ssa2.TRACE_EVENT_LAST),
 		sizes:   sizes,
 	}
 	runtimePkg := i.prog.ImportedPackage("runtime")
 	if runtimePkg == nil {
-		panic("ssa.Program doesn't include runtime package")
+		panic("ssa2.Program doesn't include runtime package")
 	}
 	i.runtimeErrorString = runtimePkg.Type("errorString").Object().Type()
+
+	for event := ssa2.TRACE_EVENT_FIRST; event <= ssa2.TRACE_EVENT_LAST; event++ {
+		i.TraceEventMask[event] = true
+	}
+	i.goTops = append(i.goTops, &GoreState{Fr: nil, state: 0})
 
 	initReflect(i)
 
@@ -665,7 +667,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 		// Initialize global storage.
 		for _, m := range pkg.Members {
 			switch v := m.(type) {
-			case *ssa.Global:
+			case *ssa2.Global:
 				cell := zero(deref(v.Type()))
 				i.globals[v] = &cell
 			}
@@ -674,6 +676,12 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 		// Ad-hoc initialization for magic system variables.
 		switch pkg.Object.Path() {
 		case "syscall":
+			var envs []Value
+			for _, s := range os.Environ() {
+				envs = append(envs, s)
+			}
+			envs = append(envs, "GOSSAINTERP=1")
+			envs = append(envs, "GOARCH="+runtime.GOARCH)
 			setGlobal(i, pkg, "envs", environ)
 
 		case "runtime":
@@ -683,7 +691,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 			// Delete the bodies of almost all "runtime" functions since they're magic.
 			// A missing intrinsic leads to a very clear error.
 			for _, mem := range pkg.Members {
-				if fn, ok := mem.(*ssa.Function); ok {
+				if fn, ok := mem.(*ssa2.Function); ok {
 					switch fn.Name() {
 					case "GOROOT", "gogetenv":
 						// keep
@@ -692,13 +700,19 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 					}
 				}
 			}
+		case "os":
+			Args := []Value{filename}
+			for _, arg := range args {
+				Args = append(Args, arg)
+			}
+			setGlobal(i, pkg, "Args", Args)
 		}
 	}
 
 	// Top-level error handler.
 	exitCode = 2
 	defer func() {
-		if exitCode != 2 || i.mode&DisableRecover != 0 {
+		if exitCode != 2 || i.Mode&DisableRecover != 0 {
 			return
 		}
 		switch p := recover().(type) {
@@ -723,9 +737,19 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 	}()
 
 	// Run!
-	call(i, nil, token.NoPos, mainpkg.Func("init"), nil)
+	call(i, 0, nil, mainpkg.Func("init"), nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
-		call(i, nil, token.NoPos, mainFn, nil)
+		// If we didn't set tracing before because EnableInitTracing
+		// was off, we'll set it now.
+		i.TraceMode = traceMode
+
+		// And allow runtime.Breakpoint() take effect now.
+		i.TraceEventMask[ssa2.TRACE_CALL] = true
+
+		// Allow defer tracing now that we've hit main
+		// On second thought. We catch defer enter with a call enter.
+		// i.TraceEventMask[ssa2.DEFER_ENTER] = true
+		call(i, 0, nil, mainFn, nil)
 		exitCode = 0
 	} else {
 		fmt.Fprintln(os.Stderr, "No main function.")

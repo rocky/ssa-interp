@@ -35,7 +35,7 @@ func (b *BasicBlock) Idom() *BasicBlock { return b.dom.idom }
 // Dominees returns the list of blocks that b immediately dominates:
 // its children in the dominator tree.
 //
-func (b *BasicBlock) Dominees() []*BasicBlock { return b.dom.children }
+func (b *BasicBlock) Dominees() []*BasicBlock { return b.dom.Children }
 
 // Dominates reports whether b dominates c.
 func (b *BasicBlock) Dominates(c *BasicBlock) bool {
@@ -62,7 +62,8 @@ func (f *Function) DomPreorder() []*BasicBlock {
 // domInfo contains a BasicBlock's dominance information.
 type domInfo struct {
 	idom      *BasicBlock   // immediate dominator (parent in domtree)
-	children  []*BasicBlock // nodes immediately dominated by this one
+	Children  []*BasicBlock // nodes immediately dominated by this one
+	Level     int         // level number of node within tree; zero for root
 	pre, post int32         // pre- and post-order numbering within domtree
 }
 
@@ -190,13 +191,13 @@ func buildDomTree(f *Function) {
 				w.dom.idom = w.dom.idom.dom.idom
 			}
 			// Calculate Children relation as inverse of Idom.
-			w.dom.idom.dom.children = append(w.dom.idom.dom.children, w)
+			w.dom.idom.dom.Children = append(w.dom.idom.dom.Children, w)
 		}
 	}
 
-	pre, post := numberDomTree(root, 0, 0)
+	pre, post := numberDomTree(root, 0, 0, 0)
 	if recover != nil {
-		numberDomTree(recover, pre, post)
+		numberDomTree(recover, pre, post, recover.dom.Level)
 	}
 
 	// printDomTreeDot(os.Stderr, f)        // debugging
@@ -211,11 +212,13 @@ func buildDomTree(f *Function) {
 // traversal of the dominator tree rooted at v.  These are used to
 // answer dominance queries in constant time.
 //
-func numberDomTree(v *BasicBlock, pre, post int32) (int32, int32) {
+func numberDomTree(v *BasicBlock, pre, post int32, level int) (int32, int32) {
 	v.dom.pre = pre
+	v.dom.Level = level
+	level++
 	pre++
-	for _, child := range v.dom.children {
-		pre, post = numberDomTree(child, pre, post)
+	for _, child := range v.dom.Children {
+		pre, post = numberDomTree(child, pre, post, level)
 	}
 	v.dom.post = post
 	post++
@@ -312,7 +315,7 @@ func sanityCheckDomTree(f *Function) {
 // printDomTree prints the dominator tree as text, using indentation.
 func printDomTreeText(buf *bytes.Buffer, v *BasicBlock, indent int) {
 	fmt.Fprintf(buf, "%*s%s\n", 4*indent, "", v)
-	for _, child := range v.dom.children {
+	for _, child := range v.dom.Children {
 		printDomTreeText(buf, child, indent+1)
 	}
 }

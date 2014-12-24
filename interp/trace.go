@@ -6,9 +6,6 @@ import (
 	"sync"
 )
 
-// TraceMode is a bitmask of options influencing the tracing.
-type TraceMode uint
-
 // TraceType is a bitmask of options influencing the tracing per frame
 type TraceType int
 
@@ -26,6 +23,9 @@ type GoreState struct {
 	Fr     *Frame
 	state  int  // running, finished, etc. Fill this in later
 }
+
+// TraceMode is a bitmask of options influencing the tracing.
+type TraceMode uint
 
 const (
 	// Print a trace of all instructions as they are interpreted.

@@ -81,7 +81,7 @@ func (df domFrontier) add(u, v *BasicBlock) {
 // the DF -> IDF step.
 func (df domFrontier) build(u *BasicBlock) {
 	// Encounter each node u in postorder of dom tree.
-	for _, child := range u.dom.children {
+	for _, child := range u.dom.Children {
 		df.build(child)
 	}
 	for _, vb := range u.Succs {
@@ -89,7 +89,7 @@ func (df domFrontier) build(u *BasicBlock) {
 			df.add(u, vb)
 		}
 	}
-	for _, w := range u.dom.children {
+	for _, w := range u.dom.Children {
 		for _, vb := range df[w.Index] {
 			// TODO(adonovan): opt: use word-parallel bitwise union.
 			if v := vb.dom; v.idom != u {
@@ -590,7 +590,7 @@ func rename(u *BasicBlock, renaming []Value, newPhis newPhiMap) {
 
 	// Continue depth-first recursion over domtree, pushing a
 	// fresh copy of the renaming map for each subtree.
-	for _, v := range u.dom.children {
+	for _, v := range u.dom.Children {
 		// TODO(adonovan): opt: avoid copy on final iteration; use destructive update.
 		r := make([]Value, len(renaming))
 		copy(r, renaming)

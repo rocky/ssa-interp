@@ -8,33 +8,33 @@ package interp
 
 import "syscall"
 
-func fillStat(st *syscall.Stat_t, stat structure) {
-	stat[0] = st.Dev
-	stat[1] = st.Ino
-	stat[2] = st.Nlink
-	stat[3] = st.Mode
-	stat[4] = st.Uid
-	stat[5] = st.Gid
+func fillStat(st *syscall.Stat_t, stat Structure) {
+	stat.fields[0] = st.Dev
+	stat.fields[1] = st.Ino
+	stat.fields[2] = st.Nlink
+	stat.fields[3] = st.Mode
+	stat.fields[4] = st.Uid
+	stat.fields[5] = st.Gid
 
-	stat[7] = st.Rdev
-	stat[8] = st.Size
-	stat[9] = st.Blksize
-	stat[10] = st.Blocks
+	stat.fields[7] = st.Rdev
+	stat.fields[8] = st.Size
+	stat.fields[9] = st.Blksize
+	stat.fields[10] = st.Blocks
 	// TODO(adonovan): fix: copy Timespecs.
-	// stat[11] = st.Atim
-	// stat[12] = st.Mtim
-	// stat[13] = st.Ctim
+	// stat.fields[11] = st.Atim
+	// stat.fields[12] = st.Mtim
+	// stat.fields[13] = st.Ctim
 }
 
-func ext۰syscall۰Close(fr *frame, args []value) value {
+func ext۰syscall۰Close(fr *Frame, args []Value) Value {
 	// func Close(fd int) (err error)
 	return wrapError(syscall.Close(args[0].(int)))
 }
 
-func ext۰syscall۰Fstat(fr *frame, args []value) value {
+func ext۰syscall۰Fstat(fr *Frame, args []Value) Value {
 	// func Fstat(fd int, stat *Stat_t) (err error)
 	fd := args[0].(int)
-	stat := (*args[1].(*value)).(structure)
+	stat := (*args[1].(*Value)).(Structure)
 
 	var st syscall.Stat_t
 	err := syscall.Fstat(fd, &st)
@@ -42,10 +42,10 @@ func ext۰syscall۰Fstat(fr *frame, args []value) value {
 	return wrapError(err)
 }
 
-func ext۰syscall۰ReadDirent(fr *frame, args []value) value {
+func ext۰syscall۰ReadDirent(fr *Frame, args []Value) Value {
 	// func ReadDirent(fd int, buf []byte) (n int, err error)
 	fd := args[0].(int)
-	p := args[1].([]value)
+	p := args[1].([]Value)
 	b := make([]byte, len(p))
 	n, err := syscall.ReadDirent(fd, b)
 	for i := 0; i < n; i++ {
@@ -54,15 +54,15 @@ func ext۰syscall۰ReadDirent(fr *frame, args []value) value {
 	return tuple{n, wrapError(err)}
 }
 
-func ext۰syscall۰Kill(fr *frame, args []value) value {
+func ext۰syscall۰Kill(fr *Frame, args []Value) Value {
 	// func Kill(pid int, sig Signal) (err error)
 	return wrapError(syscall.Kill(args[0].(int), syscall.Signal(args[1].(int))))
 }
 
-func ext۰syscall۰Lstat(fr *frame, args []value) value {
+func ext۰syscall۰Lstat(fr *Frame, args []Value) Value {
 	// func Lstat(name string, stat *Stat_t) (err error)
 	name := args[0].(string)
-	stat := (*args[1].(*value)).(structure)
+	stat := (*args[1].(*Value)).(Structure)
 
 	var st syscall.Stat_t
 	err := syscall.Lstat(name, &st)
@@ -70,7 +70,7 @@ func ext۰syscall۰Lstat(fr *frame, args []value) value {
 	return wrapError(err)
 }
 
-func ext۰syscall۰Open(fr *frame, args []value) value {
+func ext۰syscall۰Open(fr *Frame, args []Value) Value {
 	// func Open(path string, mode int, perm uint32) (fd int, err error) {
 	path := args[0].(string)
 	mode := args[1].(int)
@@ -79,25 +79,25 @@ func ext۰syscall۰Open(fr *frame, args []value) value {
 	return tuple{fd, wrapError(err)}
 }
 
-func ext۰syscall۰ParseDirent(fr *frame, args []value) value {
+func ext۰syscall۰ParseDirent(fr *Frame, args []Value) Value {
 	// func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string)
 	max := args[1].(int)
 	var names []string
-	for _, iname := range args[2].([]value) {
+	for _, iname := range args[2].([]Value) {
 		names = append(names, iname.(string))
 	}
-	consumed, count, newnames := syscall.ParseDirent(valueToBytes(args[0]), max, names)
-	var inewnames []value
+	consumed, count, newnames := syscall.ParseDirent(ValueToBytes(args[0]), max, names)
+	var inewnames []Value
 	for _, newname := range newnames {
 		inewnames = append(inewnames, newname)
 	}
 	return tuple{consumed, count, inewnames}
 }
 
-func ext۰syscall۰Read(fr *frame, args []value) value {
+func ext۰syscall۰Read(fr *Frame, args []Value) Value {
 	// func Read(fd int, p []byte) (n int, err error)
 	fd := args[0].(int)
-	p := args[1].([]value)
+	p := args[1].([]Value)
 	b := make([]byte, len(p))
 	n, err := syscall.Read(fd, b)
 	for i := 0; i < n; i++ {
@@ -106,10 +106,10 @@ func ext۰syscall۰Read(fr *frame, args []value) value {
 	return tuple{n, wrapError(err)}
 }
 
-func ext۰syscall۰Stat(fr *frame, args []value) value {
+func ext۰syscall۰Stat(fr *Frame, args []Value) Value {
 	// func Stat(name string, stat *Stat_t) (err error)
 	name := args[0].(string)
-	stat := (*args[1].(*value)).(structure)
+	stat := (*args[1].(*Value)).(Structure)
 
 	var st syscall.Stat_t
 	err := syscall.Stat(name, &st)
@@ -117,13 +117,13 @@ func ext۰syscall۰Stat(fr *frame, args []value) value {
 	return wrapError(err)
 }
 
-func ext۰syscall۰Write(fr *frame, args []value) value {
+func ext۰syscall۰Write(fr *Frame, args []Value) Value {
 	// func Write(fd int, p []byte) (n int, err error)
-	n, err := write(args[0].(int), valueToBytes(args[1]))
+	n, err := write(args[0].(int), ValueToBytes(args[1]))
 	return tuple{n, wrapError(err)}
 }
 
-func ext۰syscall۰RawSyscall(fr *frame, args []value) value {
+func ext۰syscall۰RawSyscall(fr *Frame, args []Value) Value {
 	return tuple{uintptr(0), uintptr(0), uintptr(syscall.ENOSYS)}
 }
 

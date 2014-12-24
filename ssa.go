@@ -324,6 +324,15 @@ type Function struct {
 	namedResults []*Alloc                // tuple of named results
 	targets      *targets                // linked stack of branch targets
 	lblocks      map[*ast.Object]*lblock // labelled blocks
+
+	/* Allows lookup by string name, return is index into Locals +1. 0
+       means not found. FIXME: this is not right. There can be several
+       locals with the same name. We need to disambiguate with some
+       sort of environment setting.  */
+	LocalsByName map[NameScope]uint
+
+	Breakpoint bool    // Set on runtime if we should stop here
+	Scope      *Scope  // Scope number of its first basic block.
 }
 
 // An SSA basic block.
@@ -356,6 +365,7 @@ type BasicBlock struct {
 	dom          domInfo        // dominator tree info
 	gaps         int            // number of nil Instrs (transient).
 	rundefers    int            // number of rundefers (transient)
+	Scope        *Scope         // Scope this block is in nil for no scope.
 }
 
 // Pure values ----------------------------------------
@@ -1435,6 +1445,7 @@ func (v *Global) RelString(from *types.Package) string { return relString(v, fro
 func (v *Function) Name() string         { return v.name }
 func (v *Function) Type() types.Type     { return v.Signature }
 func (v *Function) Pos() token.Pos       { return v.pos }
+func (v *Function) Endp() token.Pos      { return v.endP }
 func (v *Function) Token() token.Token   { return token.FUNC }
 func (v *Function) Object() types.Object { return v.object }
 func (v *Function) String() string       { return v.RelString(nil) }

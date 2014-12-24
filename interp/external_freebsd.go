@@ -13,12 +13,12 @@ func init() {
 	externals["syscall.SysctlUint32"] = ext۰syscall۰SysctlUint32
 }
 
-func ext۰syscall۰Sysctl(fr *frame, args []value) value {
+func ext۰syscall۰Sysctl(fr *Frame, args []value) value {
 	r, err := syscall.Sysctl(args[0].(string))
 	return tuple{r, wrapError(err)}
 }
 
-func ext۰syscall۰SysctlUint32(fr *frame, args []value) value {
+func ext۰syscall۰SysctlUint32(fr *Frame, args []value) value {
 	r, err := syscall.SysctlUint32(args[0].(string))
 	return tuple{r, wrapError(err)}
 }
