@@ -23,6 +23,8 @@ import (
 //
 type Program struct {
 	Fset       *token.FileSet              // position information for the files of this Program
+	PackagesByPath map[string]*Package     // all importable Packages, keyed by import path
+	PackagesByName map[string]*Package     // all importable Packages, package name
 	imported   map[string]*Package         // all importable Packages, keyed by import path
 	packages   map[*types.Package]*Package // all loaded Packages, keyed by object
 	mode       BuilderMode                 // set of mode bits for SSA construction
@@ -1196,6 +1198,7 @@ type Store struct {
 	Val  Value
 	pos  token.Pos
 	endP token.Pos
+	Scope *Scope      // the scope for this instruction
 }
 
 // The MapUpdate instruction updates the association of Map[Key] to
@@ -1278,6 +1281,7 @@ type Register struct {
 	typ       types.Type // type of virtual register
 	pos       token.Pos  // position of source expression, or NoPos
 	endP      token.Pos  // end position of source expression, or NoPos
+	Scope     *Scope
 	referrers []Instruction
 }
 

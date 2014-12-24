@@ -224,8 +224,7 @@ func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {
 	if pc != 0 {
 		fn = (*ssa2.Function)(unsafe.Pointer(pc)) // indeed unsafe!
 	}
-	var Func value
-	Func = structure{fn} // a runtime.Func
+	Func := Value(fn) // a runtime.Func
 	return &Func
 }
 

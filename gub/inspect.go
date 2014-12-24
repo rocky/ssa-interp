@@ -10,7 +10,7 @@ import (
 	"sort"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/types"
 	"code.google.com/p/go-columnize"
 )
 
@@ -89,8 +89,8 @@ func printFuncInfo(fn *ssa2.Function) {
 		Msg("\t%s", r)
 	}
 
-	if fn.Enclosing != nil {
-		Section("Parent: %s\n", fn.Enclosing.Name())
+	if fn.Parent() != nil {
+		Section("Parent: %s\n", fn.Parent().Name())
 	}
 
 	if fn.FreeVars != nil {

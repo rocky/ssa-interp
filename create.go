@@ -42,11 +42,13 @@ const (
 func Create(iprog *loader.Program, mode BuilderMode) *Program {
 	prog := &Program{
 		Fset:     iprog.Fset,
-		imported: make(map[string]*Package),
-		packages: make(map[*types.Package]*Package),
-		thunks:   make(map[selectionKey]*Function),
-		bounds:   make(map[*types.Func]*Function),
-		mode:     mode,
+		PackagesByPath:      make(map[string]*Package),
+		PackagesByName:      make(map[string]*Package),
+		imported:            make(map[string]*Package),
+		packages:            make(map[*types.Package]*Package),
+		thunks:              make(map[selectionKey]*Function),
+		bounds:              make(map[*types.Func]*Function),
+		mode:                mode,
 	}
 
 	for _, info := range iprog.AllPackages {
@@ -249,6 +251,10 @@ func (prog *Program) CreatePackage(info *loader.PackageInfo) *Package {
 	if info.Importable {
 		prog.imported[info.Pkg.Path()] = p
 	}
+	if info.Importable {
+		prog.PackagesByPath[info.Pkg.Path()] = p
+	}
+	prog.PackagesByName[p.Object.Name()] = p
 	prog.packages[p.Object] = p
 
 	return p

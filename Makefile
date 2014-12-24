@@ -7,8 +7,7 @@
 all: tortoise
 
 #: The front-end to the builder, interpreter, and debugger
-tortoise: interp builder gub tortoise.go
-	go build tortoise.go
+tortoise: interp builder gub cmd
 
 #: Build the SSA Builder
 builder:
@@ -21,6 +20,10 @@ interp: builder big
 #: Build our replacement for math/big
 big:
 	(cd interp/big && go install)
+
+#: Build tortoise
+gub: cmd
+	(cd cmd && go build tortoise)
 
 #: Build the debugger
 gub: interp

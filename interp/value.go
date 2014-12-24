@@ -64,12 +64,6 @@ type Structure struct {
 						// generation uses address of fields?
 }
 
-// rocky There are a couple places, like FuncForPC where we need this
-// other definition of value and structure as it interacts with the go
-// runtime in ways I don't understand.
-type value interface{}
-type structure []value
-
 // For map, array, *array, slice, string or channel.
 type iter interface {
 	// next returns a Tuple (key, Value, ok).
