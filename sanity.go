@@ -1,19 +1,26 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa2
 
 // An optional pass for sanity-checking invariants of the SSA representation.
 // Currently it checks CFG invariants but little at the instruction level.
 
 import (
-	"github.com/rocky/go-types"
 	"fmt"
 	"io"
 	"os"
+	"strings"
+
+	"golang.org/x/tools/go/types"
 )
 
 type sanity struct {
 	reporter io.Writer
 	fn       *Function
 	block    *BasicBlock
+	instrs   map[Instruction]struct{}
 	insane   bool
 }
 
@@ -37,6 +44,7 @@ func sanityCheck(fn *Function, reporter io.Writer) bool {
 //
 func mustSanityCheck(fn *Function, reporter io.Writer) {
 	if !sanityCheck(fn, reporter) {
+		fn.WriteTo(os.Stderr)
 		panic("SanityCheck failed")
 	}
 }
@@ -131,6 +139,7 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 				s.errorf("convert %s -> %s: at least one type must be basic", instr.X.Type(), instr.Type())
 			}
 		}
+
 	case *Defer:
 	case *Extract:
 	case *Field:
@@ -141,7 +150,17 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 	case *Lookup:
 	case *MakeChan:
 	case *MakeClosure:
-		// TODO(adonovan): check FreeVars count matches.
+		numFree := len(instr.Fn.(*Function).FreeVars)
+		numBind := len(instr.Bindings)
+		if numFree != numBind {
+			s.errorf("MakeClosure has %d Bindings for function %s with %d free vars",
+				numBind, instr.Fn, numFree)
+
+		}
+		if recv := instr.Type().(*types.Signature).Recv(); recv != nil {
+			s.errorf("MakeClosure's type includes receiver %s", recv.Type())
+		}
+
 	case *MakeInterface:
 	case *MakeMap:
 	case *MakeSlice:
@@ -162,7 +181,14 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		panic(fmt.Sprintf("Unknown instruction type: %T", instr))
 	}
 
-	// Check that value-defining instructions have valid types.
+	if call, ok := instr.(CallInstruction); ok {
+		if call.Common().Signature() == nil {
+			s.errorf("nil signature: %s", call)
+		}
+	}
+
+	// Check that value-defining instructions have valid types
+	// and a valid referrer list.
 	if v, ok := instr.(Value); ok {
 		t := v.Type()
 		if t == nil {
@@ -172,11 +198,15 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 		} else if b, ok := t.Underlying().(*types.Basic); ok && b.Info()&types.IsUntyped != 0 {
 			s.errorf("instruction has 'untyped' result: %s = %s : %s", v.Name(), v, t)
 		}
+		s.checkReferrerList(v)
 	}
 
-	// TODO(adonovan): sanity-check Literals used as instruction Operands(),
-	// e.g. reject Literals with "untyped" types.
-	//
+	// Untyped constants are legal as instruction Operands(),
+	// for example:
+	//   _ = "foo"[0]
+	// or:
+	//   if wordsize==64 {...}
+
 	// All other non-Instruction Values can be found via their
 	// enclosing Function or Package.
 }
@@ -201,7 +231,7 @@ func (s *sanity) checkFinalInstr(idx int, instr Instruction) {
 
 	case *Return:
 		if nsuccs := len(s.block.Succs); nsuccs != 0 {
-			s.errorf("Ret-terminated block has %d successors; expected none", nsuccs)
+			s.errorf("Return-terminated block has %d successors; expected none", nsuccs)
 			return
 		}
 		if na, nf := len(instr.Results), s.fn.Signature.Results().Len(); nf != na {
@@ -230,8 +260,9 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 	}
 
 	// Check all blocks are reachable.
-	// (The entry block is always implicitly reachable.)
-	if index > 0 && len(b.Preds) == 0 {
+	// (The entry block is always implicitly reachable,
+	// as is the Recover block, if any.)
+	if (index > 0 && b != b.parent.Recover) && len(b.Preds) == 0 {
 		s.warnf("unreachable block")
 		if b.Instrs == nil {
 			// Since this block is about to be pruned,
@@ -275,14 +306,11 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 	}
 
 	// Check each instruction is sane.
-	// TODO(adonovan): check Instruction invariants:
-	// - check Operands is dual to Value.Referrers.
-	// - check all Operands that are also Instructions belong to s.fn too
-	//   (and for bonus marks, that their block dominates block b).
 	n := len(b.Instrs)
 	if n == 0 {
 		s.errorf("basic block contains no instructions")
 	}
+	var rands [10]*Value // reuse storage
 	for j, instr := range b.Instrs {
 		if instr == nil {
 			s.errorf("nil instruction at index %d", j)
@@ -300,18 +328,104 @@ func (s *sanity) checkBlock(b *BasicBlock, index int) {
 		} else {
 			s.checkFinalInstr(j, instr)
 		}
+
+		// Check Instruction.Operands.
+	operands:
+		for i, op := range instr.Operands(rands[:0]) {
+			if op == nil {
+				s.errorf("nil operand pointer %d of %s", i, instr)
+				continue
+			}
+			val := *op
+			if val == nil {
+				continue // a nil operand is ok
+			}
+
+			// Check that "untyped" types only appear on constant operands.
+			if _, ok := (*op).(*Const); !ok {
+				if basic, ok := (*op).Type().(*types.Basic); ok {
+					if basic.Info()&types.IsUntyped != 0 {
+						s.errorf("operand #%d of %s is untyped: %s", i, instr, basic)
+					}
+				}
+			}
+
+			// Check that Operands that are also Instructions belong to same function.
+			// TODO(adonovan): also check their block dominates block b.
+			if val, ok := val.(Instruction); ok {
+				if val.Parent() != s.fn {
+					s.errorf("operand %d of %s is an instruction (%s) from function %s", i, instr, val, val.Parent())
+				}
+			}
+
+			// Check that each function-local operand of
+			// instr refers back to instr.  (NB: quadratic)
+			switch val := val.(type) {
+			case *Const, *Global, *Builtin:
+				continue // not local
+			case *Function:
+				if val.parent == nil {
+					continue // only anon functions are local
+				}
+			}
+
+			// TODO(adonovan): check val.Parent() != nil <=> val.Referrers() is defined.
+
+			if refs := val.Referrers(); refs != nil {
+				for _, ref := range *refs {
+					if ref == instr {
+						continue operands
+					}
+				}
+				s.errorf("operand %d of %s (%s) does not refer to us", i, instr, val)
+			} else {
+				s.errorf("operand %d of %s (%s) has no referrers", i, instr, val)
+			}
+		}
+	}
+}
+
+func (s *sanity) checkReferrerList(v Value) {
+	refs := v.Referrers()
+	if refs == nil {
+		s.errorf("%s has missing referrer list", v.Name())
+		return
+	}
+	for i, ref := range *refs {
+		if _, ok := s.instrs[ref]; !ok {
+			s.errorf("%s.Referrers()[%d] = %s is not an instruction belonging to this function", v.Name(), i, ref)
+		}
 	}
 }
 
 func (s *sanity) checkFunction(fn *Function) bool {
 	// TODO(adonovan): check Function invariants:
-	// - check owning Package (if any) contains this (possibly anon) function
 	// - check params match signature
 	// - check transient fields are nil
 	// - warn if any fn.Locals do not appear among block instructions.
 	s.fn = fn
 	if fn.Prog == nil {
 		s.errorf("nil Prog")
+	}
+
+	fn.String()               // must not crash
+	fn.RelString(fn.pkgobj()) // must not crash
+
+	// All functions have a package, except delegates (which are
+	// shared across packages, or duplicated as weak symbols in a
+	// separate-compilation model), and error.Error.
+	if fn.Pkg == nil {
+		if strings.HasPrefix(fn.Synthetic, "wrapper ") ||
+			strings.HasPrefix(fn.Synthetic, "bound ") ||
+			strings.HasPrefix(fn.Synthetic, "thunk ") ||
+			strings.HasSuffix(fn.name, "Error") {
+			// ok
+		} else {
+			s.errorf("nil Pkg")
+		}
+	}
+	if src, syn := fn.Synthetic == "", fn.Syntax() != nil; src != syn {
+		s.errorf("got fromSource=%t, hasSyntax=%t; want same values", src, syn)
 	}
 	for i, l := range fn.Locals {
 		if l.Parent() != fn {
@@ -321,15 +435,24 @@ func (s *sanity) checkFunction(fn *Function) bool {
 			s.errorf("Local %s at index %d has Heap flag set", l.Name(), i)
 		}
 	}
+	// Build the set of valid referrers.
+	s.instrs = make(map[Instruction]struct{})
+	for _, b := range fn.Blocks {
+		for _, instr := range b.Instrs {
+			s.instrs[instr] = struct{}{}
+		}
+	}
 	for i, p := range fn.Params {
 		if p.Parent() != fn {
 			s.errorf("Param %s at index %d has wrong parent", p.Name(), i)
 		}
+		s.checkReferrerList(p)
 	}
 	for i, fv := range fn.FreeVars {
 		if fv.Parent() != fn {
 			s.errorf("FreeVar %s at index %d has wrong parent", fv.Name(), i)
 		}
+		s.checkReferrerList(fv)
 	}
 
 	if fn.Blocks != nil && len(fn.Blocks) == 0 {
@@ -344,7 +467,16 @@ func (s *sanity) checkFunction(fn *Function) bool {
 		}
 		s.checkBlock(b, i)
 	}
+	if fn.Recover != nil && fn.Blocks[fn.Recover.Index] != fn.Recover {
+		s.errorf("Recover block is not in Blocks slice")
+	}
+
 	s.block = nil
+	for i, anon := range fn.AnonFuncs {
+		if anon.Parent() != fn {
+			s.errorf("AnonFuncs[%d]=%s but %s.Parent()=%s", i, anon, anon, anon.Parent())
+		}
+	}
 	s.fn = nil
 	return !s.insane
 }
@@ -353,6 +485,11 @@ func (s *sanity) checkFunction(fn *Function) bool {
 // It does not require that the package is built.
 // Unlike sanityCheck (for functions), it just panics at the first error.
 func sanityCheckPackage(pkg *Package) {
+	if pkg.Object == nil {
+		panic(fmt.Sprintf("Package %s has no Object", pkg))
+	}
+	pkg.String() // must not crash
+
 	for name, mem := range pkg.Members {
 		if name != mem.Name() {
 			panic(fmt.Sprintf("%s: %T.Name() = %s, want %s",

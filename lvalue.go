@@ -11,7 +11,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/types"
 )
 
 // An lvalue represents an assignable location that may appear on the
@@ -20,7 +20,8 @@ import (
 //
 type lvalue interface {
 	store(fn *Function, v Value) // stores v into the location
-	storeWithScope(fn *Function, v Value, scope *Scope) // stores v into the location noting which scope it is in
+	storeWithScope(fn *Function, v Value, scope *Scope) // stores v into the location
+                                 // noting which scope it is in
 	load(fn *Function) Value     // loads the contents of the location
 	address(fn *Function) Value  // address of the location
 	typ() types.Type             // returns the type of the location
@@ -29,9 +30,8 @@ type lvalue interface {
 // An address is an lvalue represented by a true pointer.
 type address struct {
 	addr    Value
-	starPos token.Pos    // source position, if from explicit *addr
-	expr    ast.Expr     // source syntax [debug mode]
-	object  types.Object // source var, if from *ast.Ident
+	starPos token.Pos // source position, if from explicit *addr
+	expr    ast.Expr  // source syntax [debug mode]
 }
 
 func (a *address) load(fn *Function) Value {
@@ -44,14 +44,13 @@ func (a *address) store(fn *Function, v Value) {
 	store := emitStore(fn, a.addr, v)
 	store.pos = a.starPos
 	if a.expr != nil {
-		// store.Val is v converted for assignability.
+		// store.Val is v, converted for assignability.
 		emitDebugRef(fn, a.expr, store.Val, false)
 	}
 }
 
 func (a *address) address(fn *Function) Value {
 	if a.expr != nil {
-		// NB: this kind of DebugRef yields the object's address.
 		emitDebugRef(fn, a.expr, a.addr, true)
 	}
 	return a.addr
@@ -70,7 +69,6 @@ type element struct {
 	m, k Value      // map or string
 	t    types.Type // map element type or string byte type
 	pos  token.Pos  // source position of colon ({k:v}) or lbrack (m[k]=v)
-	endP token.Pos  // source position of colon ({k:v}) or rbrack (m[k]=v)
 }
 
 func (e *element) load(fn *Function) Value {
@@ -78,16 +76,19 @@ func (e *element) load(fn *Function) Value {
 		X:     e.m,
 		Index: e.k,
 	}
+	l.setPos(e.pos)
 	l.setType(e.t)
 	return fn.emit(l)
 }
 
 func (e *element) store(fn *Function, v Value) {
-	fn.emit(&MapUpdate{
+	up := &MapUpdate{
 		Map:   e.m,
 		Key:   e.k,
 		Value: emitConv(fn, v, e.t),
-	})
+	}
+	up.pos = e.pos
+	fn.emit(up)
 }
 
 func (e *element) address(fn *Function) Value {
@@ -98,7 +99,7 @@ func (e *element) typ() types.Type {
 	return e.t
 }
 
-// A blanks is a dummy variable whose name is "_".
+// A blank is a dummy variable whose name is "_".
 // It is not reified: loads are illegal and stores are ignored.
 //
 type blank struct{}

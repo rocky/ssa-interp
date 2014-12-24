@@ -12,8 +12,8 @@ alike.
 import (
 	"go/ast"
 	"go/token"
-	"github.com/rocky/go-types"
-	"github.com/rocky/go-importer"
+	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/loader"
 )
 
 
@@ -46,7 +46,6 @@ type NameScope struct {
 
 func (s *Alloc)     EndP() token.Pos            { return s.endP }
 func (s *Builtin)   EndP() token.Pos            { return s.endP }
-func (s *Capture)   EndP() token.Pos            { return s.endP }
 func (s *Const)     EndP() token.Pos            { return s.endP }
 func (s *DebugRef)  EndP() token.Pos            { return s.Expr.End() }
 func (s *Defer)     EndP() token.Pos            { return s.Call.endP }
@@ -63,7 +62,7 @@ func (v *Register)  setEnd(pos token.Pos)       { v.endP = pos }
 
 func (v *LocInst)   Pos() token.Pos             { return v.pos }
 func (p *Package)   Locs() []LocInst { return p.locs }
-func (p *Package)   Info() *importer.PackageInfo { return p.info }
+func (p *Package)   Info() *loader.PackageInfo { return p.info }
 
 func (s *Scope) ScopeId() ScopeId   { return s.scopeId }
 func (s *Scope) Node()    *ast.Node { return s.node }

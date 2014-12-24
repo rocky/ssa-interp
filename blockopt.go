@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa2
 
 // Simple block optimizations to simplify the control flow graph.
@@ -35,6 +39,9 @@ func deleteUnreachableBlocks(f *Function) {
 		b.Index = white
 	}
 	markReachable(f.Blocks[0])
+	if f.Recover != nil {
+		markReachable(f.Recover)
+	}
 	for i, b := range f.Blocks {
 		if b.Index == white {
 			for _, c := range b.Succs {
@@ -60,7 +67,6 @@ func jumpThreading(f *Function, b *BasicBlock) bool {
 		return false // don't apply to entry block
 	}
 	if b.Instrs == nil {
-		fmt.Println("empty block ", b)
 		return false
 	}
 	if _, ok := b.Instrs[0].(*Jump); !ok {
@@ -79,7 +85,7 @@ func jumpThreading(f *Function, b *BasicBlock) bool {
 		// If a now has two edges to c, replace its degenerate If by Jump.
 		if len(a.Succs) == 2 && a.Succs[0] == c && a.Succs[1] == c {
 			jump := new(Jump)
-			jump.SetBlock(a)
+			jump.setBlock(a)
 			a.Instrs[len(a.Instrs)-1] = jump
 			a.Succs = a.Succs[:1]
 			c.removePred(b)
@@ -111,10 +117,18 @@ func fuseBlocks(f *Function, a *BasicBlock) bool {
 	if len(b.Preds) != 1 {
 		return false
 	}
+
+	// Degenerate &&/|| ops may result in a straight-line CFG
+	// containing φ-nodes. (Ideally we'd replace such them with
+	// their sole operand but that requires Referrers, built later.)
+	if b.hasPhi() {
+		return false // not sound without further effort
+	}
+
 	// Eliminate jump at end of A, then copy all of B across.
 	a.Instrs = append(a.Instrs[:len(a.Instrs)-1], b.Instrs...)
 	for _, instr := range b.Instrs {
-		instr.SetBlock(a)
+		instr.setBlock(a)
 	}
 
 	// A inherits B's successors
@@ -146,7 +160,7 @@ func optimizeBlocks(f *Function) {
 		changed = false
 
 		if debugBlockOpt {
-			f.DumpTo(os.Stderr)
+			f.WriteTo(os.Stderr)
 			mustSanityCheck(f, nil)
 		}
 

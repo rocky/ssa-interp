@@ -80,6 +80,18 @@ func (fr *Frame) Scope() *ssa2.Scope {
 	return fr.block.Scope
 }
 
+// runDefers executes fr's deferred function calls in LIFO order.
+//
+// On entry, fr.panicking indicates a state of panic; if
+// true, fr.panic contains the panic value.
+//
+// On completion, if a deferred call started a panic, or if no
+// deferred call recovered from a previous state of panic, then
+// runDefers itself panics after the last deferred call has run.
+//
+// If there was no initial state of panic, or it was recovered from,
+// runDefers returns normally.
+//
 func (fr *Frame) runDefers() {
 	for i := range fr.defers {
 		if (fr.i.TraceMode & EnableTracing) != 0 {
@@ -89,7 +101,10 @@ func (fr *Frame) runDefers() {
 		TraceHook(fr, nil, ssa2.TRACE_CALL)
 		fn()
 	}
-	fr.defers = fr.defers[:0]
+	fr.defers = nil
+	if fr.panicking {
+		panic(fr.panic) // new panic, or still panicking
+	}
 }
 
 func (fr *Frame) Fset() *token.FileSet { return fr.fn.Prog.Fset }

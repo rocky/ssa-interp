@@ -125,25 +125,6 @@ func ext۰runtime۰Caller(fr *Frame, args []Value) Value {
 	return tuple{pc, filename, line, ok}
 }
 
-func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
-	skip := args[0].(int)
-	pc   := args[1].([]Value)
-	size := len(pc)
-
-	for i:=0; i<=skip; i++ {
-		fr = fr.caller
-		if fr == nil {
-			return 0
-		}
-	}
-	var count int
-	for count = 0; fr != nil && count <= size; fr = fr.caller {
-		pc[count] = EncodePC(fr)
-		count++
-	}
-	return count
-}
-
 // // Can't really write this using runtime.function because interperter
 // // can't cant copy return value to *Func.
 // func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {

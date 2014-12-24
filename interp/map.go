@@ -1,3 +1,7 @@
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package interp
 
 // Custom hashtable atop map.
@@ -8,12 +12,12 @@ package interp
 // concurrent map access.
 
 import (
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/types"
 )
 
 type hashable interface {
-	hash() int
-	eq(x interface{}) bool
+	hash(t types.Type) int
+	eq(t types.Type, x interface{}) bool
 }
 
 type entry struct {
@@ -23,12 +27,13 @@ type entry struct {
 }
 
 // A hashtable atop the built-in map.  Since each bucket contains
-// exactly one hash Value, there's no need to perform hash-equality
+// exactly one hash value, there's no need to perform hash-equality
 // tests when walking the linked list.  Rehashing is done by the
 // underlying map.
 type hashmap struct {
-	table  map[int]*entry
-	length int // number of entries in map
+	keyType types.Type
+	table   map[int]*entry
+	length  int // number of entries in map
 }
 
 // makeMap returns an empty initialized map of key type kt,
@@ -37,27 +42,29 @@ func makeMap(kt types.Type, reserve int) Value {
 	if usesBuiltinMap(kt) {
 		return make(map[Value]Value, reserve)
 	}
-	return &hashmap{table: make(map[int]*entry, reserve)}
+	return &hashmap{keyType: kt, table: make(map[int]*entry, reserve)}
 }
 
 // delete removes the association for key k, if any.
 func (m *hashmap) delete(k hashable) {
-	hash := k.hash()
-	head := m.table[hash]
-	if head != nil {
-		if k.eq(head.key) {
-			m.table[hash] = head.next
-			m.length--
-			return
-		}
-		prev := head
-		for e := head.next; e != nil; e = e.next {
-			if k.eq(e.key) {
-				prev.next = e.next
+	if m != nil {
+		hash := k.hash(m.keyType)
+		head := m.table[hash]
+		if head != nil {
+			if k.eq(m.keyType, head.key) {
+				m.table[hash] = head.next
 				m.length--
 				return
 			}
-			prev = e
+			prev := head
+			for e := head.next; e != nil; e = e.next {
+				if k.eq(m.keyType, e.key) {
+					prev.next = e.next
+					m.length--
+					return
+				}
+				prev = e
+			}
 		}
 	}
 }
@@ -65,10 +72,12 @@ func (m *hashmap) delete(k hashable) {
 // lookup returns the value associated with key k, if present, or
 // value(nil) otherwise.
 func (m *hashmap) lookup(k hashable) Value {
-	hash := k.hash()
-	for e := m.table[hash]; e != nil; e = e.next {
-		if k.eq(e.key) {
-			return e.Value
+	if m != nil {
+		hash := k.hash(m.keyType)
+		for e := m.table[hash]; e != nil; e = e.next {
+			if k.eq(m.keyType, e.key) {
+				return e.Value
+			}
 		}
 	}
 	return nil
@@ -79,10 +88,10 @@ func (m *hashmap) lookup(k hashable) Value {
 // k, the previous key remains in the map and its associated value is
 // updated.
 func (m *hashmap) insert(k hashable, v Value) {
-	hash := k.hash()
+	hash := k.hash(m.keyType)
 	head := m.table[hash]
 	for e := head; e != nil; e = e.next {
-		if k.eq(e.key) {
+		if k.eq(m.keyType, e.key) {
 			e.Value = v
 			return
 		}
@@ -97,5 +106,8 @@ func (m *hashmap) insert(k hashable, v Value) {
 
 // len returns the number of key/value associations in the map.
 func (m *hashmap) len() int {
-	return m.length
+	if m != nil {
+		return m.length
+	}
+	return 0
 }

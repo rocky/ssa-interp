@@ -2,15 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This is a Go debugger that builds on top of the Go SSA interpreter
-// in go.tools/ssa. Some modification to the go.tools code is needed
-// for such a debugger to be feasible.
-//
-// See also
-// * https://github.com/rocky/ssa-interp/wiki/Cool-things
-// * https://github.com/rocky/ssa-interp/wiki/What%27s-left-to-do%3F
-//
-
 // Package ssa defines a representation of the elements of Go programs
 // (packages, types, functions, variables and constants) using a
 // static single-assignment (SSA) form intermediate representation
@@ -28,21 +19,15 @@
 // tools.  It is not intended for machine code generation.
 //
 // All looping, branching and switching constructs are replaced with
-// unstructured control flow.  We may add higher-level control flow
-// primitives in the future to facilitate constant-time dispatch of
-// switch statements, for example.
+// unstructured control flow.  Higher-level control flow constructs
+// such as multi-way branch can be reconstructed as needed; see
+// ssautil.Switches() for an example.
 //
-// Builder encapsulates the tasks of type-checking (using go/types)
-// abstract syntax trees (as defined by go/ast) for the source files
-// comprising a Go program, and the conversion of each function from
-// Go ASTs to the SSA representation.
-//
-// By supplying an instance of the SourceLocator function prototype,
-// clients may control how the builder locates, loads and parses Go
-// sources files for imported packages.  This package provides
-// MakeGoBuildLoader, which creates a loader that uses go/build to
-// locate packages in the Go source distribution, and go/parser to
-// parse them.
+// To construct an SSA-form program, call ssa.Create on a
+// loader.Program, a set of type-checked packages created from
+// parsed Go source files.  The resulting ssa.Program contains all the
+// packages and their members, but SSA code is not created for
+// function bodies until a subsequent call to (*Package).Build.
 //
 // The builder initially builds a naive SSA form in which all local
 // variables are addresses of stack locations with explicit loads and
@@ -57,6 +42,7 @@
 //    - Member: a named member of a Go package.
 //    - Value: an expression that yields a value.
 //    - Instruction: a statement that consumes values and performs computation.
+//    - Node: a Value or Instruction (emphasizing its membership in the SSA value graph)
 //
 // A computation that yields a result implements both the Value and
 // Instruction interfaces.  The following table shows for each
@@ -65,9 +51,8 @@
 //                      Value?          Instruction?    Member?
 //   *Alloc             ✔               ✔
 //   *BinOp             ✔               ✔
-//   *Builtin           ✔               ✔
+//   *Builtin           ✔
 //   *Call              ✔               ✔
-//   *Capture           ✔
 //   *ChangeInterface   ✔               ✔
 //   *ChangeType        ✔               ✔
 //   *Const             ✔
@@ -77,6 +62,7 @@
 //   *Extract           ✔               ✔
 //   *Field             ✔               ✔
 //   *FieldAddr         ✔               ✔
+//   *FreeVar           ✔
 //   *Function          ✔                               ✔ (func)
 //   *Global            ✔                               ✔ (var)
 //   *Go                                ✔
@@ -123,6 +109,9 @@
 // either accurate or unambiguous.  The public API exposes a number of
 // name-based maps for client convenience.
 //
+// The ssa/ssautil package provides various utilities that depend only
+// on the public API of this package.
+//
 // TODO(adonovan): Consider the exceptional control-flow implications
 // of defer and recover().
 //
@@ -131,4 +120,4 @@
 // domains of source locations, ast.Nodes, types.Objects,
 // ssa.Values/Instructions.
 //
-package ssa2
+package ssa2 // import "github.com/rocky/ssa-interp"

@@ -59,5 +59,5 @@ func DisassembleCommand(args []string) {
 			return
 		}
 	}
-	myfn.DumpTo(os.Stderr)
+	myfn.WriteTo(os.Stderr)
 }
