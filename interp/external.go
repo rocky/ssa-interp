@@ -213,6 +213,10 @@ func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
 	return i
 }
 
+/* rocky: we deviate from ssa. I don't understand how this works
+       or or can work. So we're just going to punt for now and return
+       whatever function the frame is currently in.
+*/
 func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {
 	// FuncForPC(pc uintptr) *Func
 	pc := args[0].(uintptr)
@@ -220,17 +224,12 @@ func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {
 	if pc != 0 {
 		fn = (*ssa2.Function)(unsafe.Pointer(pc)) // indeed unsafe!
 	}
-	Func := Structure{
-			fields    : make([]Value, 1),
-			fieldnames: make([]string, 1),
-	} // a runtime.Func
-	Func.fields[0] = fn
-	Func.fieldnames[0] = "Function"
-	return (Value)(Func)
+	var Func value
+	Func = structure{fn} // a runtime.Func
+	return &Func
 }
 
 func ext۰runtime۰environ(fr *Frame, args []Value) Value {
-	// This function also implements syscall.runtime_envs.
 	return environ
 }
 

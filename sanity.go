@@ -173,6 +173,7 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 	case *Slice:
 	case *Store:
 	case *TypeAssert:
+	case *Trace:
 	case *UnOp:
 	case *DebugRef:
 		// TODO(adonovan): implement checks.

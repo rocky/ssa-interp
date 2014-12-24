@@ -136,7 +136,9 @@ var gorootTestTests = []string{
 var testdataTests = []string{
 	"boundmeth.go",
 	"complit.go",
+	/* Rocky: reinstate
 	"coverage.go",
+*/
 	"defer.go",
 	"fieldprom.go",
 	"ifaceconv.go",
@@ -147,12 +149,13 @@ var testdataTests = []string{
 	"range.go",
 	"recover.go",
 	"static.go",
+	/* Rocky: reinstate
 	"callstack.go",
+    */
 }
 
 // These are files and packages in $GOROOT/src/.
 var gorootSrcTests = []string{
-/* ROCKY REINSTATE
 	"encoding/ascii85",
 	"encoding/csv",
 	"encoding/hex",
@@ -171,7 +174,6 @@ var gorootSrcTests = []string{
 	// "log",
 	// "path",
 	// "flag",
-*/
 }
 
 type successPredicate func(exitcode int, output string) error

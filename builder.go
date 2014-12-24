@@ -722,6 +722,13 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 // stmtList emits to fn code for all statements in list.
 func (b *builder) stmtList(fn *Function, list []ast.Stmt) {
 	for _, s := range list {
+		// Don't add a trace statement in an "if" or "for" because
+		// those statement add a trace themselves.
+		switch s.(type) {
+		case *ast.IfStmt, *ast.ForStmt:
+		default:
+			emitTrace(fn, STMT_IN_LIST, s.Pos(), s.End())
+		}
 		b.stmt(fn, s)
 	}
 }
@@ -1136,6 +1143,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 	}
 	var tag Value = vTrue
 	if s.Tag != nil {
+		emitTrace(fn, SWITCH_COND, s.Tag.Pos(), s.Tag.End())
 		tag = b.expr(fn, s.Tag)
 	}
 	done := fn.newBasicBlock("switch.done")
@@ -1180,6 +1188,7 @@ func (b *builder) switchStmt(fn *Function, s *ast.SwitchStmt, label *lblock) {
 			// instead of BinOp(EQL, tag, b.expr(cond))
 			// followed by If.  Don't forget conversions
 			// though.
+			emitTrace(fn, SWITCH_COND, cond.Pos(), cond.End())
 			cond := emitCompare(fn, token.EQL, tag, b.expr(fn, cond), token.NoPos)
 			emitIf(fn, cond, body, nextCond)
 			fn.currentBlock = nextCond
@@ -1268,6 +1277,7 @@ func (b *builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
 	case *ast.ExprStmt: // x.(type)
 		x = b.expr(fn, unparen(ass.X).(*ast.TypeAssertExpr).X)
 	case *ast.AssignStmt: // y := x.(type)
+		emitTrace(fn, ASSIGN_STMT, ass.Pos(), ass.End())
 		x = b.expr(fn, unparen(ass.Rhs[0]).(*ast.TypeAssertExpr).X)
 	}
 
@@ -1532,6 +1542,7 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	//      jump loop
 	// done:                                 (target of break)
 	if s.Init != nil {
+		emitTrace(fn, FOR_INIT, s.Init.Pos(), s.Init.End())
 		b.stmt(fn, s.Init)
 	}
 	body := fn.newBasicBlock("for.body")
@@ -1551,6 +1562,7 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 	emitJump(fn, loop)
 	fn.currentBlock = loop
 	if loop != body {
+		emitTrace(fn, FOR_COND, s.Cond.Pos(), s.Cond.End())
 		b.cond(fn, s.Cond, body, done)
 		fn.currentBlock = body
 	}
@@ -1565,6 +1577,7 @@ func (b *builder) forStmt(fn *Function, s *ast.ForStmt, label *lblock) {
 
 	if s.Post != nil {
 		fn.currentBlock = cont
+		emitTrace(fn, FOR_ITER, s.Post.Pos(), s.Post.End())
 		b.stmt(fn, s.Post)
 		emitJump(fn, loop) // back-edge
 	}
@@ -1963,6 +1976,7 @@ start:
 		var block *BasicBlock
 		switch s.Tok {
 		case token.BREAK:
+			emitTrace(fn, BREAK_STMT, s.Pos(), s.End())
 			if s.Label != nil {
 				block = fn.labelledBlock(s.Label)._break
 			} else {
@@ -1993,9 +2007,11 @@ start:
 
 	case *ast.BlockStmt:
 		b.stmtList(fn, s.List)
+		emitTrace(fn, BLOCK_END, s.End(), s.End())
 
 	case *ast.IfStmt:
 		if s.Init != nil {
+			emitTrace(fn, IF_INIT, s.Init.Pos(), s.Init.End())
 			b.stmt(fn, s.Init)
 		}
 		then := fn.newBasicBlock("if.then")
@@ -2004,6 +2020,7 @@ start:
 		if s.Else != nil {
 			els = fn.newBasicBlock("if.else")
 		}
+		emitTrace(fn, IF_COND, s.Cond.Pos(), s.Cond.End())
 		b.cond(fn, s.Cond, then, els)
 		fn.currentBlock = then
 		b.stmt(fn, s.Body)

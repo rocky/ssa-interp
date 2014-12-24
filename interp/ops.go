@@ -942,6 +942,7 @@ func write(fd int, b []byte) (int, error) {
 // returning its result.
 func callBuiltin(caller *Frame, fn *ssa2.Builtin, args []Value) Value {
 	switch fn.Name() {
+
 	case "append":
 		if len(args) == 1 {
 			return args[0]

@@ -412,7 +412,7 @@ func ext۰reflect۰Value۰Field(fr *Frame, args []Value) Value {
 	// Signature: func (v reflect.Value, i int) reflect.Value
 	v := args[0]
 	i := args[1].(int)
-	return makeReflectValue(rV2T(v).t.Underlying().(*types.Struct).Field(i).Type(), rV2V(v).(Array)[i])
+	return makeReflectValue(rV2T(v).t.Underlying().(*types.Struct).Field(i).Type(), rV2V(v).(Structure).fields[i])
 }
 
 func ext۰reflect۰Value۰Float(fr *Frame, args []Value) Value {
