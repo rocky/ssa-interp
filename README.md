@@ -10,8 +10,9 @@ For now, some of the SSA optimizations however have been removed since our focus
 Setup
 -----
 
-* Make sure our Go environment is setup, e.g. *$GOBIN*, *$GOPATH*, ...
-* Make sure you have a 1.2ish Go version installed.
+* Make sure our GO environment is setup, e.g. *$GOBIN*, *$GOPATH*, ...
+* Make sure you have go 1.1.1 installed. For go 1.2 use the go1.2 branch,
+  for go 1.3 use the go1.4 branch
 
 ```
    go get github.com/rocky/ssa-interp
