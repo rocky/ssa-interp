@@ -15,7 +15,7 @@ Setup
 
 ```
    go get github.com/rocky/ssa-interp
-   cd $GOBIN/src/github.com/rocky/ssa-interp
+   cd $GOBIN/src/github.com/rocky/ssa-interp/cmd
    make
    cp tortoise gub.sh  $GOBIN/
 ```
