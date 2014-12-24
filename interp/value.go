@@ -21,8 +21,8 @@ package interp
 // - array --- arrays.
 // - *value --- pointers.  Careful: *value is a distinct type from *array etc.
 // - *ssa2.Function \
-//   *ssa2.Builtin   } --- functions.
-//   *closure      /
+//   *ssa2.Builtin   } --- functions.  A nil 'func' is always of type *ssa2.Function.
+//   *closure       /
 // - tuple --- as returned by Return, Next, "value,ok" modes, etc.
 // - iter --- iterators from 'range' over map or string.
 // - bad --- a poison pill for locals that have gone out of scope.

@@ -18,6 +18,7 @@ func (i  *interpreter) Global(name string, pkg *ssa2.Package)  (v *Value, ok boo
 	return
 }
 
+// Global interpreter. Flags fo the interpreter are used in trace
 var i *interpreter
 
 
