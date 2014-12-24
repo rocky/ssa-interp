@@ -1252,7 +1252,7 @@ type MapUpdate struct {
 type DebugRef struct {
 	anInstruction
 	Expr   ast.Expr     // the referring expression (never *ast.ParenExpr)
-	object types.Object // the identity of the source var/func
+	Object types.Object // the identity of the source var/func
 	IsAddr bool         // Expr is addressable and X is the address it denotes
 	X      Value        // the value or address of Expr
 }

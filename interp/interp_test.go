@@ -135,7 +135,6 @@ var gorootTestTests = []string{
 // These are files in go.tools/go/ssa/interp/testdata/.
 var testdataTests = []string{
 	"boundmeth.go",
-	/** ROCKY: reinstate:
 	"complit.go",
 	"coverage.go",
 	"defer.go",
@@ -149,7 +148,6 @@ var testdataTests = []string{
 	"recover.go",
 	"static.go",
 	"callstack.go",
-*/
 }
 
 // These are files and packages in $GOROOT/src/.

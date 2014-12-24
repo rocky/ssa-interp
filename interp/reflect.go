@@ -51,7 +51,10 @@ func makeNamedType(name string, underlying types.Type) *types.Named {
 }
 
 func makeReflectValue(t types.Type, v Value) Value {
-	return Array{rtype{t}, v}
+	return Structure{
+		fields: []Value{rtype{t}, v},
+		fieldnames:[]string{"Tag", "Value"},
+	}
 }
 
 // Given a reflect.Value, returns its rtype.

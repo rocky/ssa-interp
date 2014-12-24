@@ -220,9 +220,13 @@ func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {
 	if pc != 0 {
 		fn = (*ssa2.Function)(unsafe.Pointer(pc)) // indeed unsafe!
 	}
-	var Func Value
-	Func = Array{fn} // a runtime.Func
-	return &Func
+	Func := Structure{
+			fields    : make([]Value, 1),
+			fieldnames: make([]string, 1),
+	} // a runtime.Func
+	Func.fields[0] = fn
+	Func.fieldnames[0] = "Function"
+	return (Value)(Func)
 }
 
 func ext۰runtime۰environ(fr *Frame, args []Value) Value {

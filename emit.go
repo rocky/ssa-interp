@@ -61,7 +61,7 @@ func emitDebugRef(f *Function, e ast.Expr, v Value, isAddr bool) {
 		X:      v,
 		Expr:   e,
 		IsAddr: isAddr,
-		object: obj,
+		Object: obj,
 	})
 }
 

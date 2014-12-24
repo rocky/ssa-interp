@@ -130,11 +130,22 @@ func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa2.Functi
 // visitInstr interprets a single ssa.Instruction within the activation
 // record frame.  It returns a continuation value indicating where to
 // read the next instruction from.
-func visitInstr(fr *Frame, instr ssa2.Instruction) continuation {
-	switch instr := instr.(type) {
+func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
+	// switch instr := genericInstr.(type) {
+	// default:
+	// 	fmt.Printf("instruction: %T\n", instr)
+	// }
+	switch instr := genericInstr.(type) {
 	case *ssa2.DebugRef:
-		// no-op
-
+		if instr.Object != nil {
+			regName := instr.X.Name()
+			varName := instr.Object.Name()
+			if regName != varName && regName[0] == 't' {
+				// fmt.Printf("+++%s is register\t%s\n", varName, regName)
+				fr.Var2Reg[varName] = regName
+				fr.Reg2Var[regName] = varName
+			}
+		}
 	case *ssa2.UnOp:
 		fr.env[instr] = unop(instr, fr.get(instr.X))
 
@@ -182,7 +193,7 @@ func visitInstr(fr *Frame, instr ssa2.Instruction) continuation {
 		fr.runDefers()
 
 	case *ssa2.Panic:
-		panic(targetPanic{fr.get(instr.X)})
+		fr.sourcePanic(ToInspect(fr.get(instr.X), nil))
 
 	case *ssa2.Send:
 		fr.get(instr.Chan).(chan Value) <- copyVal(fr.get(instr.X))
@@ -214,7 +225,7 @@ func visitInstr(fr *Frame, instr ssa2.Instruction) continuation {
 
 	case *ssa2.Go:
 		fn, args := prepareCall(fr, &instr.Call)
-		go call(fr.i, fr.goNum, nil, fn, args)
+		go call(fr.i, i.nGoroutines, nil, fn, args)
 
 	case *ssa2.MakeChan:
 		fr.env[instr] = make(chan Value, asInt(fr.get(instr.Size)))
@@ -264,8 +275,17 @@ func visitInstr(fr *Frame, instr ssa2.Instruction) continuation {
 		idx := fr.get(instr.Index)
 		switch x := x.(type) {
 		case []Value:
+			i := asInt(idx)
+			if i < 0 || i > len(x) {
+				fr.sourcePanic("index out of range")
+			}
 			fr.env[instr] = &x[asInt(idx)]
 		case *Value: // *array
+			ary := (*x).(array)
+			i := asInt(idx)
+			if i < 0 || i > len(ary) {
+				fr.sourcePanic("index out of range")
+			}
 			fr.env[instr] = &(*x).(array)[asInt(idx)]
 		default:
 			panic(fmt.Sprintf("unexpected x type in IndexAddr: %T", x))
@@ -292,6 +312,15 @@ func visitInstr(fr *Frame, instr ssa2.Instruction) continuation {
 
 	case *ssa2.TypeAssert:
 		fr.env[instr] = typeAssert(fr.i, instr, fr.get(instr.X).(iface))
+
+	case *ssa2.Trace:
+		fr.startP = instr.Start
+		fr.endP   = instr.End
+		if (fr.tracing == TRACE_STEP_IN) ||
+			instr.Breakpoint ||
+			(fr.tracing == TRACE_STEP_OVER) && GlobalStmtTracing() {
+			TraceHook(fr, &genericInstr, instr.Event)
+		}
 
 	case *ssa2.MakeClosure:
 		var bindings []Value
