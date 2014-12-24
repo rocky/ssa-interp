@@ -20,10 +20,11 @@ const (
 // emitNew emits to f a new (heap Alloc) instruction allocating an
 // object of type typ.  pos is the optional source location.
 //
-func emitNew(f *Function, typ types.Type, pos token.Pos) *Alloc {
+func emitNew(f *Function, typ types.Type, pos token.Pos, endP token.Pos) *Alloc {
 	v := &Alloc{Heap: true}
 	v.setType(types.NewPointer(typ))
 	v.setPos(pos)
+	v.setEnd(endP)
 	f.emit(v)
 	return v
 }
@@ -448,7 +449,7 @@ func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, id *ast.
 func zeroValue(f *Function, t types.Type) Value {
 	switch t.Underlying().(type) {
 	case *types.Struct, *types.Array:
-		return emitLoad(f, f.addLocal(t, token.NoPos))
+		return emitLoad(f, f.addLocal(t, token.NoPos, token.NoPos, nil))
 	default:
 		return zeroConst(t)
 	}
@@ -475,7 +476,7 @@ func createRecoverBlock(f *Function) {
 	}
 	saved := f.currentBlock
 
-	f.Recover = f.newBasicBlock("recover")
+	f.Recover = f.newBasicBlock("recover", nil)
 	f.currentBlock = f.Recover
 
 	var results []Value

@@ -73,7 +73,7 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 		Prog:      prog,
 		pos:       obj.Pos(),
 	}
-	fn.startBody()
+	fn.startBody(nil)
 	fn.addSpilledParam(recv)
 	createParams(fn, start)
 
@@ -198,7 +198,7 @@ func makeBound(prog *Program, obj *types.Func) *Function {
 
 		fv := &FreeVar{name: "recv", typ: recvType(obj), parent: fn}
 		fn.FreeVars = []*FreeVar{fv}
-		fn.startBody()
+		fn.startBody(nil)
 		createParams(fn, 0)
 		var c Call
 

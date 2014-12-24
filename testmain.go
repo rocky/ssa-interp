@@ -111,7 +111,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Pkg:       testmain,
 		Prog:      prog,
 	}
-	init.startBody()
+	init.startBody(nil)
 
 	if testMainStartBodyHook != nil {
 		testMainStartBodyHook(init)
@@ -138,7 +138,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Pkg:       testmain,
 	}
 
-	main.startBody()
+	main.startBody(nil)
 
 	if testMainStartBodyHook != nil {
 		testMainStartBodyHook(main)
@@ -167,7 +167,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 			Prog:      prog,
 		}
 		main.AnonFuncs = append(main.AnonFuncs, matcher)
-		matcher.startBody()
+		matcher.startBody(nil)
 		matcher.emit(&Return{Results: []Value{vTrue, nilConst(types.Universe.Lookup("error").Type())}})
 		matcher.finishBody()
 
@@ -233,7 +233,7 @@ func testMainSlice(fn *Function, testfuncs []*Function, slice types.Type) Value 
 
 	// Emit: array = new [n]testing.InternalTest
 	tArray := types.NewArray(tElem, int64(len(testfuncs)))
-	array := emitNew(fn, tArray, token.NoPos)
+	array := emitNew(fn, tArray, token.NoPos, token.NoPos)
 	array.Comment = "test main"
 	for i, testfunc := range testfuncs {
 		// Emit: pitem = &array[i]

@@ -20,6 +20,8 @@ import (
 //
 type lvalue interface {
 	store(fn *Function, v Value) // stores v into the location
+	storeWithScope(fn *Function, v Value, scope *Scope) // stores v into the location
+                                 // noting which scope it is in
 	load(fn *Function) Value     // loads the contents of the location
 	address(fn *Function) Value  // address of the location
 	typ() types.Type             // returns the type of the location

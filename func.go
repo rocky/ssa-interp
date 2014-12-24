@@ -154,7 +154,7 @@ type lblock struct {
 func (f *Function) labelledBlock(label *ast.Ident) *lblock {
 	lb := f.lblocks[label.Obj]
 	if lb == nil {
-		lb = &lblock{_goto: f.newBasicBlock(label.Name)}
+		lb = &lblock{_goto: f.newBasicBlock(label.Name, nil)}
 		if f.lblocks == nil {
 			f.lblocks = make(map[*ast.Object]*lblock)
 		}
@@ -205,8 +205,8 @@ func (f *Function) addSpilledParam(obj types.Object) {
 // startBody initializes the function prior to generating SSA code for its body.
 // Precondition: f.Type() already set.
 //
-func (f *Function) startBody() {
-	f.currentBlock = f.newBasicBlock("entry")
+func (f *Function) startBody(scope *Scope) {
+	f.currentBlock = f.newBasicBlock("entry", scope)
 	f.objects = make(map[types.Object]Value) // needed for some synthetics, e.g. init
 }
 
@@ -388,7 +388,7 @@ func (f *Function) debugInfo() bool {
 // calls to f.lookup(obj) will return the same local.
 //
 func (f *Function) addNamedLocal(obj types.Object) *Alloc {
-	l := f.addLocal(obj.Type(), obj.Pos())
+	l := f.addLocal(obj.Type(), obj.Pos(), obj.Pos(), nil)
 	l.Comment = obj.Name()
 	f.objects[obj] = l
 	return l
@@ -401,10 +401,12 @@ func (f *Function) addLocalForIdent(id *ast.Ident) *Alloc {
 // addLocal creates an anonymous local variable of type typ, adds it
 // to function f and returns it.  pos is the optional source location.
 //
-func (f *Function) addLocal(typ types.Type, pos token.Pos) *Alloc {
+func (f *Function) addLocal(typ types.Type, pos token.Pos, endP token.Pos,
+	scope *Scope) *Alloc {
 	v := &Alloc{}
 	v.setType(types.NewPointer(typ))
 	v.setPos(pos)
+	v.setEnd(endP)
 	f.Locals = append(f.Locals, v)
 	f.emit(v)
 	return v
@@ -640,11 +642,12 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 // not automatically become the current block for subsequent calls to emit.
 // comment is an optional string for more readable debugging output.
 //
-func (f *Function) newBasicBlock(comment string) *BasicBlock {
+func (f *Function) newBasicBlock(comment string, scope *Scope) *BasicBlock {
 	b := &BasicBlock{
 		Index:   len(f.Blocks),
 		Comment: comment,
 		parent:  f,
+		Scope: scope,
 	}
 	b.Succs = b.succs2[:0]
 	f.Blocks = append(f.Blocks, b)
