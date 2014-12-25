@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2014 Rocky Bernstein.
 
 // info pc
 //
@@ -8,7 +8,6 @@ package gubcmd
 
 import (
 	"github.com/rocky/ssa-interp/gub"
-	"github.com/rocky/ssa-interp/interp"
 )
 
 func init() {
@@ -31,5 +30,4 @@ func InfoPCSubcmd(args []string) {
 	fr := gub.CurFrame()
 	gub.Msg("instruction number: %d of block %d, function %s",
 		fr.PC(), fr.Block().Index, fr.Fn().Name())
-	gub.Msg("Encoded PC used in tracebacks: %x", interp.EncodePC(fr))
 }

@@ -116,9 +116,9 @@ func ext۰runtime۰Caller(fr *Frame, args []Value) Value {
 
 func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
 	// Callers(skip int, pc []uintptr) int
-	skip := args[0].(int)-1
+	skip := args[0].(int)
 	pc := args[1].([]Value)
-	for i := 0; i < skip; i++ {
+	for i := 1; i < skip; i++ {
 		if fr != nil {
 			fr = fr.caller
 		}
