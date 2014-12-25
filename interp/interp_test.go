@@ -138,7 +138,7 @@ var testdataTests = []string{
 	"complit.go",
 	/* Rocky: reinstate
 	"coverage.go",
-*/
+    */
 	"defer.go",
 	"fieldprom.go",
 	"ifaceconv.go",
@@ -149,9 +149,7 @@ var testdataTests = []string{
 	"range.go",
 	"recover.go",
 	"static.go",
-	/* Rocky: reinstate
 	"callstack.go",
-    */
 }
 
 // These are files and packages in $GOROOT/src/.

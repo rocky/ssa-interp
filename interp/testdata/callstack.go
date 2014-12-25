@@ -34,13 +34,14 @@ func runtimeCaller0() (uintptr, string, int, bool) { return runtime.Caller(0) }
 
 func main() {
 	i()
-	if stack != `main.f at callstack.go:12
+	expected_stack :=`main.f at callstack.go:12
 main.g at callstack.go:26
 main.h at callstack.go:27
 func at callstack.go:28
 main.i at callstack.go:28
 main.main at callstack.go:35
-` {
+`
+	if stack != expected_stack {
 		panic("unexpected stack: " + stack)
 	}
 

@@ -47,6 +47,26 @@ type Frame struct {
 	endP             token.Pos   // End Postion from last trace instr run
 }
 
+/* FIXME ROCKY: use Slice instead.
+ */
+type PC struct{
+	fn *ssa2.Function
+	block *ssa2.BasicBlock
+	instruction uint
+}
+
+var PCMapping map[uintptr] *PC
+
+func init() {
+	PCMapping = make(map[uintptr]*PC)
+	/*
+      Index 0 needs to be handled as a special case.
+      It is  the current PC, not something on a call stack.
+     Therefore it has to be handled dynamically.
+    */
+	PCMapping[0] = nil
+}
+
 func (fr *Frame) get(key ssa2.Value) Value {
 	switch key := key.(type) {
 	case nil:

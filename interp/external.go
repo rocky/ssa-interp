@@ -195,39 +195,6 @@ func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
 	return nil
 }
 
-func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
-	// Callers(skip int, pc []uintptr) int
-	skip := args[0].(int)
-	pc := args[1].([]Value)
-	for i := 0; i < skip; i++ {
-		if fr != nil {
-			fr = fr.caller
-		}
-	}
-	i := 0
-	for fr != nil {
-		pc[i] = uintptr(unsafe.Pointer(fr.fn))
-		i++
-		fr = fr.caller
-	}
-	return i
-}
-
-/* rocky: we deviate from ssa. I don't understand how this works
-       or or can work. So we're just going to punt for now and return
-       whatever function the frame is currently in.
-*/
-func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {
-	// FuncForPC(pc uintptr) *Func
-	pc := args[0].(uintptr)
-	var fn *ssa2.Function
-	if pc != 0 {
-		fn = (*ssa2.Function)(unsafe.Pointer(pc)) // indeed unsafe!
-	}
-	Func := Value(fn) // a runtime.Func
-	return &Func
-}
-
 func ext۰runtime۰environ(fr *Frame, args []Value) Value {
 	return environ
 }
