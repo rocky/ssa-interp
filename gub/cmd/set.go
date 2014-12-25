@@ -18,9 +18,7 @@ func init() {
 		Fn: SetCommand,
 		Help: `Modifies parts of the debugger environment.
 
-Type "set" for a list of "set" subcommands and what they do.
-Type "help set *" for just a list of "set" subcommands.
-`,
+Type "set" for a list of "set" subcommands and what they do.`,
 		Min_args: 0,
 		Max_args: 3,
 	}

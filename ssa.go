@@ -1087,8 +1087,8 @@ type RunDefers struct {
 //
 type Panic struct {
 	anInstruction
-	X   Value // an interface{}
-	pos token.Pos
+	X    Value // an interface{}
+	pos  token.Pos
 	endP token.Pos
 }
 

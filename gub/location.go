@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013, 2014 Rocky Bernstein.
 // Things dealing with locations
 
 package gub
@@ -51,7 +51,7 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 		}
 		s += fmt.Sprintf("(%s).%s()", fn.Params[0].Type(), name)
 	} else {
-		s += name
+		s += fmt.Sprintf("%s.%s", fn.Pkg.Object.Path(), name)
 		if len(name) > 0 { s += "()" }
 	}
 

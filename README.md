@@ -11,7 +11,7 @@ Setup
 -----
 
 * Make sure our Go environment is setup, e.g. *$GOBIN*, *$GOPATH*, ...
-* Make sure you have a 1.2ish Go version installed.
+* Make sure you have a 1.2.2ish Go version installed.
 
 ```
    go get github.com/rocky/ssa-interp
