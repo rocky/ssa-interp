@@ -2165,13 +2165,15 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 	}
 	var fn *Function
 	if decl.Recv == nil && id.Name == "init" {
-		/* ROCKY FIXME: location info isn't getting in. */
-		// fmt.Printf("+++1 %s init#%d %d\n", pkg, pkg.ninit, decl.Name.NamePos)
+		/* ROCKY FIXME: location info isn't getting in.
+		fmt.Printf("+++1 %s init#%d %d\n", pkg, pkg.ninit, decl.Name.NamePos)*
+        */
 		pkg.ninit++
 		fn = &Function{
 			name:      fmt.Sprintf("init#%d", pkg.ninit),
 			Signature: new(types.Signature),
 			pos:       decl.Name.NamePos,
+			endP:      decl.Body.Rbrace,
 			Pkg:       pkg,
 			Prog:      pkg.Prog,
 			LocalsByName: make(map[NameScope]uint),

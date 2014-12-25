@@ -15,8 +15,8 @@ parameter a : int 5
 parameter b : int 3
 testdata/gcd.go:8:6
 # Should now be in gcd(5,3) - the first time
-=> #0 gcd(a, b)
-   #1 main()
+=> #0 main.gcd(a, b)
+   #1 main.main()
 Step over...
 if? gcd()
 testdata/gcd.go:10:6-11
@@ -41,9 +41,9 @@ parameter a : int 2
 parameter b : int 3
 testdata/gcd.go:8:6
 # Should now be in gcd(2,3) - recursively
-=> #0 gcd(a, b)
-   #1 gcd(a, b)
-   #2 main()
+=> #0 main.gcd(a, b)
+   #1 main.gcd(a, b)
+   #2 main.main()
 # Test finish
 Continuing until return...
 <-  gcd()

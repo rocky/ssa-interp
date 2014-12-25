@@ -54,12 +54,7 @@ func InfoProgramSubcmd(args []string) {
 		}
 	}
 
-	fn := fr.Fn()
-	if fn.Signature.Recv() != nil {
-		gub.Msg("function: %s", fr.FnAndParamString())
-	} else {
-		gub.Msg("function: %s.%s", fn.Pkg.Object.Path(), fr.FnAndParamString())
-	}
+	gub.Msg("function: %s", fr.FnAndParamString())
 	gub.Msg("program stop event: %s", ssa2.Event2Name[gub.TraceEvent])
 	gub.Msg("position: %s", gub.CurFrame().PositionRange())
 }
