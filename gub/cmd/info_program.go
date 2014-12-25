@@ -23,6 +23,8 @@ Prints information about the program including:
 *  function number
 *  stop event
 *  source-code position
+
+See "info pc" for information concerning negative PC values.
 `,
 		Min_args: 0,
 		Max_args: 0,
@@ -41,10 +43,15 @@ Prints information about the program including:
 //    source-code position
 func InfoProgramSubcmd(args []string) {
 	fr := gub.CurFrame()
-	gub.Msg("instruction number: %d", fr.PC())
+	pc := gub.PC(fr)
+	gub.Msg("instruction number: %d", pc)
 	block := fr.Block()
 	if block == nil {
-		gub.Msg("unknown block")
+		if pc == -2 {
+			gub.Msg("at return")
+		} else {
+			gub.Msg("unknown block")
+		}
 	} else {
 		gub.Msg("basic block: %d", block.Index)
 		if block.Scope != nil {

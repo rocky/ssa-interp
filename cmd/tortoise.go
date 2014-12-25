@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// ssadump: a tool for displaying and interpreting the SSA form of Go programs.
+// tortoise: a tool for displaying, interpreting, and debugging Go programs.
 package main // import "github.com/rocky/ssa-interp/cmd"
-
-// tortoise: a tool for displaying and interpreting Go programs.
 
 import (
 	"flag"
@@ -40,7 +38,7 @@ var testFlag = flag.Bool("test", false, "Loads test code (*_test.go) for importe
 
 var runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
 
-var interpFlag = flag.String("interp", "", `Options controlling the SSA test interpreter.
+var interpFlag = flag.String("interp", "", `Options controlling the interpreter.
 The value is a sequence of zero or more more of these letters:
 R	disable [R]ecover() from panic; show interpreter crash instead.
 T	[T]race execution of the program.  Best for single-threaded programs!
@@ -110,8 +108,8 @@ func doMain() error {
 		WordSize: wordSize,
 	}
 
-	var mode ssa2.BuilderMode
-	mode=ssa2.NaiveForm
+	var mode ssa2.BuilderMode = ssa2.NaiveForm
+
 	for _, c := range *buildFlag {
 		switch c {
 		case 'D':
@@ -124,8 +122,6 @@ func doMain() error {
 			mode |= ssa2.LogSource | ssa2.BuildSerially
 		case 'C':
 			mode |= ssa2.SanityCheckFunctions
-		case 'N':
-			mode |= ssa2.NaiveForm
 		case 'G':
 			conf.SourceImports = false
 		case 'L':
@@ -172,7 +168,8 @@ func doMain() error {
 	}
 
 	// Use the initial packages from the command line.
-	args, err := conf.FromArgs(args, *testFlag)
+	prog_args := args[1:]
+	args, err := conf.FromArgs(args[0:1], *testFlag)
 	if err != nil {
 		return err
 	}
@@ -247,7 +244,9 @@ func doMain() error {
 				build.Default.GOARCH, runtime.GOARCH)
 		}
 
-		interp.Interpret(main, interpMode, interpTraceMode, conf.TypeChecker.Sizes, main.Object.Path(), args)
+		interp.Interpret(main, interpMode, interpTraceMode, conf.TypeChecker.Sizes, main.Object.Path(), prog_args)
+	}  else {
+		fmt.Println(`Built ok, but not running because "-run" option not given`)
 	}
 	return nil
 }

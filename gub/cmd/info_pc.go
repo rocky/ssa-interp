@@ -17,7 +17,9 @@ func init() {
 		Help: `info pc
 
 Prints information about the current PC, an instruction counter
-and block number.
+and block number. If we are at a call, before the first instruction,
+-1 is printed. If we are at a return, after the last instruction,
+-2 is printed.
 `,
 		Min_args: 0,
 		Max_args: 0,
@@ -28,6 +30,15 @@ and block number.
 
 func InfoPCSubcmd(args []string) {
 	fr := gub.CurFrame()
-	gub.Msg("instruction number: %d of block %d, function %s",
-		fr.PC(), fr.Block().Index, fr.Fn().Name())
+	pc := gub.PC(fr)
+	fn := fr.FnAndParamString()
+	block := fr.Block()
+	if block != nil {
+		gub.Msg("instruction number: %d of block %d, function %s",
+			pc, fr.Block().Index, fn)
+	} else if pc == -2 {
+		gub.Msg("instruction number: %d (at return), function %s", pc, fn)
+	} else {
+		gub.Msg("instruction number: %d, function %s", pc, fn)
+	}
 }
