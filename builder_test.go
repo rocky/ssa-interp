@@ -258,14 +258,17 @@ func TestInit(t *testing.T) {
 # Package: A
 # Synthetic: package initializer
 func init():
+# scope: 0
 0:                                                                entry P:0 S:2
 	t0 = *init$guard                                                   bool
 	if t0 goto 2 else 1
+# scope: 0
 1:                                                           init.start P:1 S:1
 	*init$guard = true:bool
 	t1 = errors.init()                                                   ()
 	*i = 42:int
 	jump 2
+# scope: 0
 2:                                                            init.done P:2 S:0
 	return
 
@@ -275,6 +278,7 @@ func init():
 # Package: B
 # Synthetic: package initializer
 func init():
+# scope: 0
 0:                                                                entry P:0 S:0
 	*i = 42:int
 	return

@@ -203,8 +203,14 @@ func (f *Function) addSpilledParam(obj types.Object) {
 	spill := &Alloc{Comment: obj.Name()}
 	spill.setType(types.NewPointer(obj.Type()))
 	spill.setPos(obj.Pos())
+	spill.Scope = f.Scope
 	f.objects[obj] = spill
 	f.Locals = append(f.Locals, spill)
+	nameScope := NameScope{
+		Name: obj.Name(),
+		Scope: f.Scope,
+	}
+	f.LocalsByName[nameScope] = uint(len(f.Locals))
 	f.emit(spill)
 	f.emit(&Store{Addr: spill, Val: param})
 }
@@ -609,6 +615,9 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 			// Corrupt CFG.
 			fmt.Fprintf(buf, ".nil:\n")
 			continue
+		}
+		if b.Scope != nil {
+			fmt.Fprintf(buf, "# scope: %d\n", b.Scope.scopeId)
 		}
 		n, _ := fmt.Fprintf(buf, "%d:", b.Index)
 		bmsg := fmt.Sprintf("%s P:%d S:%d", b.Comment, len(b.Preds), len(b.Succs))
