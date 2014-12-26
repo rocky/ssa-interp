@@ -97,6 +97,7 @@ func PrintStack(fr *interp.Frame, count int) {
 			pointer = "=> "
 		}
 		Msg("%s#%d %s", pointer, i, fr.FnAndParamString())
+		Msg("\t%s", fr.PositionRange())
 		i++
 	}
 }

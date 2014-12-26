@@ -17,4 +17,5 @@ oX  main.main()
 testdata/panic.go:4:2-21
 # Should see panic icon now
 => #0 main.main()
+	testdata/panic.go:4:2-21
 gub: That's all folks...
