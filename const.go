@@ -22,7 +22,7 @@ func NewConst(val exact.Value, typ types.Type, pos token.Pos, end token.Pos) *Co
 	return &Const{typ, val, pos, end}
 }
 
-// intConst returns an 'int' constant that evaluates to i.
+// intConst returns an 'int64' constant that evaluates to i.
 // (i is an int64 in case the host is narrower than the target.)
 func intConst(i int64) *Const {
 	return NewConst(exact.MakeInt64(i), tInt, token.NoPos, token.NoPos)

@@ -1,19 +1,19 @@
 Gub version 0.2
 Type 'h' for help
 Running....
-->  main()
+->  main.main()
 testdata/panic.go:3:6
 # Test that debugger handles an interpreter panic()
 # Use with panic.go
 Setting highlight off
 Step over...
---- main()
+--- main.main()
 testdata/panic.go:4:2-21
 Step over...
-main()
-	testdata/panic.go:3 0x10002
+main.main()
+	testdata/panic.go:3 0x1
 	panic("Game over!")
-oX  main()
+oX  main.main()
 testdata/panic.go:4:2-21
 # Should see panic icon now
 => #0 main.main()

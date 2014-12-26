@@ -24,9 +24,8 @@ import (
 // (i.e. implements Value), the type of that value is shown in the
 // right column.
 //
-// Build and run the ssadump.go program if you want a standalone tool
-// with similar functionality. It is located at
-// golang.org/x/tools/cmd/ssadump.
+// Build and run the tortoise.go program in this package if you want a
+// standalone tool with similar functionality.
 //
 func Example() {
 	const hello = `
