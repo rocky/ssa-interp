@@ -62,6 +62,8 @@ func computePrompt() string {
 // when an empty line is entered.
 var LastCommand string = ""
 
+var Instr *ssa2.Instruction
+
 // FIXME: remove instr
 
 // GubTraceHook is the callback hook from interpreter. It contains
@@ -76,6 +78,8 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	if instr == nil {
 		instr = &fr.Block().Instrs[fr.PC()]
 	}
+	Instr = instr
+
 	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].Kind == "Function" {
 		event = ssa2.CALL_ENTER
 	}

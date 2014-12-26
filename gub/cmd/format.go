@@ -7,6 +7,7 @@ import (
 	"os"
 	"fmt"
 	"go/format"
+	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/gub"
 )
 
@@ -29,13 +30,23 @@ Prints AST for current function
 // format
 //
 // Formats AST and produces source text for function.
+// FIXME: allow one to specify a function or package
 func FormatCommand(args []string) {
-	fn := gub.CurFrame().Fn()
-	if syntax := fn.AST(); syntax != nil {
+	fr := gub.CurFrame()
+	fn := fr.Fn()
+	syntax := fn.Syntax()
+	if pc := gub.PC(fr); pc >= 0 {
+		switch s := (*gub.Instr).(type) {
+		case *ssa2.Trace:
+			syntax = s.Syntax()
+		}
+	}
+
+	if syntax != nil {
 		// FIXME: use gub.Msg, not stdout
 		format.Node(os.Stdout, fn.Prog.Fset, syntax)
 		fmt.Println("");
 	} else {
-		gub.Msg("Sorry, we don't have an AST for %s", fn);
+		gub.Msg("Sorry, we don't have an AST for %s", fr.FnAndParamString());
 	}
 }

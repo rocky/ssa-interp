@@ -707,4 +707,4 @@ func (n extentNode) End() token.Pos { return n[1] }
 // function.  Otherwise, it is an opaque Node providing only position
 // information; this avoids pinning the AST in memory.
 //
-func (f *Function) AST() ast.Node { return f.syntax }
+func (f *Function) Syntax() ast.Node { return f.syntax }

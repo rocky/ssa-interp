@@ -84,7 +84,7 @@ type Trace struct {
 	End   token.Pos    // end position of source
 	Event TraceEvent
 	Breakpoint bool    // Set if we should stop here
-	ast   *ast.Node    //
+	syntax  ast.Node
 }
 
 // FIXME: arrange to put in ast
@@ -158,6 +158,8 @@ func (t *Trace) String() string {
 func (v *Trace) Operands(rands []*Value) []*Value {
 	return rands
 }
+
+func (t *Trace) Syntax() ast.Node { return t.syntax }
 
 // Accessors
 func (v *Trace) Pos() token.Pos     { return v.Start }

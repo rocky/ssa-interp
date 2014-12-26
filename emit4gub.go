@@ -24,38 +24,46 @@ func emitTrace(f *Function, event TraceEvent, start token.Pos,
 		Start: start,
 		End: end,
 		Breakpoint: false,
-		ast: nil,
+		syntax: nil,
 	}
-	// fmt.Printf("event %s StartPos %d EndPos %d\n", Event2Name[event])
-	fset := f.Prog.Fset
-	pkg := f.Pkg
-	pkg.locs = append(pkg.locs, LocInst{pos: start, endP:end,
-		Fn: nil, Trace: t})
-	if (debugMe) {
-		fmt.Printf("Emitting event %s\n\tFrom: %s\n\tTo: %s\n",
-			Event2Name[event], fset.Position(start), fset.Position(end)	)
-	}
-	return f.emit(t)
+	return emitTraceCommon(f, t)
 }
 
-func emitTraceNode(f *Function, event TraceEvent, syntax *ast.Node) Value {
-	start := (*syntax).Pos()
-	end := (*syntax).End()
+func emitTraceStmt(f *Function, event TraceEvent, syntax ast.Stmt) Value {
 	t := &Trace{
 		Event: event,
-		Start: start,
-		End:  end,
+		Start: syntax.Pos(),
+		End:  syntax.End(),
 		Breakpoint: false,
-		ast: syntax,
+		syntax: syntax,
 	}
-	// fmt.Printf("event %s StartPos %d EndPos %d\n", Event2Name[event])
+	return emitTraceCommon(f, t)
+}
+
+func emitTraceExpr(f *Function, event TraceEvent, syntax ast.Expr) Value {
+	t := &Trace{
+		Event: event,
+		Start: syntax.Pos(),
+		End:  syntax.End(),
+		Breakpoint: false,
+		syntax: syntax,
+	}
+	return emitTraceCommon(f, t)
+}
+
+func emitTraceCommon(f *Function, t *Trace) Value {
 	fset := f.Prog.Fset
 	pkg := f.Pkg
-	pkg.locs = append(pkg.locs, LocInst{pos: start, endP:end,
-		Fn: nil, Trace: t})
+	pkg.locs = append(pkg.locs,
+		LocInst{
+			pos: t.Start,
+			endP: t.End,
+			Fn: nil,
+			Trace: t,
+		})
 	if (debugMe) {
 		fmt.Printf("Emitting event %s\n\tFrom: %s\n\tTo: %s\n",
-			Event2Name[event], fset.Position(start), fset.Position(end)	)
+			Event2Name[t.Event], fset.Position(t.Start), fset.Position(t.End)	)
 	}
 	return f.emit(t)
 }
