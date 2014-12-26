@@ -121,10 +121,10 @@ func main() {
 	// .1.if.then:                                                             P:1 S:1
 	// 	trace <STATEMENT in list> at hello.go:15:4-29
 	// 	t3 = new [2]interface{} (varargs)                       *[2]interface{}
-	// 	t4 = &t3[0:untyped integer]                                *interface{}
+	// 	t4 = &t3[0:int]                                            *interface{}
 	// 	t5 = make interface{} <- string ("Hello, World":string)     interface{}
 	// 	*t4 = t5
-	// 	t6 = &t3[1:untyped integer]                                *interface{}
+	// 	t6 = &t3[1:int]                                            *interface{}
 	// 	t7 = make interface{} <- string (t0)                        interface{}
 	// 	*t6 = t7
 	// 	t8 = slice t3[:]                                          []interface{}

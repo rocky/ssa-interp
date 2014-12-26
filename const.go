@@ -22,9 +22,10 @@ func NewConst(val exact.Value, typ types.Type, pos token.Pos, end token.Pos) *Co
 	return &Const{typ, val, pos, end}
 }
 
-// intConst returns an untyped integer constant that evaluates to i.
+// intConst returns an 'int64' constant that evaluates to i.
+// (i is an int64 in case the host is narrower than the target.)
 func intConst(i int64) *Const {
-	return NewConst(exact.MakeInt64(i), types.Typ[types.UntypedInt], token.NoPos, token.NoPos)
+	return NewConst(exact.MakeInt64(i), tInt, token.NoPos, token.NoPos)
 }
 
 // nilConst returns a nil constant of the specified type, which may
@@ -65,6 +66,24 @@ func zeroConst(t types.Type) *Const {
 	panic(fmt.Sprint("zeroConst: unexpected ", t))
 }
 
+func (c *Const) RelString(from *types.Package) string {
+	var s string
+	if c.Value == nil {
+		s = "nil"
+	} else if c.Value.Kind() == exact.String {
+		s = exact.StringVal(c.Value)
+		const max = 20
+		// TODO(adonovan): don't cut a rune in half.
+		if len(s) > max {
+			s = s[:max-3] + "..." // abbreviate
+		}
+		s = strconv.Quote(s)
+	} else {
+		s = c.Value.String()
+	}
+	return s + ":" + relType(c.Type(), from)
+}
+
 func (c *Const) valstring() string {
 	if c.Value == nil {
 		return "nil"
@@ -81,11 +100,11 @@ func (c *Const) valstring() string {
 }
 
 func (c *Const) Name() string {
-	return fmt.Sprintf("%s:%s", c.valstring(), c.typ)
+	return c.RelString(nil)
 }
 
-func (v *Const) String() string {
-	return v.Name()
+func (c *Const) String() string {
+	return c.Name()
 }
 
 func (c *Const) Type() types.Type {
@@ -95,6 +114,8 @@ func (c *Const) Type() types.Type {
 func (c *Const) Referrers() *[]Instruction {
 	return nil
 }
+
+func (c *Const) Parent() *Function { return nil }
 
 func (c *Const) Pos() token.Pos {
 	return token.NoPos
