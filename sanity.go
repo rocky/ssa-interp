@@ -424,7 +424,7 @@ func (s *sanity) checkFunction(fn *Function) bool {
 			s.errorf("nil Pkg")
 		}
 	}
-	if src, syn := fn.Synthetic == "", fn.Syntax() != nil; src != syn {
+	if src, syn := fn.Synthetic == "", fn.AST() != nil; src != syn {
 		s.errorf("got fromSource=%t, hasSyntax=%t; want same values", src, syn)
 	}
 	for i, l := range fn.Locals {

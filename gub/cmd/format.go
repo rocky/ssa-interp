@@ -31,7 +31,7 @@ Prints AST for current function
 // Formats AST and produces source text for function.
 func FormatCommand(args []string) {
 	fn := gub.CurFrame().Fn()
-	if syntax := fn.Syntax(); syntax != nil {
+	if syntax := fn.AST(); syntax != nil {
 		// FIXME: use gub.Msg, not stdout
 		format.Node(os.Stdout, fn.Prog.Fset, syntax)
 		fmt.Println("");

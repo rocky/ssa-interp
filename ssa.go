@@ -294,7 +294,7 @@ type Node interface {
 // of the ast.FuncDecl.Name, if the function was explicit in the
 // source.  Synthetic wrappers, for which Synthetic != "", may share
 // the same position as the function they wrap.
-// Syntax.Pos() always returns the position of the declaring "func" token.
+// Ast.Pos() always returns the position of the declaring "func" token.
 //
 // Type() returns the function's Signature.
 //

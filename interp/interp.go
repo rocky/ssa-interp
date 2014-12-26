@@ -507,6 +507,15 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 	for i, fv := range fn.FreeVars {
 		fr.env[fv] = env[i]
 	}
+
+	if caller == nil {
+		if GlobalStmtTracing() {
+			fr.tracing = TRACE_STEP_IN
+		}
+	} else if caller.tracing == TRACE_STEP_IN {
+		fr.tracing = TRACE_STEP_IN
+	}
+
 	for fr.block != nil {
 		runFrame(fr)
 	}

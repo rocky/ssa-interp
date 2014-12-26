@@ -1,3 +1,4 @@
+// Copyright 2014 Rocky Bernstein
 package ssa2
 
 func (a *address) storeWithScope(fn *Function, v Value, scope *Scope) {

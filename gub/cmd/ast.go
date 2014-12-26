@@ -30,7 +30,7 @@ Prints AST for current function
 // Prints AST for current function.
 func AstCommand(args []string) {
 	fn := gub.CurFrame().Fn()
-	if syntax := fn.Syntax(); syntax != nil {
+	if syntax := fn.AST(); syntax != nil {
 		ast.Print(fn.Prog.Fset, syntax)
 		fmt.Println("");
 	} else {
