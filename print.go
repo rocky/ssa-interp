@@ -90,7 +90,13 @@ func (v *Phi) String() string {
 		}
 		// Be robust against malformed CFG.
 		block := -1
-		if v.block != nil && i < len(v.block.Preds) {
+		if v.block != nil {
+			if v.block.Scope != nil {
+				str := fmt.Sprintf("# scope: %d\n", v.block.Scope.ScopeId)
+				b.WriteString(str)
+			}
+		}
+		if i < len(v.block.Preds) {
 			block = v.block.Preds[i].Index
 		}
 		fmt.Fprintf(&b, "%d: ", block)

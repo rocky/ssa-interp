@@ -683,6 +683,13 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode, sizes type
 	for event := ssa2.TRACE_EVENT_FIRST; event <= ssa2.TRACE_EVENT_LAST; event++ {
 		i.TraceEventMask[event] = true
 	}
+	i.TraceEventMask[ssa2.TRACE_CALL] = false
+	i.TraceEventMask[ssa2.DEFER_ENTER] = false
+	if i.TraceMode & EnableInitTracing == 0 {
+		// clear tracing bits in init() functions that occur before
+		// main.main()
+		i.TraceMode &= ^(EnableStmtTracing|EnableTracing)
+	}
 	i.goTops = append(i.goTops, &GoreState{Fr: nil, state: 0})
 
 	initReflect(i)
