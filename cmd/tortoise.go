@@ -2,11 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
-
-package main
-
-// tortoise: a tool for displaying and interpreting Go programs.
+// tortoise: a tool for displaying, interpreting, and debugging Go programs.
+package main // import "github.com/rocky/ssa-interp/cmd"
 
 import (
 	"flag"
@@ -36,6 +33,8 @@ G	use binary object files from gc to provide imports (no code).
 L	build distinct packages seria[L]ly instead of in parallel.
 N	build [N]aive SSA form: don't replace local loads/stores with registers.
 `)
+
+var testFlag = flag.Bool("test", false, "Loads test code (*_test.go) for imported packages.")
 
 var runFlag = flag.Bool("run", false, "Invokes the SSA interpreter on the program.")
 
@@ -82,18 +81,25 @@ func init() {
 }
 
 func main() {
+	if err := doMain(); err != nil {
+		fmt.Fprintf(os.Stderr, "tortoise: %s\n", err)
+		os.Exit(1)
+	}
+}
+
+func doMain() error {
 	flag.Parse()
 	args := flag.Args()
 
-	impctx := importer.Config{Build: &build.Default}
+	conf := importer.Config{Build: &build.Default}
 	// TODO(adonovan): make go/types choose its default Sizes from
 	// build.Default or a specified *build.Context.
 	var wordSize int64 = 8
-	switch impctx.Build.GOARCH {
+	switch conf.Build.GOARCH {
 	case "386", "arm":
 		wordSize = 4
 	}
-	impctx.TypeChecker.Sizes = &types.StdSizes{
+	conf.TypeChecker.Sizes = &types.StdSizes{
 		MaxAlign: 8,
 		WordSize: wordSize,
 	}
@@ -113,11 +119,11 @@ func main() {
 		case 'C':
 			mode |= ssa2.SanityCheckFunctions
 		case 'G':
-			impctx.Build = nil
+			conf.Build = nil
 		case 'L':
 			mode |= ssa2.BuildSerially
 		default:
-			log.Fatalf("Unknown -build option: '%c'.", c)
+			return fmt.Errorf("unknown -build option: '%c'", c)
 		}
 	}
 
@@ -135,7 +141,7 @@ func main() {
 		case 'T':
 			interpTraceMode |= interp.EnableTracing
 		default:
-			log.Fatalf("Unknown -interp option: '%c'.", c)
+			return fmt.Errorf("unknown -interp option: '%c'", c)
 		}
 	}
 
@@ -148,18 +154,19 @@ func main() {
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
 
 	// Load, parse and type-check the program.
-	imp := importer.New(&impctx)
+	imp := importer.New(&conf)
 	prog_args := args[1:]
 	infos, args, err := imp.LoadInitialPackages(args[0:1])
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// The interpreter needs the runtime package.
@@ -175,6 +182,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Create and build SSA-form program representation.
 	prog.BuildAll()
 
 	// Run the interpreter.
@@ -197,19 +205,21 @@ func main() {
 		if main == nil {
 			log.Fatal("No main package and no tests")
 		}
+
 		if interpTraceMode & interp.EnableStmtTracing != 0 {
 			gubcmd.Init()
 			gub.Install(gubFlag)
 		}
 
 		fmt.Println("Running....")
-		if runtime.GOARCH != impctx.Build.GOARCH {
-			log.Fatalf("Cross-interpretation is not yet supported (target has GOARCH %s, interpreter has %s).",
-				impctx.Build.GOARCH, runtime.GOARCH)
+		if runtime.GOARCH != conf.Build.GOARCH {
+			return fmt.Errorf("cross-interpretation is not yet supported (target has GOARCH %s, interpreter has %s)",
+				build.Default.GOARCH, runtime.GOARCH)
 		}
 
-		interp.Interpret(main, interpMode, interpTraceMode, impctx.TypeChecker.Sizes, main.Object.Path(), prog_args)
+		interp.Interpret(main, interpMode, interpTraceMode, conf.TypeChecker.Sizes, main.Object.Path(), prog_args)
 	} else {
 		fmt.Println(`Built ok, but not running because "-run" option not given`)
 	}
+	return nil
 }

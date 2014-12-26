@@ -142,6 +142,7 @@ var testdataTests = []string{
 	"methprom.go",
 	"mrvchain.go",
 	// "recover.go", FIXME - reinstate
+	// "static.go", FIXME
 }
 
 // These are files in $GOROOT/src/pkg/.
