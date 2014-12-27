@@ -14,7 +14,7 @@ testdata/gcdBrkpt.go:17:2-22
 instruction number: 3
 basic block: 4
 unknown scope
-function: main.gcd(a, b)
+function: main.main.gcd(a, b)
 program stop event: 
 position: testdata/gcdBrkpt.go:17:2-22
 gub: That's all folks...

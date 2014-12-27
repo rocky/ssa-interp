@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2014 Rocky Bernstein.
 // Things involving the call frame
 
 package gub
@@ -33,6 +33,18 @@ func frameInit(fr *interp.Frame) {
 		stackSize++
 	}
 	curScope = curFrame.Scope()
+}
+
+func PC(fr *interp.Frame) (pc int) {
+	switch TraceEvent {
+	case ssa2.CALL_RETURN:
+		pc = -2
+	case ssa2.CALL_ENTER:
+		pc = -1
+	default:
+		pc = fr.PC()
+	}
+	return pc
 }
 
 func getFrame(frameNum int, absolutePos bool) (*interp.Frame, int) {
@@ -84,12 +96,8 @@ func PrintStack(fr *interp.Frame, count int) {
 		if fr == curFrame {
 			pointer = "=> "
 		}
-		fn := fr.Fn()
-		if fn.Signature.Recv() != nil {
-			Msg("%s#%d %s", pointer, i, fr.FnAndParamString())
-		} else {
-			Msg("%s#%d %s.%s", pointer, i, fn.Pkg.Object.Path(), fr.FnAndParamString())
-		}
+		Msg("%s#%d %s", pointer, i, fr.FnAndParamString())
+		Msg("\t%s", fr.PositionRange())
 		i++
 	}
 }

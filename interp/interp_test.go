@@ -133,6 +133,7 @@ var gorootTestTests = []string{
 var testdataTests = []string{
 	"boundmeth.go",
 	"rtcall.go", // rocky: added for runtime.Caller
+	// "callstack.go",
 	"coverage.go",
 	"fieldprom.go",
 	"ifaceconv.go",

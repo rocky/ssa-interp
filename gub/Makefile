@@ -6,11 +6,11 @@ all:
 	$(MAKE) -C .. tortoise
 
 #: Run quick tests
-check-quick: ../tortoise
+check-quick: ../cmd/tortoise
 	go test -test.short
 
 #: Run all tests
-check: ../tortoise
+check: ../cmd/tortoise
 	go test
 
 #: Same as check

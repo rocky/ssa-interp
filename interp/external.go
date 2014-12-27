@@ -117,7 +117,7 @@ var externals = map[string]externalFn{
 	"runtime.Breakpoint":              ext۰runtime۰Breakpoint,
 	"runtime.Caller":                  ext۰runtime۰Caller,
 	"runtime.Callers":                 ext۰runtime۰Callers,
-	// "runtime.FuncForPC":               ext۰runtime۰FuncForPC,
+	"runtime.FuncForPC":               ext۰runtime۰FuncForPC,
 	"runtime.GC":                      ext۰runtime۰GC,
 	"runtime.GOMAXPROCS":              ext۰runtime۰GOMAXPROCS,
 	"runtime.Gosched":                 ext۰runtime۰Gosched,

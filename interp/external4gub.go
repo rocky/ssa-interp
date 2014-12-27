@@ -76,26 +76,6 @@ func ext۰debug۰function(fr *Frame, args []Value) Value {
 	return debug۰Function(fr, pc)
 }
 
-// Turn the function name, block number and instruction inside the
-// block into number that we'll use as a PC. If it so happens that
-// there are more than 256 instructions in a block or more than 256
-// basic blocks in a function, the PC is not unique. In cases that the
-// block number is not unique, one could try to disambiguate blocks by
-// discarding those that have fewer instructions than the instruction
-// number. However either way, I think I can live with this
-// limitation. Note: I tried using uint64 and 24 bits, but this causes
-// a range error down the line on 32-bit linux, I think when casting
-// to a uintptr.
-func EncodePC(fr *Frame) uint {
-	if fr == nil { return 0xbadbad }
-	fnNum := fn2Num(fr.fn)
-	// We don't always have basic blocks. Sigh
-	blockIndex := 0xff
-	if fr.block != nil { blockIndex = fr.block.Index }
-	bpc := uint(blockIndex << 8) + uint(fr.pc & 0xff)
-	return uint(fnNum << 16) | (bpc & 0x00ffff)
-}
-
 func runtime۰Caller(fr *Frame, skip int) (pc uintptr, file string, line int, ok bool) {
 	final_fr := fr
 	for i:=0; i<skip; i++ {
@@ -114,7 +94,16 @@ func runtime۰Caller(fr *Frame, skip int) (pc uintptr, file string, line int, ok
 	} else {
 		filename = "??"
 	}
-	pc = uintptr(EncodePC(final_fr))
+
+	n := uintptr(len(PCMapping))
+	pcMap := &PC{
+		fn: final_fr.fn,
+		block: final_fr.block,
+		instruction: final_fr.pc,
+	}
+	PCMapping[n] = pcMap
+	pc = uintptr(n)
+	// pc = uintptr(EncodePC(final_fr))
 	line = startP.Line
 	return pc, filename, line, true
 }
@@ -126,26 +115,46 @@ func ext۰runtime۰Caller(fr *Frame, args []Value) Value {
 }
 
 func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
+	// Callers(skip int, pc []uintptr) int
 	skip := args[0].(int)
-	pc   := args[1].([]Value)
-	size := len(pc)
-
-	for i:=0; i<=skip; i++ {
-		fr = fr.caller
-		if fr == nil {
-			return 0
+	pc := args[1].([]Value)
+	for i := 1; i < skip; i++ {
+		if fr != nil {
+			fr = fr.caller
 		}
 	}
-	var count int
-	for count = 0; fr != nil && count <= size; fr = fr.caller {
-		pc[count] = EncodePC(fr)
-		count++
+	i := 0
+	n := uintptr(len(PCMapping))
+	for fr != nil {
+		n++
+		pcMap := &PC{
+			fn: fr.fn,
+			block: fr.block,
+			instruction: fr.pc,
+		}
+		PCMapping[n] = pcMap
+		pc[i] = uintptr(n)
+		i++
+		fr = fr.caller
 	}
-	return count
+	return i
 }
 
-// // Can't really write this using runtime.function because interperter
-// // can't cant copy return value to *Func.
-// func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {
-// 	return nil
-// }
+
+// Not sure how to replace value *runtime.Func with our
+// own opaque type.
+func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {
+	pc := args[0].(uintptr)
+	fn := fr.fn
+	if pc != 0 {
+		fn = PCMapping[pc].fn
+	}
+	fields    := []Value{fn}
+	fieldnames:= []string{"Fn"}
+	var retFn = Structure{
+		fields    : fields,
+		fieldnames: fieldnames,
+	}
+	retFn2 := Value(retFn)
+	return &retFn2
+}
