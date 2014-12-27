@@ -12,7 +12,6 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
-	"strings"
 
 	"golang.org/x/tools/go/loader"
 	"github.com/rocky/ssa-interp"
@@ -90,7 +89,7 @@ func main() {
 }
 
 func doMain() error {
-	restart_args := strings.Join(os.Args, " ")
+	restart_args := os.Args
 	flag.Parse()
 	args := flag.Args()
 
@@ -220,8 +219,8 @@ func doMain() error {
 		}
 
 		if interpTraceMode & interp.EnableStmtTracing != 0 {
-			gubcmd.Init(restart_args)
-			gub.Install(gubFlag)
+			gubcmd.Init()
+			gub.Install(gubFlag, restart_args)
 			fn := main.Func("main")
 			if fn != nil {
 				/* Set a breakpoint on the main routine */

@@ -63,6 +63,7 @@ if [[ -n $highlight_opt ]] ; then
     fi
 fi
 cmd="$tortoise -run -gub="$gub_opt" -interp="S$interp_opt" -- $@"
+# Not used anymore, but we may as well save it.
 export GUB_RESTART_CMD="$cmd"
 # Run tortoise setting
 # echo $cmd
