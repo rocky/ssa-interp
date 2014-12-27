@@ -4,23 +4,17 @@ go:
   - 1.4
 
 before_install:
-  - go get "golang.org/x/tools/go/exact"
-  - go get "golang.org/x/tools/go/types"
-  - go get "golang.org/x/tools/go/loader"
-  - go get "golang.org/x/tools/go/types/typeutil"
-  - go get "github.com/davecgh/go-spew/spew"
-  - go get "code.google.com/p/go-gnureadline"
-  - go get "code.google.com/p/go-columnize"
-  - go get "github.com/mgutz/ansi"
-  - go get "github.com/0xfaded/eval"
+  - go get
+  - (cd interp && go get)
+  - (cd gub && go get)
+  - (cd cmd && go get)
+  - (cd gub/cmd && go get)
 
 script:
   - go test -v
-  - cd interp
-  - go test -v
-  - cd ../cmd
-  - go build tortoise.go
+  - (cd interp && go test -v)
+  - cd cmd && go build tortoise.go)
   # - go get "github.com/rocky/go-fish"
-  - cd ../gub
+  - cd gub
   - go build
   - go test -v
