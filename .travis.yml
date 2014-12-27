@@ -13,7 +13,7 @@ before_install:
 script:
   - go test -v
   - (cd interp && go test -v)
-  - cd cmd && go build tortoise.go)
+  - (cd cmd && go build tortoise.go)
   # - go get "github.com/rocky/go-fish"
   - cd gub
   - go build
