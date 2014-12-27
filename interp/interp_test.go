@@ -314,10 +314,10 @@ func TestGorootTest(t *testing.T) {
 		return nil
 	}
 	for _, input := range gorootTestTests {
-		if l:= len("recover"); len(input) > l && input[0:l] == "recover" {
-			fmt.Printf("FIXME  %s; skipping for now\n", input)
-		} else if input == "nil.go" {
-			fmt.Printf("FIXME  %s; skipping for now\n", input)
+		if input == "recover.go" {
+			fmt.Printf("FIXME  %s; can't handle recover.go: test1 mustRecover(1) - skipping for now\n", input)
+		} else if input == "recover1.go" {
+			fmt.Printf("FIXME  %s; can't handle recover1.go: test1 mustRecover(1) - skipping for now\n", input)
 		} else {
 			if !run(t, filepath.Join(build.Default.GOROOT, "test")+slash, input, success) {
 				failures = append(failures, input)
@@ -333,8 +333,7 @@ func TestGorootTest(t *testing.T) {
 }
 
 // TestTestmainPackage runs the interpreter on a synthetic "testmain" package.
-// ROCKY - reinstate.
-func NO_TestTestmainPackage(t *testing.T) {
+func TestTestmainPackage(t *testing.T) {
 	success := func(exitcode int, output string) error {
 		if exitcode == 0 {
 			return fmt.Errorf("unexpected success")
