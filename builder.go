@@ -2037,12 +2037,12 @@ start:
 			scope = astScope(fn, s)
 		}
 		b.stmtList(fn, s.List, scope)
-		emitTraceStmt(fn, BLOCK_END, s)
+		emitTrace(fn, BLOCK_END, s.End(), s.End())
 
 	case *ast.IfStmt:
 		ifScope := astScope(fn, s)
 		if s.Init != nil {
-			emitTraceStmt(fn, IF_INIT, s)
+			emitTraceStmt(fn, IF_INIT, s.Init)
 			b.stmt(fn, s.Init, ifScope)
 		}
 		then := fn.newBasicBlock("if.then", astScope(fn, s.Body))
