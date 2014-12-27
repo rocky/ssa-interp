@@ -67,7 +67,7 @@ func (fr *Frame) sourcePanic(mess string) {
 	fr.status = StPanic
 	// We don't need an interpreter traceback. So turn that off.
 	//os.Setenv("GOTRACEBACK", "0")
-	panic(mess)
+	panic(targetPanic{mess})
 }
 
 func (i *interpreter) Program() *ssa2.Program { return i.prog }

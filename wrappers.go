@@ -64,6 +64,7 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 	if prog.mode&LogSource != 0 {
 		defer logStack("make %s to (%s)", description, recv.Type())()
 	}
+	pkg := prog.packages[obj.Pkg()]
 	fn := &Function{
 		name:      name,
 		method:    sel,
@@ -74,7 +75,7 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 		pos:       obj.Pos(),
 		Breakpoint: false,
 		LocalsByName: make(map[NameScope]uint),
-		Scope     : nil,
+		Scope     : pkg.TypeScope2Scope[obj.Scope()],
 	}
 	fn.startBody(nil)
 	fn.addSpilledParam(recv)

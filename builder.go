@@ -490,7 +490,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			Prog:      fn.Prog,
 			syntax:    e,
 			Breakpoint: false,
-			Scope     : nil,
+			Scope     : astScope(fn, e),
 			LocalsByName: make(map[NameScope]uint),
 			endP:       e.Body.End(),
 		}
@@ -2179,6 +2179,7 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 			LocalsByName: make(map[NameScope]uint),
 			syntax:    decl,
 		}
+		fn.Scope = astScope(fn, decl)
 
 		var v Call
 		v.Call.Value = fn
