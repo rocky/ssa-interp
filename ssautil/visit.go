@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssautil // import "golang.org/x/tools/go/ssa/ssautil"
+package ssautil // import "github.com/rocky/ssa-interp/ssautil"
 
-import "golang.org/x/tools/go/ssa"
+import 	"github.com/rocky/ssa-interp"
 
 // This file defines utilities for visiting the SSA representation of
 // a Program.
@@ -19,24 +19,24 @@ import "golang.org/x/tools/go/ssa"
 //
 // Precondition: all packages are built.
 //
-func AllFunctions(prog *ssa.Program) map[*ssa.Function]bool {
+func AllFunctions(prog *ssa2.Program) map[*ssa2.Function]bool {
 	visit := visitor{
 		prog: prog,
-		seen: make(map[*ssa.Function]bool),
+		seen: make(map[*ssa2.Function]bool),
 	}
 	visit.program()
 	return visit.seen
 }
 
 type visitor struct {
-	prog *ssa.Program
-	seen map[*ssa.Function]bool
+	prog *ssa2.Program
+	seen map[*ssa2.Function]bool
 }
 
 func (visit *visitor) program() {
 	for _, pkg := range visit.prog.AllPackages() {
 		for _, mem := range pkg.Members {
-			if fn, ok := mem.(*ssa.Function); ok {
+			if fn, ok := mem.(*ssa2.Function); ok {
 				visit.function(fn)
 			}
 		}
@@ -49,14 +49,14 @@ func (visit *visitor) program() {
 	}
 }
 
-func (visit *visitor) function(fn *ssa.Function) {
+func (visit *visitor) function(fn *ssa2.Function) {
 	if !visit.seen[fn] {
 		visit.seen[fn] = true
-		var buf [10]*ssa.Value // avoid alloc in common case
+		var buf [10]*ssa2.Value // avoid alloc in common case
 		for _, b := range fn.Blocks {
 			for _, instr := range b.Instrs {
 				for _, op := range instr.Operands(buf[:0]) {
-					if fn, ok := (*op).(*ssa.Function); ok {
+					if fn, ok := (*op).(*ssa2.Function); ok {
 						visit.function(fn)
 					}
 				}

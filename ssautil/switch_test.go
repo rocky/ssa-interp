@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/ssa/ssautil"
+	"github.com/rocky/ssa-interp"
+	"github.com/rocky/ssa-interp/ssautil"
 )
 
 func TestSwitches(t *testing.T) {
@@ -29,12 +29,12 @@ func TestSwitches(t *testing.T) {
 		return
 	}
 
-	prog := ssa.Create(iprog, 0)
+	prog := ssa2.Create(iprog, 0)
 	mainPkg := prog.Package(iprog.Created[0].Pkg)
 	mainPkg.Build()
 
 	for _, mem := range mainPkg.Members {
-		if fn, ok := mem.(*ssa.Function); ok {
+		if fn, ok := mem.(*ssa2.Function); ok {
 			if fn.Synthetic != "" {
 				continue // e.g. init()
 			}

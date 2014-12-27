@@ -33,7 +33,6 @@ func EvalCommand(args []string) {
 			gub.Section("Kind=nil")
 			gub.Msg("nil")
 		} else {
-			expr := *expr
 			if len(expr) == 1 {
 				value := expr[0]
 				kind := value.Kind().String()

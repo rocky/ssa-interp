@@ -304,11 +304,11 @@ func NonblockingSelectDefaultCasePanics(ch chan int) {
 
 // NB, reliance on fragile register numbering.
 func SimpleTypeSwitch(x interface{}) {
-	// switch x.(type) {
-	// case t3 int: println(x)
-	// case t7 bool: println(x)
-	// case t10 string: println(t10)
-	// default: println(x)
+    // switch x.(type) {
+    //	case t3 int: trace <STATEMENT in list> at testdata/switches.go:317:3-13
+    //	case t7 bool: trace <STATEMENT in list> at testdata/switches.go:317:3-13
+    //	case t10 string: trace <STATEMENT in list> at testdata/switches.go:319:3-13
+    //	default: trace <STATEMENT in list> at testdata/switches.go:321:3-13
 	// }
 	switch y := x.(type) {
 	case nil:
