@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2014 Rocky Bernstein.
 // Stub
 
 package gubcmd

@@ -88,6 +88,7 @@ func main() {
 }
 
 func doMain() error {
+	restart_args := os.Args
 	flag.Parse()
 	args := flag.Args()
 
@@ -208,7 +209,7 @@ func doMain() error {
 
 		if interpTraceMode & interp.EnableStmtTracing != 0 {
 			gubcmd.Init()
-			gub.Install(gubFlag)
+			gub.Install(gubFlag, restart_args)
 		}
 
 		fmt.Println("Running....")

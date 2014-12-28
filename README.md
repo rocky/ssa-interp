@@ -3,21 +3,19 @@ gub and tortoise - A Go SSA Debugger and Interpreter
 
 [![Build Status](https://travis-ci.org/rocky/ssa-interp.png)](https://travis-ci.org/rocky/ssa-interp)
 
-This projects provides a debugger for the SSA-builder and interpreter from http://code.google.com/p/go/source/checkout?repo=tools .
-
-For now, some of the SSA optimizations however have been removed since our focus is on debugging and extending for interactive evaluation. Those optimization can be added back in when we have a good handle on debugging and interactive evaluation.
+This project modifies the [Go SSA interpreter](https://godoc.org/golang.org/x/tools/go/ssa/interp) to support a debugger. We provide the debugger here as well.
 
 Setup
 -----
 
 * Make sure our Go environment is setup, e.g. *$GOBIN*, *$GOPATH*, ...
-* Make sure you have a 1.2.2ish Go version installed.
+* Make sure you have a 1.2.2ish Go version installed. For Go 1.4 use the master branch, for Go 1.1.1, use the go1.1 branch.
 
 ```
    go get github.com/rocky/ssa-interp
    cd $GOBIN/src/github.com/rocky/ssa-interp
    make
-   cp tortoise gub.sh  $GOBIN/
+   cp cmd/tortoise cmd/gub.sh  $GOBIN/
 ```
 
 Running the debugger:
