@@ -376,7 +376,7 @@ func (p *Package) String() string {
 	return "package " + p.Object.Path()
 }
 
-func (p *Package) DumpTo(w io.Writer) {
+func (p *Package) WriteTo(w io.Writer) {
 	fmt.Fprintf(w, "%s:\n", p)
 
 	var names []string

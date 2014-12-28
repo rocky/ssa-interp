@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2014 Rocky Bernstein.
 // disassemble command
 
 package gubcmd
@@ -20,7 +20,7 @@ If a number is given that is the block number of the current frame.
 If "." is given we disassemble the current block only.
 `,
 		Min_args: 0,
-		Max_args: 2,
+		Max_args: 1,
 	}
 	gub.AddToCategory("inspecting", name)
 	gub.AddAlias("disasm", name)
@@ -36,8 +36,7 @@ func DisassembleCommand(args []string) {
 			gub.DisasmBlock(myfn, fr.Block().Index)
 			return
 		}
-		pkg  := myfn.Pkg
-		if fn := pkg.Func(what); fn != nil {
+		if fn, err := gub.FuncLookup(what); err == nil && fn != nil {
 			myfn = fn
 		} else {
 			bnum, err := gub.GetInt(args[1],
@@ -59,5 +58,5 @@ func DisassembleCommand(args []string) {
 			return
 		}
 	}
-	myfn.DumpTo(os.Stderr)
+	myfn.WriteTo(os.Stderr)
 }

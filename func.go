@@ -340,7 +340,7 @@ func (f *Function) finishBody() {
 	if f.Prog.mode&NaiveForm == 0 {
 		// For debugging pre-state of lifting pass:
 		// numberRegisters(f)
-		// f.DumpTo(os.Stderr)
+		// f.WriteTo(os.Stderr)
 
 		lift(f)
 	}
@@ -350,7 +350,7 @@ func (f *Function) finishBody() {
 	numberRegisters(f)
 
 	if f.Prog.mode&LogFunctions != 0 {
-		f.DumpTo(os.Stderr)
+		f.WriteTo(os.Stderr)
 	}
 
 	if f.Prog.mode&SanityCheckFunctions != 0 {
@@ -566,10 +566,10 @@ func (f *Function) pkgobj() *types.Package {
 	return nil
 }
 
-// DumpTo prints to w a human readable "disassembly" of the SSA code of
+// WriteTo prints to w a human readable "disassembly" of the SSA code of
 // all basic blocks of function f.
 //
-func (f *Function) DumpTo(w io.Writer) {
+func (f *Function) WriteTo(w io.Writer) {
 	fmt.Fprintf(w, "# Name: %s\n", f.String())
 	if f.Pkg != nil {
 		fmt.Fprintf(w, "# Package: %s\n", f.Pkg.Object.Path())

@@ -230,7 +230,7 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 		Members: make(map[string]Member),
 		values:  make(map[types.Object]Value),
 		Object:  info.Pkg,
-		info:    info, // transient (CREATE and BUILD phases)
+		info:    info,
 		locs:    make([] LocInst, 0),
 		TypeScope2Scope: make(map[*types.Scope]*Scope),
 	}
@@ -292,7 +292,7 @@ func (prog *Program) CreatePackage(info *importer.PackageInfo) *Package {
 	p.Members[initguard.Name()] = initguard
 
 	if prog.mode&LogPackages != 0 {
-		p.DumpTo(os.Stderr)
+		p.WriteTo(os.Stderr)
 	}
 
 	if info.Importable {
