@@ -25,6 +25,36 @@ func deref(typ types.Type) types.Type {
 }
 
 
+func PkgLookup(pkgName string) (*ssa2.Package) {
+	return curFrame.I().Program().PackagesByName[pkgName]
+}
+
+func FuncLookup(fnName string) (*ssa2.Function, error) {
+	ids := strings.Split(fnName, ".")
+	fn  := curFrame.Fn()
+	pkg := fn.Pkg
+	switch len(ids) {
+	case 2:
+		pkgName := ids[0]
+		try_pkg := curFrame.I().Program().PackagesByName[pkgName]
+		if try_pkg != nil {
+			pkg = try_pkg
+		}
+		m := pkg.Members[ids[1]]
+		if m == nil {
+			return nil, fmt.Errorf("%s is not a member of %s", ids[1], pkg)
+		}
+		fnName = ids[1]
+	case 1:
+		break
+	case 0:
+		return nil, fmt.Errorf("Internal error in FuncLookup")
+	default:
+		return nil, fmt.Errorf("%s should have only one dot (.)", fnName)
+	}
+	return pkg.Func(fnName), nil
+}
+
 func LocalsLookup(fr *interp.Frame, name string, scope *ssa2.Scope) uint {
 	nameScope := ssa2.NameScope{
 		Name: name,
