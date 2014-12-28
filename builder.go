@@ -498,7 +498,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr) Value {
 			Prog:      fn.Prog,
 			syntax:    e,
 			Breakpoint: false,
-			Scope     : nil,
+			Scope     : astScope(fn, e),
 			LocalsByName: make(map[NameScope]uint),
 			endP:       e.Body.End(),
 		}
