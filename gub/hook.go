@@ -73,6 +73,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	gubLock.Lock()
     defer gubLock.Unlock()
 	if skipEvent(fr, event) { return }
+	TraceEvent = event
 	frameInit(fr)
 	// FIXME: use unconditionally
 	if instr == nil {
@@ -83,7 +84,6 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].Kind == "Function" {
 		event = ssa2.CALL_ENTER
 	}
-	TraceEvent = event
 	printLocInfo(topFrame, instr, event)
 
 	line := ""

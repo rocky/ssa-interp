@@ -32,7 +32,17 @@ func frameInit(fr *interp.Frame) {
 	for stackSize=0; fr !=nil; fr = fr.Caller(0) {
 		stackSize++
 	}
-	curScope = curFrame.Scope()
+	switch TraceEvent  {
+	case ssa2.CALL_RETURN:
+		/* These guys are not in a basic block, so curFrame.Scope
+           won't work here. . Not sure why fr.Fn() memory crashes either. */
+		// curScope = fr.Fn().Scope
+		curScope = nil
+	default:
+		// FIXME: may need other cases like defer_enter, panic,
+		// block_end?
+		curScope = curFrame.Scope()
+	}
 }
 
 func PC(fr *interp.Frame) (pc int) {
