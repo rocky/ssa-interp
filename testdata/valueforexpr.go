@@ -33,6 +33,7 @@ func f(spilled, unspilled int) {
 	_ = /*@Phi*/ (y)
 	map1 := /*@MakeMap*/ (make(map[string]string))
 	_ = map1
+	// FIXME ROCKY: see what's up with travis
 	// _ = /*@MakeSlice*/ (make([]int, 0))
 	_ = /*@MakeClosure*/ (func() { print(spilled) })
 
