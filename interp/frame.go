@@ -6,6 +6,7 @@
 package interp
 
 import (
+	"runtime/debug"
 	"fmt"
 	"os"
 	"go/token"
@@ -95,6 +96,7 @@ func (fr *Frame) FnAndParamString() string {
 func (fr *Frame) Scope() *ssa2.Scope {
 	if fr.block == nil {
 		println("Whoa there, block is nil!")
+		debug.PrintStack()
 		return nil
 	}
 	return fr.block.Scope
