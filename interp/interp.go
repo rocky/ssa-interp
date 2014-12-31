@@ -102,7 +102,7 @@ func (fr *Frame) runDefer(d *deferred) {
 		fmt.Fprintf(os.Stderr, "%s: invoking deferred function call\n",
 			fr.i.prog.Fset.Position(d.instr.Pos()))
 	}
-	TraceHook(fr, nil, ssa2.TRACE_CALL)
+	TraceHook(fr, nil, ssa2.DEFER_ENTER)
 	var ok bool
 	defer func() {
 		if !ok {

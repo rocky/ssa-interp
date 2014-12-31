@@ -5,13 +5,11 @@
 package gub
 
 import (
-/*
 	"errors"
 	"fmt"
 	"go/ast"
 	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/types"
-*/
 	"reflect"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
@@ -19,6 +17,8 @@ import (
 	// "github.com/0xfaded/eval"
 	"github.com/rocky/eval"
 )
+
+type knownType []reflect.Type
 
 // interp2reflectVal converts between an interp.Value which the
 // interpreter uses and reflect.Value which eval uses. nameVal is used
@@ -30,23 +30,25 @@ func interp2reflectVal(interpVal interp.Value, nameVal ssa2.Value) reflect.Value
 
 // EvalExpr is the top-level call to evaluate a string via 0xfaded/eval.
 func EvalExpr(expr string) ([]reflect.Value, error) {
-	println("EvalExpr called")
-	results, panik, compileErrs := eval.Eval(expr)
+	results, panik, compileErrs := eval.EvalEnv(expr, GubEvalEnv)
 	if compileErrs != nil {
+		println("compileErr != nil", )
 		for _, err := range(compileErrs) {
-			Errmsg(err.Error())
+			fmt.Printf("+++ %T\n", err)
+			fmt.Printf("+++2 %v\n", err)
 		}
 	} else if panik != nil {
+		println("panic != nil")
 		for _, err := range(compileErrs) {
 			Errmsg(err.Error())
 		}
 	} else {
+		println("ok")
 		return results, nil
 	}
 	return nil, nil
 }
 
-/*******
 // Here's our custom ident type check
 func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
 	println("gub Check Ident")
@@ -54,15 +56,14 @@ func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
 	name := aexpr.Name
 	switch name {
 	case "nil":
-		aexpr.SetConstValue(reflect.Value{})
-		aexpr.SetKnownType(reflect.TypeOf(eval.ConstNil))
+		aexpr.SetConstValue(eval.ConstValueOf(eval.UntypedNil{}))
+		aexpr.SetKnownType([]reflect.Type{eval.ConstNil})
 	case "true":
-		aexpr.SetConstValue(reflect.ValueOf(true))
-		aexpr.SetKnownType(reflect.TypeOf(true))
-
+		aexpr.SetConstValue(eval.ConstValueOf(true))
+		aexpr.SetKnownType([]reflect.Type{eval.ConstBool})
 	case "false":
-		aexpr.SetConstValue(reflect.ValueOf(false))
-		aexpr.SetKnownType(reflect.TypeOf(false))
+		aexpr.SetConstValue(eval.ConstValueOf(false))
+		aexpr.SetKnownType([]reflect.Type{eval.ConstBool})
 	default:
 		fn := curFrame.Fn()
 		pkg := fn.Pkg
@@ -71,7 +72,8 @@ func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
 		if nameVal != nil {
 			println("Found in env")
 			val := interp2reflectVal(interpVal, nameVal)
-			aexpr.SetKnownType(reflect.TypeOf(val))
+			knowntype := knownType{val.Type()}
+			aexpr.SetKnownType(knowntype)
 			aexpr.SetSource(eval.EnvVar)
 		} else if fn := pkg.Func(name); fn != nil {
 			println("found in func")
@@ -342,18 +344,18 @@ func InterpVal2Reflect(v interp.Value) (reflect.Value, string) {
 	}
 }
 
-// evalEnv contains a 0xfaded/eval static evaluation environment that
-// we can use to fallback to using when the program environment
-// doesn't contain a specific package or due to limitations we
-// currently have in extracting values.
-var evalEnv eval.SimpleEnv
+// GubEvalEnv is the static evaluation environment that we can use to
+// fallback to using when the program environment doesn't contain a
+// specific package or due to limitations we currently have in
+// extracting values.
+// var GubEvalEnv eval.Env = eval.MakeSimpleEnv()
+var GubEvalEnv eval.Env = EvalEnvironment()
 
 func init() {
-	eval.SetCheckIdent(CheckIdent)
-	eval.SetEvalIdent(EvalIdent)
-	eval.SetEvalSelectorExpr(EvalSelectorExpr)
+	// eval.SetCheckIdent(CheckIdent)
+	// eval.SetEvalIdent(EvalIdent)
+	// eval.SetEvalSelectorExpr(EvalSelectorExpr)
 	// eval.SetUserConversion(myConvertFunc)
 	// evalEnv = repl.MakeEvalEnv()
-	evalEnv = *eval.MakeSimpleEnv()
+
 }
-***/
