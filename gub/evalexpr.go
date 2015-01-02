@@ -55,15 +55,8 @@ func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
 	aexpr := &eval.Ident{Ident: ident}
 	name := aexpr.Name
 	switch name {
-	case "nil":
-		aexpr.SetConstValue(eval.ConstValueOf(eval.UntypedNil{}))
-		aexpr.SetKnownType([]reflect.Type{eval.ConstNil})
-	case "true":
-		aexpr.SetConstValue(eval.ConstValueOf(true))
-		aexpr.SetKnownType([]reflect.Type{eval.ConstBool})
-	case "false":
-		aexpr.SetConstValue(eval.ConstValueOf(false))
-		aexpr.SetKnownType([]reflect.Type{eval.ConstBool})
+	case "nil", "true", "false":
+		return eval.CheckIdent(ident, env)
 	default:
 		fn := curFrame.Fn()
 		pkg := fn.Pkg
@@ -75,6 +68,7 @@ func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
 			knowntype := knownType{val.Type()}
 			aexpr.SetKnownType(knowntype)
 			aexpr.SetSource(eval.EnvVar)
+			fmt.Printf("type: %T (%t), value: %V (%v)\n", aexpr, aexpr, aexpr, aexpr)
 		} else if fn := pkg.Func(name); fn != nil {
 			println("found in func")
 		} else if v := pkg.Var(name); v != nil {
@@ -352,7 +346,7 @@ func InterpVal2Reflect(v interp.Value) (reflect.Value, string) {
 var GubEvalEnv eval.Env = EvalEnvironment()
 
 func init() {
-	// eval.SetCheckIdent(CheckIdent)
+	eval.SetCheckIdent(CheckIdent)
 	// eval.SetEvalIdent(EvalIdent)
 	// eval.SetEvalSelectorExpr(EvalSelectorExpr)
 	// eval.SetUserConversion(myConvertFunc)

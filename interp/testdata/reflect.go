@@ -8,4 +8,9 @@ func main() {
 	if got != "[]uint8" && got != "[]byte" { // result varies by toolchain
 		println("BUG: " + got)
 	}
+	reflectFive := reflect.ValueOf(5)
+	five := reflectFive.Interface()
+	if five != 5 {
+		println("BUG: 5")
+	}
 }

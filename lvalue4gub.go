@@ -1,10 +1,12 @@
 // Copyright 2014 Rocky Bernstein
 package ssa2
+import (
+	"go/token"
+)
 
 func (a *address) storeWithScope(fn *Function, v Value, scope *Scope) {
-	store := emitStore(fn, a.addr, v)
+	store := emitStore(fn, a.addr, v, token.NoPos)
 	/* FIXME rb: store.Scope = scope */
-	store.pos = a.starPos
 	if a.expr != nil {
 		// store.Val is v converted for assignability.
 		emitDebugRef(fn, a.expr, store.Val, true)

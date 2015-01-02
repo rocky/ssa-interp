@@ -452,9 +452,15 @@ func loc(fset *token.FileSet, pos token.Pos) string {
 //
 func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args []Value, env []Value) Value {
 	if InstTracing() {
-		fset := fn.Prog.Fset
+		loc := "-"
+		if fn.Prog == nil {
+			// Can be nil for an external function
+			fn.Prog = i.prog
+		} else {
+			fset := fn.Prog.Fset
+			loc = ssa2.FmtRangeWithFset(fset, fn.Pos(), fn.Endp())
+		}
 		// TODO(adonovan): fix: loc() lies for external functions.
-		loc := ssa2.FmtRangeWithFset(fset, fn.Pos(), fn.Endp())
 		if loc == "-" {
 			fmt.Fprintf(os.Stderr, "Entering %s...\n", fn)
 		} else {
