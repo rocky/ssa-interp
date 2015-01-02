@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 
 // info program
 //
@@ -42,6 +42,11 @@ See "info pc" for information concerning negative PC values.
 //    stop event
 //    source-code position
 func InfoProgramSubcmd(args []string) {
+	if gub.TraceEvent == ssa2.PROGRAM_TERMINATION {
+		gub.Msg("program stop event: %s", ssa2.Event2Name[gub.TraceEvent])
+		return
+	}
+
 	fr := gub.CurFrame()
 	pc := fr.PC()
 	gub.Msg("instruction number: %d", pc)

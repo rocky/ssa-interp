@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 // Debugger callback hook. Contains the main command loop.
 
 package gub
@@ -88,8 +88,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	if skipEvent(fr, event) { return }
 	TraceEvent = event
 	frameInit(fr)
-	// FIXME: use unconditionally
-	if instr == nil {
+	if instr == nil && event != ssa2.PROGRAM_TERMINATION {
 		instr = &fr.Block().Instrs[fr.PC()]
 	}
 	Instr = instr

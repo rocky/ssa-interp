@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 // Things dealing with locations
 
 package gub
@@ -35,6 +35,7 @@ func init() {
 		ssa2.SELECT_TYPE     : "sel",
 		ssa2.SWITCH_COND     : "sw?",
 		ssa2.STMT_IN_LIST    : "---",
+		ssa2.PROGRAM_TERMINATION : "FIN",
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 // Things involving the call frame
 
 package gub
@@ -33,7 +33,7 @@ func frameInit(fr *interp.Frame) {
 		stackSize++
 	}
 	switch TraceEvent  {
-	case ssa2.CALL_RETURN:
+	case ssa2.CALL_RETURN, ssa2.PROGRAM_TERMINATION:
 		/* These guys are not in a basic block, so curFrame.Scope
            won't work here. . Not sure why fr.Fn() memory crashes either. */
 		// curScope = fr.Fn().Scope

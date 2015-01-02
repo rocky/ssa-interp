@@ -1,4 +1,4 @@
-// Copyright 2014 Rocky Bernstein
+// Copyright 2014-2015 Rocky Bernstein
 package ssa2
 
 import (
@@ -25,6 +25,7 @@ const (
 	FOR_COND
 	FOR_ITER
 	PANIC
+	PROGRAM_TERMINATION
 	RANGE_STMT
 	MAIN
 	SELECT_TYPE
@@ -62,6 +63,7 @@ func init() {
 	    STEP_INSTRUCTION: "Instruction step",
 		STMT_IN_LIST    : "STATEMENT in list",
 		SWITCH_COND     : "SWITCH condition",
+		PROGRAM_TERMINATION : "Program Terminated",
 	}
 }
 

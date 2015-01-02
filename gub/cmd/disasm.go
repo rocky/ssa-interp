@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 // disassemble command
 
 package gubcmd

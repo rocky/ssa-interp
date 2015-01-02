@@ -775,6 +775,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode, sizes type
 	exitCode = 2
 	defer func() {
 		if exitCode != 2 || i.Mode&DisableRecover != 0 {
+			TraceHook(i.goTops[0].Fr, nil, ssa2.PROGRAM_TERMINATION)
 			return
 		}
 		switch p := recover().(type) {
@@ -790,6 +791,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode, sizes type
 		default:
 			fmt.Fprintf(os.Stderr, "panic: unexpected type: %T: %v\n", p, p)
 		}
+		TraceHook(i.goTops[0].Fr, nil, ssa2.PROGRAM_TERMINATION)
 
 		// TODO(adonovan): dump panicking interpreter goroutine?
 		// buf := make([]byte, 0x10000)
