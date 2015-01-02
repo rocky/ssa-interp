@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
+	"runtime/debug"
 )
 
 var Event2Icon map[ssa2.TraceEvent]string
@@ -44,6 +45,7 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	defer func() {
 		if x := recover(); x != nil {
 			Errmsg("Internal error in getting location info")
+			debug.PrintStack()
 		}
 	}()
 	s    := Event2Icon[event] + " "

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"runtime/debug"
 
 	"code.google.com/p/go-gnureadline"
 	"github.com/rocky/ssa-interp"
@@ -69,7 +70,8 @@ var Instr *ssa2.Instruction
 func runCommand(name string, args []string) {
 	defer func() {
 		if x := recover(); x != nil {
-			Errmsg("Internal error in getting location info")
+			Errmsg("Internal error in running command %s", name)
+			debug.PrintStack()
 		}
 		recover()
 	}()

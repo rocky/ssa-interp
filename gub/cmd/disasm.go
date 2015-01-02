@@ -42,15 +42,21 @@ func DisassembleCommand(args []string) {
 				bnum, err := gub.GetInt(args[1],
 					"block number of function name", 0, len(myfn.Blocks)-1)
 				if err == nil {
-					b := myfn.Blocks[bnum]
-					if len(args) == 3 {
-						ic, err := gub.GetUInt(args[2],
-							"instruction number", 0, uint64(len(b.Instrs)-1))
-						if err == nil {
-							gub.DisasmInst(myfn, bnum, ic)
+					lastBlock := len(myfn.Blocks) - 1
+					if bnum <= lastBlock {
+						b := myfn.Blocks[bnum]
+						if len(args) == 3 {
+							ic, err := gub.GetUInt(args[2],
+								"instruction number", 0, uint64(len(b.Instrs)-1))
+							if err == nil {
+								gub.DisasmInst(myfn, bnum, ic)
+							}
+						} else {
+						gub.DisasmBlock(myfn, bnum)
 						}
 					} else {
-						gub.DisasmBlock(myfn, bnum)
+						gub.Errmsg("Block number should be between 0 and %d; got %d",
+							lastBlock, bnum)
 					}
 				}
 				return
