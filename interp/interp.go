@@ -591,7 +591,7 @@ func runFrame(fr *Frame) {
 		for fr.pc = 0; fr.pc < len(fr.block.Instrs); fr.pc++ {
 			instr = fr.block.Instrs[fr.pc]
 			if InstTracing() {
-				fmt.Fprint(os.Stderr, fr.block.Index, fr.pc, "\t")
+				fmt.Fprint(os.Stderr, fr.pc, "\t")
 				if v, ok := instr.(ssa2.Value); ok {
 					fmt.Fprintln(os.Stderr, "\t", v.Name(), "=", instr)
 				} else {

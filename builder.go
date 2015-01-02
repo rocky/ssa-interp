@@ -2013,7 +2013,11 @@ start:
 				results = append(results, emitLoad(fn, r))
 			}
 		}
-		fn.emit(&Return{Results: results, pos: s.Pos(), endP: s.End()})
+		fn.emit(&Return{
+			Results: results,
+			pos: s.Pos(),
+			endP: s.End(),
+		})
 		fn.currentBlock = fn.newBasicBlock("unreachable", nil)
 
 	case *ast.BranchStmt:

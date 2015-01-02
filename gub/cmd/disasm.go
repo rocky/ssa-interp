@@ -12,12 +12,12 @@ func init() {
 	name := "disassemble"
 	gub.Cmds[name] = &gub.CmdInfo{
 		Fn: DisassembleCommand,
-		Help: `disassemble [*fn* | *int* | . ]
+		Help: `disassemble [*fn* | *int* | . | + ]
 
 disassemble SSA instructions. Without any parameters we disassemble the
-entire current function. If a function name is given, that is disassembled.
+current instruction. If a function name is given, that is disassembled.
 If a number is given that is the block number of the current frame.
-If "." is given we disassemble the current block only.
+If "." is given we disassemble the current block only. If "+"
 `,
 		Min_args: 0,
 		Max_args: 1,
@@ -35,28 +35,30 @@ func DisassembleCommand(args []string) {
 		if what == "." {
 			gub.DisasmBlock(myfn, fr.Block().Index)
 			return
-		}
-		if fn, err := gub.FuncLookup(what); err == nil && fn != nil {
-			myfn = fn
-		} else {
-			bnum, err := gub.GetInt(args[1],
-				"block number", 0, len(myfn.Blocks)-1)
-			if err == nil {
-				b := myfn.Blocks[bnum]
-				if len(args) == 3 {
-					ic, err := gub.GetUInt(args[2],
-						"instruction number", 0, uint64(len(b.Instrs)-1))
-					if err == nil {
-						gub.DisasmInst(myfn, bnum, ic)
-					}
-				} else {
-					gub.DisasmBlock(myfn, bnum)
-				}
+		} else if what != "+" {
+			if fn, err := gub.FuncLookup(what); err == nil && fn != nil {
+				myfn = fn
 			} else {
-				gub.Errmsg("Can't find function %s", what)
+				bnum, err := gub.GetInt(args[1],
+					"block number of function name", 0, len(myfn.Blocks)-1)
+				if err == nil {
+					b := myfn.Blocks[bnum]
+					if len(args) == 3 {
+						ic, err := gub.GetUInt(args[2],
+							"instruction number", 0, uint64(len(b.Instrs)-1))
+						if err == nil {
+							gub.DisasmInst(myfn, bnum, ic)
+						}
+					} else {
+						gub.DisasmBlock(myfn, bnum)
+					}
+				}
+				return
 			}
-			return
 		}
+	} else {
+		gub.DisasmCurrentInst()
+		return
 	}
 	myfn.WriteTo(os.Stderr)
 }

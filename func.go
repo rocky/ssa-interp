@@ -464,6 +464,7 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 
 // emit emits the specified instruction to function f.
 func (f *Function) emit(instr Instruction) Value {
+	instr.setBlock(f.currentBlock)
 	return f.currentBlock.emit(instr)
 }
 
@@ -626,7 +627,8 @@ func WriteFunction(buf *bytes.Buffer, f *Function) {
 		if false { // CFG debugging
 			fmt.Fprintf(buf, "\t# CFG: %s --> %s --> %s\n", b.Preds, b, b.Succs)
 		}
-		for _, instr := range b.Instrs {
+		for i, instr := range b.Instrs {
+			fmt.Fprintf(buf, "%d", i)
 			buf.WriteString("\t")
 			switch v := instr.(type) {
 			case Value:

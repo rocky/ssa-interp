@@ -256,6 +256,7 @@ func emitStore(f *Function, addr, val Value, pos token.Pos) *Store {
 		Val:  emitConv(f, val, deref(addr.Type())),
 		pos:  pos,
 	}
+	s.setBlock(f.currentBlock)
 	f.emit(s)
 	return s
 }

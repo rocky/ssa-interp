@@ -26,6 +26,9 @@ Prints basic block number`,
 func InfoBlockSubcmd(args []string) {
 	fr := gub.CurFrame()
 	block := fr.Block()
+	// if block == nil && gub.Instr.Block() != nil {
+	// 	block = gub.Instr.Block()
+	// }
 	if block == nil {
 		gub.Msg("unknown block")
 	} else {

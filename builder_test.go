@@ -261,17 +261,17 @@ func TestInit(t *testing.T) {
 func init():
 # scope: 0
 0:                                                                entry P:0 S:2
-	t0 = *init$guard                                                   bool
-	if t0 goto 2 else 1
+0	t0 = *init$guard                                                   bool
+1	if t0 goto 2 else 1
 # scope: 0
 1:                                                           init.start P:1 S:1
-	*init$guard = true:bool
-	t1 = errors.init()                                                   ()
-	*i = 42:int
-	jump 2
+0	*init$guard = true:bool
+1	t1 = errors.init()                                                   ()
+2	*i = 42:int
+3	jump 2
 # scope: 0
 2:                                                            init.done P:2 S:0
-	return
+0	return
 
 `},
 		{ssa2.BareInits, `package B; import _ "errors"; var i int = 42`,
@@ -281,8 +281,8 @@ func init():
 func init():
 # scope: 0
 0:                                                                entry P:0 S:0
-	*i = 42:int
-	return
+0	*i = 42:int
+1	return
 
 `},
 	}

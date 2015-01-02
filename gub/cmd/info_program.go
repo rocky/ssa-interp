@@ -47,11 +47,13 @@ func InfoProgramSubcmd(args []string) {
 	gub.Msg("instruction number: %d", pc)
 	block := fr.Block()
 	if block == nil {
-		if pc == -2 {
-			gub.Msg("at return")
-		} else {
-			gub.Msg("unknown block")
+		switch instr := (*gub.Instr).(type)  {
+		case *ssa2.Return:
+			block = instr.Block()
 		}
+	 }
+	if block == nil {
+		gub.Msg("unknown block")
 	} else {
 		gub.Msg("basic block: %d", block.Index)
 		if block.Scope != nil {

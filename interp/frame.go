@@ -48,8 +48,6 @@ type Frame struct {
 	endP             token.Pos   // End Postion from last trace instr run
 }
 
-/* FIXME ROCKY: use Slice instead.
- */
 type PC struct{
 	fn *ssa2.Function
 	block *ssa2.BasicBlock

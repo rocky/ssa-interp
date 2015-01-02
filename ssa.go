@@ -1098,7 +1098,7 @@ type Return struct {
 	anInstruction
 	Results []Value
 	pos     token.Pos
-	endP token.Pos
+	endP    token.Pos
 }
 
 // The RunDefers instruction pops and invokes the entire stack of
