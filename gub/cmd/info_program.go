@@ -43,7 +43,7 @@ See "info pc" for information concerning negative PC values.
 //    source-code position
 func InfoProgramSubcmd(args []string) {
 	fr := gub.CurFrame()
-	pc := gub.PC(fr)
+	pc := fr.PC()
 	gub.Msg("instruction number: %d", pc)
 	block := fr.Block()
 	if block == nil {

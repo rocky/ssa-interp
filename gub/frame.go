@@ -45,18 +45,6 @@ func frameInit(fr *interp.Frame) {
 	}
 }
 
-func PC(fr *interp.Frame) (pc int) {
-	switch TraceEvent {
-	case ssa2.CALL_RETURN:
-		pc = -2
-	case ssa2.CALL_ENTER:
-		pc = -1
-	default:
-		pc = fr.PC()
-	}
-	return pc
-}
-
 func getFrame(frameNum int, absolutePos bool) (*interp.Frame, int) {
       if absolutePos {
 		  if frameNum >= stackSize {

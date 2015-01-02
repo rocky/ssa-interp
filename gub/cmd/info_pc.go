@@ -30,7 +30,7 @@ and block number. If we are at a call, before the first instruction,
 
 func InfoPCSubcmd(args []string) {
 	fr := gub.CurFrame()
-	pc := gub.PC(fr)
+	pc := fr.PC()
 	fn := fr.FnAndParamString()
 	block := fr.Block()
 	if block != nil {

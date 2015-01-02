@@ -66,6 +66,19 @@ var Instr *ssa2.Instruction
 
 // FIXME: remove instr
 
+func runCommand(name string, args []string) {
+	defer func() {
+		if x := recover(); x != nil {
+			Errmsg("Internal error in getting location info")
+		}
+		recover()
+	}()
+	cmd := Cmds[name]
+	if ArgCountOK(cmd.Min_args, cmd.Max_args, args) {
+		cmd.Fn(args)
+	}
+}
+
 // GubTraceHook is the callback hook from interpreter. It contains
 // top-level statement breakout.
 func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
@@ -124,9 +137,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		LastCommand = ""
 
 		if cmd != nil {
-			if ArgCountOK(cmd.Min_args, cmd.Max_args, args) {
-				Cmds[name].Fn(args)
-			}
+			runCommand(name, args)
 			continue
 		}
 

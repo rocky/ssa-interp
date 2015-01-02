@@ -58,11 +58,9 @@ func FormatCommand(args []string) {
 		}
 	} else {
 		syntax = fn.Syntax()
-		if pc := gub.PC(fr); pc >= 0 {
-			switch s := (*gub.Instr).(type) {
-			case *ssa2.Trace:
-				syntax = s.Syntax()
-			}
+		switch s := (*gub.Instr).(type) {
+		case *ssa2.Trace:
+			syntax = s.Syntax()
 		}
 	}
 	if syntax != nil {

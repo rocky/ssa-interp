@@ -40,6 +40,11 @@ func init() {
 
 func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	event ssa2.TraceEvent) {
+	defer func() {
+		if x := recover(); x != nil {
+			Errmsg("Internal error in getting location info")
+		}
+	}()
 	s    := Event2Icon[event] + " "
 	fn   := fr.Fn()
 	sig  := fn.Signature
