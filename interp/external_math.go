@@ -147,6 +147,11 @@ func ext۰math۰big۰bitLen(fr *Frame, args []Value) Value {
 	return big.BitLen(args[0].(big.Word))
 }
 
+func ext۰math۰big۰divWVW(fr *Frame, args []Value) Value {
+	return big.DivWVW(args[0].([]big.Word), args[1].(big.Word),
+		args[2].([]big.Word), args[3].(big.Word))
+}
+
 func ext۰math۰big۰mulAddVWW(fr *Frame, args []Value) Value {
 	return big.MulAddVWW(args[0].([]big.Word), args[1].([]big.Word),
 		args[2].(big.Word), args[3].(big.Word))
@@ -169,6 +174,29 @@ func ext۰math۰big۰shlVU(fr *Frame, args []Value) Value {
 	return big.ShlVU(z, x, args[2].(uint))
 }
 
+func ext۰math۰big۰shrVU(fr *Frame, args []Value) Value {
+
+	z := []big.Word {}
+	za := args[0].([]Value)
+	for _, v := range za {
+		w := big.Word(v.(uintptr))
+		z = append(z, w)
+	}
+	x := []big.Word {}
+	xa := args[1].([]Value)
+	for _, v := range xa {
+		w := big.Word(v.(uintptr))
+		x = append(x, w)
+	}
+	return big.ShrVU(z, x, args[2].(uint))
+}
+
+func ext۰math۰big۰subVV(fr *Frame, args []Value) Value {
+
+	return big.SubVV(args[0].([]big.Word), args[1].([]big.Word),
+		args[2].([]big.Word))
+}
+
 // The set of remaining native functions we need to implement (as needed):
 
 // math/big/arith_decl.go:8:func mulWW(x, y Word) (z1, z0 Word)
@@ -181,4 +209,3 @@ func ext۰math۰big۰shlVU(fr *Frame, args []Value) Value {
 // math/big/arith_decl.go:15:func shrVU(z, x []Word, s uint) (c Word)
 // math/big/arith_decl.go:16:func mulAddVWW(z, x []Word, y, r Word) (c Word)
 // math/big/arith_decl.go:17:func addMulVVW(z, x []Word, y Word) (c Word)
-// math/big/arith_decl.go:18:func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)

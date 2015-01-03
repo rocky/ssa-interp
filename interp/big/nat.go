@@ -156,7 +156,7 @@ func (z nat) sub(x, y nat) nat {
 	// m > 0
 
 	z = z.make(m)
-	c := subVV(z[0:n], x, y)
+	c := SubVV(z[0:n], x, y)
 	if m > n {
 		c = subVW(z[n:], x[n:], c)
 	}
@@ -228,7 +228,7 @@ func karatsubaAdd(z, x nat, n int) {
 
 // Like karatsubaAdd, but does subtract.
 func karatsubaSub(z, x nat, n int) {
-	if c := subVV(z[0:n], z, x); c != 0 {
+	if c := SubVV(z[0:n], z, x); c != 0 {
 		subVW(z[n:n+n>>1], z[n:], c)
 	}
 }
@@ -298,16 +298,16 @@ func karatsuba(z, x, y nat) {
 	// compute xd (or the negative value if underflow occurs)
 	s := 1 // sign of product xd*yd
 	xd := z[2*n : 2*n+n2]
-	if subVV(xd, x1, x0) != 0 { // x1-x0
+	if SubVV(xd, x1, x0) != 0 { // x1-x0
 		s = -s
-		subVV(xd, x0, x1) // x0-x1
+		SubVV(xd, x0, x1) // x0-x1
 	}
 
 	// compute yd (or the negative value if underflow occurs)
 	yd := z[2*n+n2 : 3*n]
-	if subVV(yd, y0, y1) != 0 { // y0-y1
+	if SubVV(yd, y0, y1) != 0 { // y0-y1
 		s = -s
-		subVV(yd, y1, y0) // y1-y0
+		SubVV(yd, y1, y0) // y1-y0
 	}
 
 	// p = (x1-x0)*(y0-y1) == x1*y0 - x1*y1 - x0*y0 + x0*y1 for s > 0
@@ -493,7 +493,7 @@ func (z nat) divW(x nat, y Word) (q nat, r Word) {
 	}
 	// m > 0
 	z = z.make(m)
-	r = divWVW(z, 0, x, y)
+	r = DivWVW(z, 0, x, y)
 	q = z.norm()
 	return
 }
@@ -550,10 +550,10 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	if shift > 0 {
 		// do not modify v, it may be used by another goroutine simultaneously
 		v1 := make(nat, n)
-		shlVU(v1, v, shift)
+		ShlVU(v1, v, shift)
 		v = v1
 	}
-	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
+	u[len(uIn)] = ShlVU(u[0:len(uIn)], uIn, shift)
 
 	// D2.
 	for j := m; j >= 0; j-- {
@@ -581,7 +581,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 		// D4.
 		qhatv[n] = mulAddVWW(qhatv[0:n], v, qhat, 0)
 
-		c := subVV(u[j:j+len(qhatv)], u[j:], qhatv)
+		c := SubVV(u[j:j+len(qhatv)], u[j:], qhatv)
 		if c != 0 {
 			c := addVV(u[j:j+n], u[j:], v)
 			u[j+n] += c
@@ -592,7 +592,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	}
 
 	q = q.norm()
-	shrVU(u, u, shift)
+	ShrVU(u, u, shift)
 	r = u.norm()
 
 	return q, r
@@ -1047,7 +1047,7 @@ func (z nat) shl(x nat, s uint) nat {
 
 	n := m + int(s/_W)
 	z = z.make(n + 1)
-	z[n] = shlVU(z[n-m:n], x, s%_W)
+	z[n] = ShlVU(z[n-m:n], x, s%_W)
 	z[0 : n-m].clear()
 
 	return z.norm()
@@ -1063,7 +1063,7 @@ func (z nat) shr(x nat, s uint) nat {
 	// n > 0
 
 	z = z.make(n)
-	shrVU(z, x[m-n:], s%_W)
+	ShrVU(z, x[m-n:], s%_W)
 
 	return z.norm()
 }
@@ -1186,7 +1186,7 @@ func (x nat) modW(d Word) (r Word) {
 	// TODO(agl): we don't actually need to store the q value.
 	var q nat
 	q = q.make(len(x))
-	return divWVW(q, 0, x, d)
+	return DivWVW(q, 0, x, d)
 }
 
 // random creates a random integer in [0..limit), using the space in z if
