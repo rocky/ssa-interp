@@ -237,6 +237,10 @@ func doMain() error {
 				}
 				gub.BreakpointAdd(bp)
 			}
+		} else if prog.PackagesByPath["github.com/rocky/ssa-interp/trepan"] != nil {
+			fmt.Println("I see you've got trepan imported...")
+			gubcmd.Init()
+			gub.Install(gubFlag, restart_args)
 		}
 
 		fmt.Println("Running....")
