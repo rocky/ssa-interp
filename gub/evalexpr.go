@@ -23,22 +23,28 @@ type knownType []reflect.Type
 // interp2reflectVal converts between an interp.Value which the
 // interpreter uses and reflect.Value which eval uses. nameVal is used
 // to get type information.
-func interp2reflectVal(interpVal interp.Value, nameVal ssa2.Value) reflect.Value {
+func interp2reflectVal(interpVal interp.Value) reflect.Value {
 	v := DerefValue(interpVal)
+	fmt.Printf("%%v %v %%d %d\n", v, v)
 	return reflect.ValueOf(v)
+}
+
+func interp2reflectType(interpVal interp.Value) reflect.Type {
+	v := DerefValue(interpVal)
+	fmt.Printf("%%v %v %%d %d\n", v, v)
+	return reflect.TypeOf(v)
 }
 
 // EvalExpr is the top-level call to evaluate a string via 0xfaded/eval.
 func EvalExpr(expr string) ([]reflect.Value, error) {
 	results, panik, compileErrs := eval.EvalEnv(expr, GubEvalEnv)
 	if compileErrs != nil {
-		println("compileErr != nil", )
+		Errmsg("Compile errors:" )
 		for _, err := range(compileErrs) {
-			fmt.Printf("+++ %T\n", err)
-			fmt.Printf("+++2 %v\n", err)
+			Msg(err.Error())
 		}
 	} else if panik != nil {
-		println("panic != nil")
+		println("EvalExpr panic != nil")
 		for _, err := range(compileErrs) {
 			Errmsg(err.Error())
 		}
@@ -51,9 +57,9 @@ func EvalExpr(expr string) ([]reflect.Value, error) {
 
 // Here's our custom ident type check
 func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
-	println("gub Check Ident")
 	aexpr := &eval.Ident{Ident: ident}
 	name := aexpr.Name
+	// FIXME: DRY this code.
 	switch name {
 	case "nil", "true", "false":
 		return eval.CheckIdent(ident, env)
@@ -63,24 +69,65 @@ func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
 		// nameVal, interpVal, scopeVal := EnvLookup(curFrame, name, curScope)
 		nameVal, interpVal, _ := EnvLookup(curFrame, name, curScope)
 		if nameVal != nil {
-			println("Found in env")
-			val := interp2reflectVal(interpVal, nameVal)
+			fmt.Printf("Found in env %v\n, %v\n", nameVal, interpVal)
+			if interpVal == nil {
+				if c := pkg.Const(name); c != nil {
+					reflectVal := interp2reflectVal(c)
+					knowntype := knownType{reflectVal.Type()}
+					aexpr.SetKnownType(knowntype)
+					aexpr.SetSource(eval.EnvConst)
+				} else {
+					return aexpr, append(errs,
+						errors.New("Value not defined yet in environment"))
+				}
+			}
+			val := interp2reflectVal(interpVal)
+			knowntype := knownType{val.Type()}
+ 			aexpr.SetKnownType(knowntype)
+			aexpr.SetSource(eval.EnvVar)
+			fmt.Printf("type: %T (%t), value: %V (%v)\n", aexpr, aexpr, aexpr, aexpr)
+		} else if i := LocalsLookup(curFrame, name, curScope); i != 0 {
+			local := fn.Locals[i-1]
+			fmt.Printf("Found in locals %v, %v", local, local)
+			reflectVal := interp2reflectVal(local)
+			knowntype := knownType{reflectVal.Type()}
+ 			aexpr.SetKnownType(knowntype)
+			aexpr.SetSource(eval.EnvVar)
+		} else if pkgVal := pkg.Var(name); pkgVal != nil {
+			println("found in var")
+			val := interp2reflectVal(pkgVal)
 			knowntype := knownType{val.Type()}
 			aexpr.SetKnownType(knowntype)
 			aexpr.SetSource(eval.EnvVar)
-			fmt.Printf("type: %T (%t), value: %V (%v)\n", aexpr, aexpr, aexpr, aexpr)
-		} else if fn := pkg.Func(name); fn != nil {
-			println("found in func")
-		} else if v := pkg.Var(name); v != nil {
-			println("found in var")
 		} else if g, ok := curFrame.I().Global(name, pkg); ok {
 			println("found in global", g)
+			// knowntype := knownType{g.Type()}
+			// aexpr.SetKnownType(knowntype)
+			aexpr.SetSource(eval.EnvVar)
 		} else if c := pkg.Const(name); c != nil {
-			println("found in const")
-		} else if pkg := curFrame.I().Program().PackagesByName[name]; pkg != nil {
+			println("found in const", g)
+			fmt.Printf("+++ type: %s  value: %s\n", c.Type(), c.Value)
+			reflectType := interp2reflectType(c.Value)
+			knowntype := knownType{reflectType}
+			aexpr.SetKnownType(knowntype)
+			aexpr.SetSource(eval.EnvConst)
+			fmt.Printf("type: %T (%t), value: %V (%v)\n", aexpr, aexpr, aexpr, aexpr)
+		} else if pkgVal := curFrame.I().Program().PackagesByName[name]; pkgVal != nil {
 			println("found in package")
+			val := interp2reflectVal(pkgVal)
+			knowntype := knownType{val.Type()}
+ 			aexpr.SetKnownType(knowntype)
+			aexpr.SetSource(eval.EnvVar)
+		} else if funcVal := pkg.Func(name); fn != nil {
+			println("found in func")
+			val := reflect.ValueOf(funcVal)
+			knowntype := knownType{val.Type()}
+			aexpr.SetKnownType(knowntype)
+			aexpr.SetSource(eval.EnvFunc)
 		} else {
-			println("id not found")
+			return aexpr, append(errs,
+				errors.New(fmt.Sprintf("id %s not found",
+					name)))
 		}
 	}
 	return aexpr, errs
@@ -99,6 +146,8 @@ func EvalIdent(ident *eval.Ident, env eval.Env) (reflect.Value, error) {
 		// FIXME: Should this be done first or last?
 		return eval.EvalNil, nil
 	} else  {
+		fn := curFrame.Fn()
+		pkg := fn.Pkg
 		if nameVal, interpVal, _ := EnvLookup(curFrame, name, curScope); interpVal != nil {
 			// FIXME for structures the interpreter has turned this into a slice
 			// we need to somehow undo that or keep track of the type name that this
@@ -113,7 +162,10 @@ func EvalIdent(ident *eval.Ident, env eval.Env) (reflect.Value, error) {
 					}
 				}
 			}
-			reflectVal := interp2reflectVal(interpVal, nameVal)
+			reflectVal := interp2reflectVal(interpVal)
+			return reflectVal, nil
+		} else if c := pkg.Const(name); c != nil {
+			reflectVal := reflect.ValueOf(DerefValue(c))
 			return reflectVal, nil
 		} else {
 			pkg := curFrame.I().Program().PackagesByName[name]
@@ -160,7 +212,7 @@ func EvalSelectorExpr(selector *eval.SelectorExpr,env eval.Env) (
 				}
 			} else if v := pkg.Var(sel); v != nil {
 				if g, ok := curFrame.I().Global(sel, pkg); ok {
-					val := interp2reflectVal(g, v)
+					val := interp2reflectVal(g)
 					return val, nil
 				} else {
 					return eval.EvalNil,
@@ -347,7 +399,7 @@ var GubEvalEnv eval.Env = EvalEnvironment()
 
 func init() {
 	eval.SetCheckIdent(CheckIdent)
-	// eval.SetEvalIdent(EvalIdent)
+	eval.SetEvalIdent(EvalIdent)
 	// eval.SetEvalSelectorExpr(EvalSelectorExpr)
 	// eval.SetUserConversion(myConvertFunc)
 	// evalEnv = repl.MakeEvalEnv()
