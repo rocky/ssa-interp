@@ -252,6 +252,43 @@ func equals(t types.Type, x, y Value) bool {
 		return x.eq(t, y)
 	}
 
+	switch reflect.TypeOf(x).Kind().String() {
+	case "bool":
+		return x == y.(bool)
+	case "int":
+		return x == y.(int)
+	case "int8":
+		return x == y.(int8)
+	case "int16":
+		return x == y.(int16)
+	case "int32":
+		return x == y.(int32)
+	case "int64":
+		return x == y.(int64)
+	case "uint":
+		return x == y.(uint)
+	case "uint8":
+		return x == y.(uint8)
+	case "uint16":
+		return x == y.(uint16)
+	case "uint32":
+		return x == y.(uint32)
+	case "uint64":
+		return x == y.(uint64)
+	case "uintptr":
+		return x == y.(uintptr)
+	case "float32":
+		return x == y.(float32)
+	case "float64":
+		return x == y.(float64)
+	case "complex64":
+		return x == y.(complex64)
+	case "complex128":
+		return x == y.(complex128)
+	case "string":
+		return x == y.(string)
+	}
+
 	// Since map, func and slice don't support comparison, this
 	// case is only reachable if one of x or y is literally nil
 	// (handled in eqnil) or via interface{} values.
@@ -352,6 +389,10 @@ func copyVal(v Value) Value {
 	case tuple:
 		break
 	case rtype:
+		return v
+	}
+	switch reflect.TypeOf(v).Kind().String() {
+	case "bool", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "uintptr", "float32", "float64", "complex64", "complex128", "string", "unsafe.Pointer":
 		return v
 	}
 	panic(fmt.Sprintf("cannot copy %T", v))
