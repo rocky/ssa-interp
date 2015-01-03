@@ -141,6 +141,12 @@ func ext۰runtime۰Callers(fr *Frame, args []Value) Value {
 }
 
 
+// A direct call to the debugger from inside a Go program.
+func ext۰trepan۰Debug(fr *Frame, args []Value) Value {
+	TraceHook(fr, &fr.block.Instrs[0], ssa2.TRACE_CALL)
+	return nil
+}
+
 // Not sure how to replace value *runtime.Func with our
 // own opaque type.
 func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {

@@ -131,6 +131,7 @@ func init() {
 		"syscall.runtime_envs":             ext۰runtime۰environ,
 		"time.Sleep":                       ext۰time۰Sleep,
 		"time.now":                         ext۰time۰now,
+		"github.com/rocky/ssa-interp/trepan.Debug":  ext۰trepan۰Debug,
 	}
 }
 
