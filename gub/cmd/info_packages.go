@@ -53,7 +53,7 @@ func InfoPackageSubcmd(args []string) {
 	fr := gub.CurFrame()
 	if len(args) > 2 {
 		for _, pkg_name := range args[2:len(args)] {
-			if pkg := fr.I().Program().PackagesByName[pkg_name]; pkg != nil {
+			if pkg := program.PackagesByName[pkg_name]; pkg != nil {
 				gub.Msg("Package %s: \"%s\"", pkg_name, pkg.Object.Path())
 			} else {
 				gub.Errmsg("Package %s not imported", pkg_name)
@@ -61,7 +61,7 @@ func InfoPackageSubcmd(args []string) {
 		}
 	} else {
 		pkgNames := []string {}
-		for pkg := range fr.I().Program().PackagesByName {
+		for pkg := range program.PackagesByName {
 			pkgNames = append(pkgNames, pkg)
 		}
 		gub.PrintSorted("All imported packages", pkgNames)

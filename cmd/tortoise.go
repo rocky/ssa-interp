@@ -1,4 +1,5 @@
 // Copyright 2013 The Go Authors. All rights reserved.
+// Copyright 2015 Rocky Bernstein
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -219,8 +220,7 @@ func doMain() error {
 		}
 
 		if interpTraceMode & interp.EnableStmtTracing != 0 {
-			gubcmd.Init()
-			gub.Install(gubFlag, restart_args)
+			gubcmd.Init(gubFlag, restart_args, main.Prog)
 			fn := main.Func("main")
 			if fn != nil {
 				/* Set a breakpoint on the main routine */
@@ -239,8 +239,7 @@ func doMain() error {
 			}
 		} else if prog.PackagesByPath["github.com/rocky/ssa-interp/trepan"] != nil {
 			fmt.Println("I see you've got trepan imported...")
-			gubcmd.Init()
-			gub.Install(gubFlag, restart_args)
+			gubcmd.Init(gubFlag, restart_args, main.Prog)
 		}
 
 		fmt.Println("Running....")

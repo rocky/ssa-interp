@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"code.google.com/p/go-gnureadline"
+	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 )
 
@@ -23,6 +24,9 @@ var inputFilename = flag.String("cmdfile", "", `cmdfile *commandfile*.`)
 var inputFile *os.File
 var inputReader *bufio.Reader
 var buffer = bytes.NewBuffer(make([]byte, 1024))
+
+var program  *ssa2.Program
+func Program() *ssa2.Program { return program }
 
 const (
 	version string = "0.2"
@@ -125,7 +129,8 @@ func process_options(options *string) {
 	}
 }
 
-func Install(options *string, restart_args []string) {
+func Install(options *string, restart_args []string, prog *ssa2.Program) {
+	program = prog
 	RESTART_ARGS = restart_args
 	fmt.Printf("Gub version %s\n", version)
 	fmt.Println("Type 'h' for help")

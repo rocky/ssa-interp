@@ -9,7 +9,6 @@ import (
 	"github.com/rocky/ssa-interp"
 	"reflect"
 	"fmt"
-	"go/token"
 )
 
 
@@ -39,13 +38,11 @@ func DerefValue(v Value) Value {
 // to get type information.
 func interp2reflectVal(interpVal Value) reflect.Value {
 	v := DerefValue(interpVal)
-	fmt.Printf("%%v %v %%d %d\n", v, v)
 	return reflect.ValueOf(v)
 }
 
 func interp2reflectType(interpVal Value) reflect.Type {
 	v := DerefValue(interpVal)
-	fmt.Printf("%%v %v %%d %d\n", v, v)
 	return reflect.TypeOf(v)
 }
 
@@ -59,7 +56,11 @@ func MakeEnv(static *eval.SimpleEnv, prog *ssa2.Program, fr *Frame) *EvalEnv {
 	}
 }
 
-func (env *EvalEnv) Var(name string) reflect.Value {
+func (env EvalEnv) Static() eval.SimpleEnv { return *env.static }
+
+// The stuff below here are methods to satisfy the eval.Env interface
+
+func (env EvalEnv) Var(name string) reflect.Value {
 	nameScope := ssa2.NameScope{
 		Name: name,
 		Scope: env.scope,
@@ -67,14 +68,13 @@ func (env *EvalEnv) Var(name string) reflect.Value {
 	return interp2reflectVal(env.curFn.LocalsByName[nameScope])
 }
 
-// The stuff below here are methods to satisfy the eval.Env interface
-func (env *EvalEnv) Func(name string) reflect.Value {
+func (env EvalEnv) Func(name string) reflect.Value {
 	pkg := env.curPkg
 	if pkg == nil { return reflect.Value{} }
 	return interp2reflectVal(pkg.Func(name))
 }
 
-func (env *EvalEnv) Const(name string) reflect.Value {
+func (env EvalEnv) Const(name string) reflect.Value {
 	pkg := env.curPkg
 	if pkg == nil {
 		fmt.Printf("const %s not found in package %s\n", name, pkg)
@@ -83,21 +83,15 @@ func (env *EvalEnv) Const(name string) reflect.Value {
 	return interp2reflectVal(pkg.Const(name))
 }
 
-func (env *EvalEnv) Type(name string) reflect.Type {
-	pkg := env.curPkg
-	if pkg == nil { return reflect.TypeOf(UntypedNil{}) }
-	member := pkg.Members[name]
-	if member == nil { return reflect.TypeOf(UntypedNil{}) }
-	if member.Token() != token.TYPE {
-		fmt.Printf("%s is not a type in package %s\n", name, pkg)
-		return reflect.TypeOf(UntypedNil{})
-	} else {
-		fmt.Printf("Types not done yet %s in package %s\n", name, pkg)
-		return reflect.TypeOf(UntypedNil{})
-	}
+func (env EvalEnv) Type(name string) reflect.Type {
+	// FIXME: need to get the value of "name" as a
+	// reflect value and from that return reflect.TypeOf()
+	// For now we'll punt on this and go with that staticly
+	// created eval environment.
+	return env.static.Type(name)
 }
 
-func (env *EvalEnv) Pkg(name string) eval.Env {
+func (env EvalEnv) Pkg(name string) eval.Env {
 	if pkg := env.prog.PackagesByName[name]; pkg != nil {
 		env.curPkg = pkg
 	}
@@ -111,7 +105,7 @@ func (env EvalEnv) PushScope() eval.Env {
 }
 
 // Pop the top block scope. Only the behaviour of the returned Env should change
-func (env *EvalEnv) PopScope() eval.Env {
+func (env EvalEnv) PopScope() eval.Env {
 	return nil
 }
 

@@ -18,31 +18,36 @@ import (
 
 type knownType []reflect.Type
 
+// GubEvalEnv is the static evaluation environment that we can use to
+// fallback to using when the program environment doesn't contain a
+// specific package or due to limitations we currently have in
+// extracting values.
+// var GubEvalEnv eval.Env = eval.MakeSimpleEnv()
+var EvalEnv eval.Env
+
 // interp2reflectVal converts between an interp.Value which the
 // interpreter uses and reflect.Value which eval uses. nameVal is used
 // to get type information.
 func interp2reflectVal(interpVal interp.Value) reflect.Value {
 	v := DerefValue(interpVal)
-	fmt.Printf("%%v %v %%d %d\n", v, v)
 	return reflect.ValueOf(v)
 }
 
 func interp2reflectType(interpVal interp.Value) reflect.Type {
 	v := DerefValue(interpVal)
-	fmt.Printf("%%v %v %%d %d\n", v, v)
 	return reflect.TypeOf(v)
 }
 
 // EvalExpr is the top-level call to evaluate a string via 0xfaded/eval.
 func EvalExpr(expr string) ([]reflect.Value, error) {
-	results, panik, compileErrs := eval.EvalEnv(expr, GubEvalEnv)
+	results, panik, compileErrs := eval.EvalEnv(expr, EvalEnv)
 	if compileErrs != nil {
-		Errmsg("Compile errors:" )
+		Errmsg("Compile error(s):" )
 		for _, err := range(compileErrs) {
 			Msg(err.Error())
 		}
 	} else if panik != nil {
-		Errmsg("Evaluation panic: %s\n", panik.Error())
+		Errmsg("Evaluation error: %s\n", panik.Error())
 	} else {
 		return results, nil
 	}
@@ -54,81 +59,37 @@ func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
 	aexpr := &eval.Ident{Ident: ident}
 	name := aexpr.Name
 	fmt.Printf("CheckIdent name: %s\n", name)
-	// FIXME: DRY this code.
 	switch name {
 	case "nil", "true", "false":
 		return eval.CheckIdent(ident, env)
 	default:
-		fn := curFrame.Fn()
-		pkg := fn.Pkg
-		// nameVal, interpVal, scopeVal := EnvLookup(curFrame, name, curScope)
-		nameVal, interpVal, _ := EnvLookup(curFrame, name, curScope)
-		if nameVal != nil {
-			fmt.Printf("Found in env %v\n, %v\n", nameVal, interpVal)
-			if interpVal == nil {
-				if c := pkg.Const(name); c != nil {
-					reflectVal := interp2reflectVal(c)
-					knowntype := knownType{reflectVal.Type()}
-					aexpr.SetKnownType(knowntype)
-					aexpr.SetSource(eval.EnvConst)
-				} else {
-					return aexpr, append(errs,
-						errors.New("Value not defined yet in environment"))
-				}
-			}
-			val := interp2reflectVal(interpVal)
-			knowntype := knownType{val.Type()}
+		if v := env.Var(aexpr.Name); v.IsValid() {
+			knowntype := knownType{v.Type()}
  			aexpr.SetKnownType(knowntype)
 			aexpr.SetSource(eval.EnvVar)
-			fmt.Printf("type: %T (%t), value: %V (%v)\n", aexpr, aexpr, aexpr, aexpr)
-		} else if i := LocalsLookup(curFrame, name, curScope); i != 0 {
-			local := fn.Locals[i-1]
-			fmt.Printf("Found in locals %v, %v", local, local)
-			reflectVal := interp2reflectVal(local)
-			knowntype := knownType{reflectVal.Type()}
- 			aexpr.SetKnownType(knowntype)
-			aexpr.SetSource(eval.EnvVar)
-		} else if pkgVal := pkg.Var(name); pkgVal != nil {
-			println("found in var")
-			val := interp2reflectVal(pkgVal)
-			knowntype := knownType{val.Type()}
-			aexpr.SetKnownType(knowntype)
-			aexpr.SetSource(eval.EnvVar)
-		} else if g, ok := curFrame.I().Global(name, pkg); ok {
-			println("found in global", g)
-			// knowntype := knownType{g.Type()}
-			// aexpr.SetKnownType(knowntype)
-			aexpr.SetSource(eval.EnvVar)
-		} else if c := pkg.Const(name); c != nil {
-			println("found in const", g)
-			fmt.Printf("+++ type: %s  value: %s\n", c.Type(), c.Value)
-			reflectType := interp2reflectType(c.Value)
-			knowntype := knownType{reflectType}
-			aexpr.SetKnownType(knowntype)
-			aexpr.SetSource(eval.EnvConst)
-			fmt.Printf("type: %T (%t), value: %V (%v)\n", aexpr, aexpr, aexpr, aexpr)
-		} else if pkgVal := PkgLookup(name); pkgVal != nil {
-			println("found in package")
-			val := interp2reflectVal(pkgVal)
-			knowntype := knownType{val.Type()}
- 			aexpr.SetKnownType(knowntype)
-			aexpr.SetSource(eval.EnvVar)
-		} else if funcVal := pkg.Func(name); fn != nil {
-			fmt.Printf("%s found in func\n", name)
-			val := reflect.ValueOf(funcVal)
-			knowntype := knownType{val.Type()}
-			aexpr.SetKnownType(knowntype)
+			return aexpr, errs
+		} else if v := env.Func(aexpr.Name); v.IsValid() {
+			aexpr.SetKnownType(knownType{v.Type()})
 			aexpr.SetSource(eval.EnvFunc)
+			return aexpr, errs
+		} else if v := env.Const(aexpr.Name); v.IsValid() {
+			if n, ok := v.Interface().(*eval.ConstNumber); ok {
+				aexpr.SetKnownType(knownType{n.Type})
+			} else {
+				aexpr.SetKnownType(knownType{v.Type()})
+			}
+			aexpr.SetConstValue(eval.ConstValueOf(v.Interface()))
+			aexpr.SetSource(eval.EnvConst)
+			return aexpr, errs
 		} else {
-			return aexpr, append(errs,
-				errors.New(fmt.Sprintf("id %s not found",
-					name)))
+			evalEnv := env.(interp.EvalEnv)
+			return eval.CheckIdent(ident, evalEnv.Static())
 		}
 	}
 	return aexpr, errs
 }
 
-// EvalIdentExpr extracts a reflect.Vaue for an identifier. The
+// EvalIdentExpr extracts a reflect.Value for an identifier. The
 // boolean return parameter indicates whether the value is typed. The error
 // parameter is non-nil if there was an error.
 // Note that the parameter ctx is not used here, but is part of the eval
@@ -160,10 +121,9 @@ func EvalIdent(ident *eval.Ident, env eval.Env) (reflect.Value, error) {
 			reflectVal := interp2reflectVal(interpVal)
 			return reflectVal, nil
 		} else if c := pkg.Const(name); c != nil {
-			reflectVal := reflect.ValueOf(DerefValue(c))
+			reflectVal := reflect.ValueOf(DerefValue(c.Value))
 			return reflectVal, nil
 		} else {
-			println("Calling PkgLookup()")
 			pkg := PkgLookup(name)
 			if pkg != nil {
 				val := reflect.ValueOf(pkg)
@@ -187,14 +147,29 @@ func pkgEvalIdent(ident *eval.Ident, pkgName string) (reflect.Value, error) {
 	name := ident.Name
 	switch ident.Source() {
 	case eval.EnvVar:
-		if pkg := PkgLookup(pkgName); pkg != nil {
+		pkg := PkgLookup(pkgName)
+		if pkg != nil {
 			if m := pkg.Members[name]; m == nil {
 				err := errors.New(
 					fmt.Sprintf("%s is not a member of %s", name, pkg))
 				return reflect.Value{}, err
-			} else {
-				return interp2reflectVal(m), nil
 			}
+			if fn := pkg.Func(name); fn != nil {
+				err := errors.New(
+					fmt.Sprintf("can't handle functions yet; %s.%s", pkg, name))
+				return reflect.Value{}, err
+			}
+			if v := pkg.Var(name); v != nil {
+				if g, ok := curFrame.I().Global(name, pkg); ok {
+					return interp2reflectVal(g), nil
+				}
+			}
+			if c := pkg.Const(name); c != nil {
+				return interp2reflectVal(DerefValue(c.Value)), nil
+			}
+			err := errors.New(
+				fmt.Sprintf("Don't know what to do with %s.%s yet", pkg, name))
+			return reflect.Value{}, err
 		} else {
 			return reflect.Value{}, errors.New("We only handle package members right now")
 			// for searchEnv := env; searchEnv != nil; searchEnv = searchEnv.PopScope() {
@@ -219,6 +194,7 @@ func EvalSelectorExpr(selector *eval.SelectorExpr, env eval.Env) (reflect.Value,
 	println("custom EvalSelectorExpr called")
 
 	if pkgName := selector.PkgName(); pkgName != "" {
+		fmt.Printf("calling pkgEvalIdent with %v and pkg %s\n", selector.Sel, pkgName)
 		return pkgEvalIdent(selector.Sel, pkgName)
 	}
 
@@ -310,7 +286,7 @@ func EvalSelectorExpr(selector *eval.SelectorExpr,env eval.Env) (
 }
 */
 
-// FIXME should an interp2reflect function be in interp?
+// FIXME should an myConvertFunc be in interp?
 
 // myConvertFunc is used to convert a reflect-encoded interp.Value into
 // a reflect.Value. This is needed because values of composites are interp.Values
@@ -384,86 +360,9 @@ var myConvertFunc = func (r reflect.Value, rtyped bool) (reflect.Value, bool, er
 	return r, rtyped, nil
 }
 
-func InterpVal2Reflect(v interp.Value) (reflect.Value, string) {
-	switch v.(type) {
-	case bool:
-		return reflect.ValueOf(v), ""
-	case int:
-		return reflect.ValueOf(v), ""
-	case int8:
-		return reflect.ValueOf(v), ""
-	case int16:
-		return reflect.ValueOf(v), ""
-	case int32:
-		return reflect.ValueOf(v), ""
-	case int64:
-		return reflect.ValueOf(v), ""
-	case uint:
-		return reflect.ValueOf(v), ""
-	case uint8:
-		return reflect.ValueOf(v), ""
-	case uint16:
-		return reflect.ValueOf(v), ""
-	case uint32:
-		return reflect.ValueOf(v), ""
-	case uint64:
-		return reflect.ValueOf(v), ""
-	case uintptr:
-		return reflect.ValueOf(v), ""
-	case float32:
-		return reflect.ValueOf(v), ""
-	case float64:
-		return reflect.ValueOf(v), ""
-	case complex64:
-		return reflect.ValueOf(v), ""
-	case complex128:
-		return reflect.ValueOf(v), ""
-	case string:
-		return reflect.ValueOf(v), ""
-	// case map[Value]Value:
-	// 	return "map[Value]Value"
-	// case *hashmap:
-	// 	return "*hashmap"
-	// case chan Value:
-	// 	return "chan Value"
-	// case *Value:
-	// 	return "*Value"
-	// case iface:
-	// 	return "iface"
-	// case structure:
-	// 	return "structure"
-	// case array:
-	// 	return "array"
-	// case []Value:
-	// 	return "[]Value"
-	// case *ssa2.Function:
-	// 	return "*ssa2.Function"
-	// case *ssa2.Builtin:
-	// 	return "*ssa2.Builtin"
-	// case *closure:
-	// 	return "*closure"
-	// case rtype:
-	// 	return "rtype"
-	// case tuple:
-	// 	return "tuple"
-	default:
-		return reflect.Value{}, "Can't convert"
-	}
-}
-
-// GubEvalEnv is the static evaluation environment that we can use to
-// fallback to using when the program environment doesn't contain a
-// specific package or due to limitations we currently have in
-// extracting values.
-// var GubEvalEnv eval.Env = eval.MakeSimpleEnv()
-var GubEvalEnv eval.Env = EvalEnvironment()
-
 func init() {
-	println("Setting checkident")
 	eval.SetCheckIdent(CheckIdent)
 	eval.SetEvalIdent(EvalIdent)
 	eval.SetEvalSelectorExpr(EvalSelectorExpr)
 	// eval.SetUserConversion(myConvertFunc)
-	// evalEnv = repl.MakeEvalEnv()
-
 }
