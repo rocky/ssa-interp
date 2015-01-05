@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 
 // info pc
 //
@@ -32,10 +32,9 @@ func InfoPCSubcmd(args []string) {
 	fr := gub.CurFrame()
 	pc := fr.PC()
 	fn := fr.FnAndParamString()
-	block := fr.Block()
-	if block != nil {
+	if block := gub.CurBlock(); block != nil {
 		gub.Msg("instruction number: %d of block %d, function %s",
-			pc, fr.Block().Index, fn)
+			pc, block.Index, fn)
 	} else if pc == -2 {
 		gub.Msg("instruction number: %d (at return), function %s", pc, fn)
 	} else {

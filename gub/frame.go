@@ -12,6 +12,14 @@ var topFrame *interp.Frame
 var curFrame *interp.Frame
 var curScope *ssa2.Scope
 
+/* Some frames don't have a block recorded and I don't know how to
+  fix this. So instead we'll keep a topBlock which as that block
+  fixed up. Not sure if it applies to other blocks on a call
+  stack. I don't think so.
+*/
+var topBlock *ssa2.BasicBlock
+var curBlock *ssa2.BasicBlock
+
 // stackSize is the size of call stack.
 var stackSize int
 
@@ -24,6 +32,7 @@ const MAXSTACKSHOW = 50
 func CurFrame() *interp.Frame { return curFrame }
 func TopFrame() *interp.Frame { return topFrame }
 func CurScope() *ssa2.Scope   { return curScope }
+func CurBlock() *ssa2.BasicBlock { return curBlock }
 
 func frameInit(fr *interp.Frame) {
 	topFrame = fr
@@ -35,9 +44,20 @@ func frameInit(fr *interp.Frame) {
 	switch TraceEvent  {
 	case ssa2.CALL_RETURN, ssa2.PROGRAM_TERMINATION:
 		/* These guys are not in a basic block, so curFrame.Scope
-           won't work here. . Not sure why fr.Fn() memory crashes either. */
-		// curScope = fr.Fn().Scope
+           won't work here. . Not sure why fr.Fn() memory crashes either.
+           Otherwise, I'd use fr.Fn().Scope
+        */
 		curScope = nil
+
+		/* A "block end" sets the frame block can be nil. There should
+           be a better way to do this inside the interpreter but I get:
+               panic: unexpected type: <nil>: <nil>
+           when I tried it and don't know why. */
+		switch instr := (*Instr).(type)  {
+		case *ssa2.Return:
+			curBlock = instr.Block()
+		}
+
 	default:
 		// FIXME: may need other cases like defer_enter, panic,
 		// block_end?

@@ -50,13 +50,7 @@ func InfoProgramSubcmd(args []string) {
 	fr := gub.CurFrame()
 	pc := fr.PC()
 	gub.Msg("instruction number: %d", pc)
-	block := fr.Block()
-	if block == nil {
-		switch instr := (*gub.Instr).(type)  {
-		case *ssa2.Return:
-			block = instr.Block()
-		}
-	 }
+	block := gub.CurBlock()
 	if block == nil {
 		gub.Msg("unknown block")
 	} else {

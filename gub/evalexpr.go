@@ -8,10 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/types"
 	"reflect"
-	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 	// "github.com/rocky/go-fish"
 	// "github.com/0xfaded/eval"
@@ -44,12 +42,8 @@ func EvalExpr(expr string) ([]reflect.Value, error) {
 			Msg(err.Error())
 		}
 	} else if panik != nil {
-		println("EvalExpr panic != nil")
-		for _, err := range(compileErrs) {
-			Errmsg(err.Error())
-		}
+		Errmsg("Evaluation panic: %s\n", panik.Error())
 	} else {
-		println("ok")
 		return results, nil
 	}
 	return nil, nil
@@ -57,8 +51,11 @@ func EvalExpr(expr string) ([]reflect.Value, error) {
 
 // Here's our custom ident type check
 func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
+	simpleEnv, _ := env.(eval.SimpleEnv)
+	println(simpleEnv.Path)
 	aexpr := &eval.Ident{Ident: ident}
 	name := aexpr.Name
+	fmt.Printf("CheckIdent name: %s\n", name)
 	// FIXME: DRY this code.
 	switch name {
 	case "nil", "true", "false":
@@ -112,14 +109,14 @@ func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
 			aexpr.SetKnownType(knowntype)
 			aexpr.SetSource(eval.EnvConst)
 			fmt.Printf("type: %T (%t), value: %V (%v)\n", aexpr, aexpr, aexpr, aexpr)
-		} else if pkgVal := curFrame.I().Program().PackagesByName[name]; pkgVal != nil {
+		} else if pkgVal := PkgLookup(name); pkgVal != nil {
 			println("found in package")
 			val := interp2reflectVal(pkgVal)
 			knowntype := knownType{val.Type()}
  			aexpr.SetKnownType(knowntype)
 			aexpr.SetSource(eval.EnvVar)
 		} else if funcVal := pkg.Func(name); fn != nil {
-			println("found in func")
+			fmt.Printf("%s found in func\n", name)
 			val := reflect.ValueOf(funcVal)
 			knowntype := knownType{val.Type()}
 			aexpr.SetKnownType(knowntype)
@@ -140,8 +137,8 @@ func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
 // interface. So we pass that along if we can't find the name here and
 // resort to the static evaluation environment compiled into eval.
 func EvalIdent(ident *eval.Ident, env eval.Env) (reflect.Value, error) {
-	println("evalident")
 	name := ident.Name
+	fmt.Printf("Evaldent name: %s\n", name)
 	if name == "nil" {
 		// FIXME: Should this be done first or last?
 		return eval.EvalNil, nil
@@ -168,7 +165,8 @@ func EvalIdent(ident *eval.Ident, env eval.Env) (reflect.Value, error) {
 			reflectVal := reflect.ValueOf(DerefValue(c))
 			return reflectVal, nil
 		} else {
-			pkg := curFrame.I().Program().PackagesByName[name]
+			println("Calling PkgLookup()")
+			pkg := PkgLookup(name)
 			if pkg != nil {
 				val := reflect.ValueOf(pkg)
 				return val, nil
@@ -183,6 +181,70 @@ func EvalIdent(ident *eval.Ident, env eval.Env) (reflect.Value, error) {
 	}
 }
 
+func pkgEvalIdent(ident *eval.Ident, pkgName string) (reflect.Value, error) {
+	if ident.IsConst() {
+		return ident.Const(), nil
+	}
+
+	name := ident.Name
+	switch ident.Source() {
+	case eval.EnvVar:
+		if pkg := PkgLookup(pkgName); pkg != nil {
+			if m := pkg.Members[name]; m == nil {
+				err := errors.New(
+					fmt.Sprintf("%s is not a member of %s", name, pkg))
+				return reflect.Value{}, err
+			} else {
+				return interp2reflectVal(m), nil
+			}
+		} else {
+			return reflect.Value{}, errors.New("We only handle package members right now")
+			// for searchEnv := env; searchEnv != nil; searchEnv = searchEnv.PopScope() {
+			// 	if v := searchEnv.Var(name); v.IsValid() {
+			// 		return v.Elem(), nil
+			// 	}
+			// }
+		}
+	case eval.EnvFunc:
+		println("Can't handle functions yet")
+		// for searchEnv := env; searchEnv != nil; searchEnv = searchEnv.PopScope() {
+		// 	if v := searchEnv.Func(name); v.IsValid() {
+		// 		return v, nil
+		// 	}
+		// }
+	}
+	return reflect.Value{}, errors.New("Something went wrong")
+}
+
+// Here's our custom selector lookup.
+func EvalSelectorExpr(selector *eval.SelectorExpr, env eval.Env) (reflect.Value, error) {
+	println("custom EvalSelectorExpr called")
+
+	if pkgName := selector.PkgName(); pkgName != "" {
+		return pkgEvalIdent(selector.Sel, pkgName)
+	}
+
+	vs, err := eval.EvalExpr(selector.X, env)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	v := vs[0]
+	t := v.Type()
+	if selector.Field() != nil {
+		if t.Kind() == reflect.Ptr {
+			v = v.Elem()
+		}
+		return v.FieldByIndex(selector.Field()), nil
+	}
+
+	if selector.IsPtrReceiver() {
+		v = v.Addr()
+	}
+	return v.Method(selector.Method()), nil
+}
+
+/*
 func EvalSelectorExpr(selector *eval.SelectorExpr,env eval.Env) (
 	reflect.Value, error) {
 	var err error
@@ -248,6 +310,7 @@ func EvalSelectorExpr(selector *eval.SelectorExpr,env eval.Env) (
 	}
 	return eval.EvalSelectorExpr(selector, env)
 }
+*/
 
 // FIXME should an interp2reflect function be in interp?
 
@@ -398,9 +461,10 @@ func InterpVal2Reflect(v interp.Value) (reflect.Value, string) {
 var GubEvalEnv eval.Env = EvalEnvironment()
 
 func init() {
+	println("Setting checkident")
 	eval.SetCheckIdent(CheckIdent)
 	eval.SetEvalIdent(EvalIdent)
-	// eval.SetEvalSelectorExpr(EvalSelectorExpr)
+	eval.SetEvalSelectorExpr(EvalSelectorExpr)
 	// eval.SetUserConversion(myConvertFunc)
 	// evalEnv = repl.MakeEvalEnv()
 

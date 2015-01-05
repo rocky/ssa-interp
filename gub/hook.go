@@ -91,7 +91,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	TraceEvent = event
 	frameInit(fr)
 	if instr == nil && event != ssa2.PROGRAM_TERMINATION {
-		instr = &fr.Block().Instrs[fr.PC()]
+		instr = &curBlock.Instrs[fr.PC()]
 	}
 	Instr = instr
 

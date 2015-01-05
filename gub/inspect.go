@@ -221,7 +221,7 @@ func WhatisName(name string) bool {
 			Errmsg("Sorry, dotted variable lookup for local %s not supported yet", varname)
 			return false
 		} else {
-			try_pkg := curFrame.I().Program().PackagesByName[varname]
+			try_pkg := PkgLookup(varname)
 			if try_pkg != nil {
 				pkg = try_pkg
 			}

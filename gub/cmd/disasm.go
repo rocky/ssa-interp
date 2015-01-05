@@ -33,7 +33,11 @@ func DisassembleCommand(args []string) {
 	if len(args) > 1 {
 		what := args[1]
 		if what == "." {
-			gub.DisasmBlock(myfn, fr.Block().Index)
+			if block := gub.CurBlock(); block != nil {
+				gub.DisasmBlock(myfn, block.Index)
+			} else {
+				gub.Errmsg("Can't get block info here")
+			}
 			return
 		} else if what != "+" {
 			if fn, err := gub.FuncLookup(what); err == nil && fn != nil {

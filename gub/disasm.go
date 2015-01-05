@@ -1,4 +1,4 @@
-// Copyright 2014-2014 Rocky Bernstein.
+// Copyright 2014-2015 Rocky Bernstein.
 package gub
 
 import (
@@ -17,7 +17,7 @@ func DisasmPrefix(block *ssa2.BasicBlock) bool {
 }
 
 func DisasmCurrentInst() {
-	DisasmPrefix(curFrame.Block())
+	DisasmPrefix(curBlock)
 	Msg("%3d: %s",  curFrame.PC(), ssa2.DisasmInst(*Instr, Maxwidth))
 }
 

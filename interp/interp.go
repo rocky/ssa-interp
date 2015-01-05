@@ -607,19 +607,19 @@ func runFrame(fr *Frame) {
 				case *ssa2.Return:
 					fr.startP = return_instr.Pos()
 					fr.endP   = return_instr.EndP()
-				}
 
-				/* Method receiver functions don't have a return
-				   location stored from the ssa2 build phase. So we we
-				   will use the function's end location and fill it in
-				   here. */ if fr.startP == token.NoPos && fr.endP ==
-				   token.NoPos {
-
-					if endPos := fn.EndP(); endPos.IsValid() {
-						fr.startP = endPos
-						fr.endP = endPos
+					/* Method receiver functions don't have a return
+				       location stored from the ssa2 build phase. So we we
+				       will use the function's end location and fill it in
+				       here. */
+					if fr.startP == token.NoPos && fr.endP == token.NoPos {
+						if endPos := fn.EndP(); endPos.IsValid() {
+							fr.startP = endPos
+							fr.endP = endPos
+						}
 					}
 				}
+
 				fr.status = StComplete
 				if (fr.tracing != TRACE_STEP_NONE) && GlobalStmtTracing() {
 					TraceHook(fr, &instr, ssa2.CALL_RETURN)
