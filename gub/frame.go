@@ -38,6 +38,7 @@ func frameInit(fr *interp.Frame) {
 	topFrame = fr
 	curFrame = fr
 	frameIndex = 0
+	curBlock = fr.Block()
 	for stackSize=0; fr !=nil; fr = fr.Caller(0) {
 		stackSize++
 	}
@@ -55,7 +56,9 @@ func frameInit(fr *interp.Frame) {
            when I tried it and don't know why. */
 		switch instr := (*Instr).(type)  {
 		case *ssa2.Return:
-			curBlock = instr.Block()
+			if curBlock == nil {
+				curBlock = instr.Block()
+			}
 		}
 
 	default:

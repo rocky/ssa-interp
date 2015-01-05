@@ -51,8 +51,6 @@ func EvalExpr(expr string) ([]reflect.Value, error) {
 
 // Here's our custom ident type check
 func CheckIdent(ident *ast.Ident, env eval.Env) (_ *eval.Ident, errs []error) {
-	simpleEnv, _ := env.(eval.SimpleEnv)
-	println(simpleEnv.Path)
 	aexpr := &eval.Ident{Ident: ident}
 	name := aexpr.Name
 	fmt.Printf("CheckIdent name: %s\n", name)
