@@ -1,8 +1,25 @@
+// Copyright 2014-2015 Rocky Bernstein.
 package gub
 
 import (
 	"github.com/rocky/ssa-interp"
 )
+
+func DisasmPrefix(block *ssa2.BasicBlock) bool {
+	if block == nil {
+		Msg(":.nil:")
+		return false
+	} else if block.Scope != nil {
+		Msg("# scope %d", block.Scope.ScopeId())
+	}
+	Msg(".%s:", block)
+	return true
+}
+
+func DisasmCurrentInst() {
+	DisasmPrefix(curBlock)
+	Msg("%3d: %s",  curFrame.PC(), ssa2.DisasmInst(*Instr, Maxwidth))
+}
 
 func DisasmInst(f *ssa2.Function, bnum int, inst uint64) {
 	if bnum < 0 || bnum >= len(f.Blocks) {
@@ -10,13 +27,9 @@ func DisasmInst(f *ssa2.Function, bnum int, inst uint64) {
 			bnum, len(f.Blocks)-1)
 		return
 	}
-	b := f.Blocks[bnum]
-	if b == nil {
-		// Corrupt CFG.
-		Msg(".nil:")
-		return
+	if 	b := f.Blocks[bnum]; DisasmPrefix(b) {
+		Msg("%3d: %s",  inst, ssa2.DisasmInst(b.Instrs[inst], Maxwidth))
 	}
-	Msg("%3d: %s",  inst, ssa2.DisasmInst(b.Instrs[inst], Maxwidth))
 }
 
 func DisasmBlock(f *ssa2.Function, i int) {
@@ -25,14 +38,9 @@ func DisasmBlock(f *ssa2.Function, i int) {
 			i, len(f.Blocks)-1)
 		return
 	}
-	b := f.Blocks[i]
-	if b == nil {
-		// Corrupt CFG.
-		Msg(".nil:")
-		return
-	}
-	Msg(".%s:", b)
-	for i, instr := range b.Instrs {
-		Msg("%3d: %s",  i, ssa2.DisasmInst(instr, Maxwidth))
+	if b := f.Blocks[i]; DisasmPrefix(b) {
+		for i, instr := range b.Instrs {
+			Msg("%3d: %s",  i, ssa2.DisasmInst(instr, Maxwidth))
+		}
 	}
 }

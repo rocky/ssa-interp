@@ -24,6 +24,7 @@ const (
 	FOR_COND
 	FOR_ITER
 	PANIC
+	PROGRAM_TERMINATION
 	RANGE_STMT
 	MAIN
 	SELECT_TYPE
@@ -61,6 +62,7 @@ func init() {
 	    STEP_INSTRUCTION: "Instruction step",
 		STMT_IN_LIST    : "STATEMENT in list",
 		SWITCH_COND     : "SWITCH condition",
+		PROGRAM_TERMINATION : "Program Terminated",
 	}
 }
 
