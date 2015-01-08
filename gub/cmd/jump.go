@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013, 2015 Rocky Bernstein.
 
 
 package gubcmd
@@ -21,7 +21,7 @@ Jumps to instruction *num* inside the current basic block.
 
 func JumpCommand(args []string) {
 	fr := gub.CurFrame()
-	b := fr.Block()
+	b := gub.CurBlock()
 	ic, err := gub.GetInt(args[1],
 		"instruction number", 0, len(b.Instrs)-1)
 	if err != nil { return }

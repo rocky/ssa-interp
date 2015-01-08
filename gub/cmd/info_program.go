@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 
 // info program
 //
@@ -40,8 +40,15 @@ Prints information about the program including:
 //    stop event
 //    source-code position
 func InfoProgramSubcmd(args []string) {
+	if gub.TraceEvent == ssa2.PROGRAM_TERMINATION {
+		gub.Msg("program stop event: %s",
+			ssa2.Event2Name[gub.TraceEvent])
+		return
+	}
+
 	fr := gub.CurFrame()
-	gub.Msg("instruction number: %d", fr.PC())
+	pc := fr.PC()
+ 	gub.Msg("instruction number: %d", pc)
 	block := fr.Block()
 	if block == nil {
 		gub.Msg("unknown block")

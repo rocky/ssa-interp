@@ -1402,6 +1402,7 @@ func (v *Global) RelString(from *types.Package) string { return relString(v, fro
 func (v *Function) Name() string         { return v.name }
 func (v *Function) Type() types.Type     { return v.Signature }
 func (v *Function) Pos() token.Pos       { return v.pos }
+func (v *Function) Endp() token.Pos           { return v.endP }
 func (v *Function) Token() token.Token   { return token.FUNC }
 func (v *Function) Object() types.Object { return v.object }
 func (v *Function) String() string       { return v.RelString(nil) }

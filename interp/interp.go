@@ -44,6 +44,7 @@ package interp
 
 import (
 	"fmt"
+	"go/token"
 	"go/ast"
 	"os"
 	"reflect"
@@ -419,9 +420,15 @@ func call(i *interpreter, goNum int, caller *Frame,	fn Value, args []Value) Valu
 //
 func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args []Value, env []Value) Value {
 	if InstTracing() {
-		fset := fn.Prog.Fset
+		loc := "-"
+		if fn.Prog == nil {
+			// Can be nil for an external function
+			fn.Prog = i.prog
+		} else {
+			fset := fn.Prog.Fset
+			loc = ssa2.FmtRangeWithFset(fset, fn.Pos(), fn.Endp())
+		}
 		// TODO(adonovan): fix: loc() lies for external functions.
-		loc := ssa2.FmtRangeWithFset(fset, caller.startP, caller.endP)
 		fmt.Fprintf(os.Stderr, "Entering %s at %s.\n", fn, loc)
 		suffix := ""
 		if caller != nil {
@@ -544,7 +551,7 @@ func runFrame(fr *Frame) {
 		for fr.pc = 0; fr.pc < len(fr.block.Instrs); fr.pc++ {
 			instr = fr.block.Instrs[fr.pc]
 			if InstTracing() {
-				fmt.Fprint(os.Stderr, fr.block.Index, fr.pc, "\t")
+				fmt.Fprint(os.Stderr, fr.pc, "\t")
 				if v, ok := instr.(ssa2.Value); ok {
 					fmt.Fprintln(os.Stderr, "\t", v.Name(), "=", instr)
 				} else {
@@ -560,7 +567,19 @@ func runFrame(fr *Frame) {
 				case *ssa2.Return:
 					fr.startP = return_instr.Pos()
 					fr.endP   = return_instr.EndP()
+
+					/* Method receiver functions don't have a return
+				       location stored from the ssa2 build phase. So we we
+				       will use the function's end location and fill it in
+				       here. */
+					if fr.startP == token.NoPos && fr.endP == token.NoPos {
+						if endPos := fn.EndP(); endPos.IsValid() {
+							fr.startP = endPos
+							fr.endP = endPos
+						}
+					}
 				}
+
 				fr.status = StComplete
 				if (fr.tracing != TRACE_STEP_NONE) && GlobalStmtTracing() {
 					TraceHook(fr, &instr, ssa2.CALL_RETURN)
@@ -694,6 +713,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	exitCode = 2
 	defer func() {
 		if exitCode != 2 || (i.Mode & DisableRecover) != 0 {
+			TraceHook(i.goTops[0].Fr, nil, ssa2.PROGRAM_TERMINATION)
 			return
 		}
 		switch p := recover().(type) {
@@ -709,6 +729,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		default:
 			fmt.Fprintf(os.Stderr, "panic: unexpected type: %T\n", p)
 		}
+		TraceHook(i.goTops[0].Fr, nil, ssa2.PROGRAM_TERMINATION)
 
 		// TODO(adonovan): dump panicking interpreter goroutine?
 		// buf := make([]byte, 0x10000)

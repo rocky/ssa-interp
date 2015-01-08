@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 // Things involving the call frame
 
 package gub
@@ -12,6 +12,14 @@ var topFrame *interp.Frame
 var curFrame *interp.Frame
 var curScope *ssa2.Scope
 
+/* Some frames don't have a block recorded and I don't know how to
+  fix this. So instead we'll keep a topBlock which as that block
+  fixed up. Not sure if it applies to other blocks on a call
+  stack. I don't think so.
+*/
+var topBlock *ssa2.BasicBlock
+var curBlock *ssa2.BasicBlock
+
 // stackSize is the size of call stack.
 var stackSize int
 
@@ -24,27 +32,39 @@ const MAXSTACKSHOW = 50
 func CurFrame() *interp.Frame { return curFrame }
 func TopFrame() *interp.Frame { return topFrame }
 func CurScope() *ssa2.Scope   { return curScope }
+func CurBlock() *ssa2.BasicBlock { return curBlock }
 
 func frameInit(fr *interp.Frame) {
 	topFrame = fr
 	curFrame = fr
 	frameIndex = 0
+	curBlock = fr.Block()
 	for stackSize=0; fr !=nil; fr = fr.Caller(0) {
 		stackSize++
 	}
-	curScope = curFrame.Scope()
-}
+ 	switch TraceEvent  {
+	case ssa2.CALL_RETURN, ssa2.PROGRAM_TERMINATION:
+		// These guys are not in a basic block, so curFrame.Scope
+		// won't work here. . Not sure why fr.Fn() memory crashes either.
+		// Otherwise, I'd use fr.Fn().Scope
+		curScope = nil
 
-func PC(fr *interp.Frame) (pc int) {
-	switch TraceEvent {
-	case ssa2.CALL_RETURN:
-		pc = -2
-	case ssa2.CALL_ENTER:
-		pc = -1
-	default:
-		pc = fr.PC()
+		// A "block end" sets the frame block can be nil. There should
+		// be a better way to do this inside the interpreter but I get:
+		// panic: unexpected type: <nil>: <nil>
+		// when I tried it and don't know why
+		switch instr := (*Instr).(type)  {
+		case *ssa2.Return:
+			if curBlock == nil {
+				curBlock = instr.Block()
+			}
+		}
+
+ 	default:
+ 		// FIXME: may need other cases like defer_enter, panic,
+ 		// block_end?
+		curScope = curFrame.Scope()
 	}
-	return pc
 }
 
 func getFrame(frameNum int, absolutePos bool) (*interp.Frame, int) {

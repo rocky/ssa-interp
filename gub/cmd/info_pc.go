@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 
 // info pc
 //
@@ -30,12 +30,11 @@ and block number. If we are at a call, before the first instruction,
 
 func InfoPCSubcmd(args []string) {
 	fr := gub.CurFrame()
-	pc := gub.PC(fr)
+	pc := fr.PC()
 	fn := fr.FnAndParamString()
-	block := fr.Block()
-	if block != nil {
+	if block := gub.CurBlock(); block != nil {
 		gub.Msg("instruction number: %d of block %d, function %s",
-			pc, fr.Block().Index, fn)
+			pc, block.Index, fn)
 	} else if pc == -2 {
 		gub.Msg("instruction number: %d (at return), function %s", pc, fn)
 	} else {
