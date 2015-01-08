@@ -1,4 +1,5 @@
 // Copyright 2013 The Go Authors. All rights reserved.
+// Copyright 2015 Rocky Bernstein
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -18,7 +19,6 @@ import (
 	"github.com/rocky/go-importer"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"github.com/rocky/ssa-interp/gub"
 	"github.com/rocky/ssa-interp/gub/cmd"
 )
 
@@ -208,10 +208,11 @@ func doMain() error {
 		}
 
 		if interpTraceMode & interp.EnableStmtTracing != 0 {
-			gubcmd.Init()
-			gub.Install(gubFlag, restart_args)
-		}
-
+			gubcmd.Init(gubFlag, restart_args, main.Prog)
+		} else if prog.PackagesByPath["github.com/rocky/ssa-interp/trepan"] != nil {
+			fmt.Println("I see you've got trepan imported...")
+			gubcmd.Init(gubFlag, restart_args, main.Prog)
+ 		}
 		fmt.Println("Running....")
 		if runtime.GOARCH != conf.Build.GOARCH {
 			return fmt.Errorf("cross-interpretation is not yet supported (target has GOARCH %s, interpreter has %s)",

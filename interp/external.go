@@ -152,6 +152,7 @@ var externals = map[string]externalFn{
 	"syscall.Write":                   ext۰syscall۰Write,
 	"time.Sleep":                      ext۰time۰Sleep,
 	"time.now":                        ext۰time۰now,
+	"github.com/rocky/ssa-interp/trepan.Debug":  ext۰trepan۰Debug,
 }
 
 // wrapError returns an interpreted 'error' interface value for err.

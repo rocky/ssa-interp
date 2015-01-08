@@ -1,5 +1,6 @@
 language: go
 
+sudo: false
 go:
   - 1.2
 
@@ -15,6 +16,7 @@ script:
   - (cd interp && go test -v)
   - (cd cmd && go build tortoise.go)
   # - go get "github.com/rocky/go-fish"
+  - (cd trepan && go build)
   - cd gub
   - go build
   - go test -v
