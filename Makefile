@@ -7,12 +7,16 @@
 all: tortoise
 
 #: The front-end to the builder, interpreter, and debugger
-tortoise: interp builder gub tortoise.go
-	go build tortoise.go
+tortoise: interp builder gub trepan
+	(cd cmd && go build tortoise.go)
 
 #: Build the SSA Builder
 builder:
 	go install
+
+#: Build the runtime
+trepan:
+	(cd trepan && go install)
 
 #: Build the interpeter
 interp: builder big

@@ -6,6 +6,7 @@
 package interp
 
 import (
+	"runtime/debug"
 	"fmt"
 	"os"
 	"go/token"
@@ -42,9 +43,27 @@ type Frame struct {
 										// local name
 
 	// For tracking where we are
-	pc               uint        // Instruction index of basic block
+	pc               int         // Instruction index of basic block
 	startP           token.Pos   // Start Position from last trace instr run
 	endP             token.Pos   // End Postion from last trace instr run
+}
+
+type PC struct{
+	fn *ssa2.Function
+	block *ssa2.BasicBlock
+	instruction int
+}
+
+var PCMapping map[uintptr] *PC
+
+func init() {
+	PCMapping = make(map[uintptr]*PC)
+	/*
+      Index 0 needs to be handled as a special case.
+      It is  the current PC, not something on a call stack.
+     Therefore it has to be handled dynamically.
+    */
+	PCMapping[0] = nil
 }
 
 func (fr *Frame) get(key ssa2.Value) Value {
@@ -75,21 +94,37 @@ func (fr *Frame) FnAndParamString() string {
 func (fr *Frame) Scope() *ssa2.Scope {
 	if fr.block == nil {
 		println("Whoa there, block is nil!")
+		debug.PrintStack()
 		return nil
 	}
 	return fr.block.Scope
 }
 
+// runDefers executes fr's deferred function calls in LIFO order.
+//
+// On entry, fr.panicking indicates a state of panic; if
+// true, fr.panic contains the panic value.
+//
+// On completion, if a deferred call started a panic, or if no
+// deferred call recovered from a previous state of panic, then
+// runDefers itself panics after the last deferred call has run.
+//
+// If there was no initial state of panic, or it was recovered from,
+// runDefers returns normally.
+//
 func (fr *Frame) runDefers() {
 	for i := range fr.defers {
 		if (fr.i.TraceMode & EnableTracing) != 0 {
 			fmt.Fprintln(os.Stderr, "Invoking deferred function", i)
 		}
 		fn := fr.defers[len(fr.defers)-1-i]
-		TraceHook(fr, nil, ssa2.TRACE_CALL)
+		TraceHook(fr, nil, ssa2.DEFER_ENTER)
 		fn()
 	}
-	fr.defers = fr.defers[:0]
+	fr.defers = nil
+	if fr.panicking {
+		panic(fr.panic) // new panic, or still panicking
+	}
 }
 
 func (fr *Frame) Fset() *token.FileSet { return fr.fn.Prog.Fset }
@@ -126,9 +161,9 @@ func (fr *Frame) GoNum() int { return fr.goNum }
 func (fr *Frame) I() *interpreter { return fr.i }
 func (fr *Frame) Local(i uint) Value { return fr.locals[i] }
 func (fr *Frame) Locals() []Value { return fr.locals }
-func (fr *Frame) PC() uint { return fr.pc }
+func (fr *Frame) PC() int { return fr.pc }
 func (fr *Frame) PrevBlock() *ssa2.BasicBlock { return fr.prevBlock }
 func (fr *Frame) Result() Value { return fr.result }
-func (fr *Frame) SetPC(newpc uint) { fr.pc = newpc }
+func (fr *Frame) SetPC(newpc int) { fr.pc = newpc }
 func (fr *Frame) StartP() token.Pos { return fr.startP }
 func (fr *Frame) Status() RunStatusType { return fr.status }

@@ -1,8 +1,10 @@
+// Copyright 2014-2015 Rocky Bernstein
 package ssa2
 
 import (
 	"fmt"
 	"go/token"
+	"go/ast"
 )
 
 //-------------------------------
@@ -23,6 +25,7 @@ const (
 	FOR_COND
 	FOR_ITER
 	PANIC
+	PROGRAM_TERMINATION
 	RANGE_STMT
 	MAIN
 	SELECT_TYPE
@@ -60,17 +63,18 @@ func init() {
 	    STEP_INSTRUCTION: "Instruction step",
 		STMT_IN_LIST    : "STATEMENT in list",
 		SWITCH_COND     : "SWITCH condition",
+		PROGRAM_TERMINATION : "Program Terminated",
 	}
 }
 
-// The Trace instruction is a placeholder some event that is
-// about to take place. The event could be
+// The Trace instruction marks that some event in the source code
+// about to take place. For example:
 // - a new statement
 // - an interesting expression in a "case" or "if" or "loop" statement
 // - a return that is about to occur
 // - a message synchronization
 //
-// These are intented to be used by a debugger, profiler, code coverage
+// These can be used by a debugger, profiler, code coverage
 // tool or tracing tool.
 //
 // I'd like this to be a flag an instruction, but that
@@ -83,6 +87,7 @@ type Trace struct {
 	End   token.Pos    // end position of source
 	Event TraceEvent
 	Breakpoint bool    // Set if we should stop here
+	syntax  ast.Node
 }
 
 // FIXME: arrange to put in ast
@@ -156,6 +161,8 @@ func (t *Trace) String() string {
 func (v *Trace) Operands(rands []*Value) []*Value {
 	return rands
 }
+
+func (t *Trace) Syntax() ast.Node { return t.syntax }
 
 // Accessors
 func (v *Trace) Pos() token.Pos     { return v.Start }

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"code.google.com/p/go-gnureadline"
+	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 )
 
@@ -23,6 +24,9 @@ var inputFilename = flag.String("cmdfile", "", `cmdfile *commandfile*.`)
 var inputFile *os.File
 var inputReader *bufio.Reader
 var buffer = bytes.NewBuffer(make([]byte, 1024))
+
+var program  *ssa2.Program
+func Program() *ssa2.Program { return program }
 
 const (
 	version string = "0.2"
@@ -39,7 +43,7 @@ var initial_cwd string
 
 //GUB is a string that was used to invoke gofish.
 //If we want to restart gub, this is what we'll use.
-var GUB_RESTART_CMD string
+var RESTART_ARGS []string
 
 // history_file is file name where history entries were and are to be saved. If
 // the empty string, no history is saved and no history read in initially.
@@ -92,7 +96,6 @@ func gnuReadLineSetup() {
 func init() {
 	widthstr := os.Getenv("COLS")
 	initial_cwd, _ = os.Getwd()
-	GUB_RESTART_CMD = os.Getenv("GUB_RESTART_CMD")
 	if len(widthstr) == 0 {
 		Maxwidth = 80
 	} else if i, err := strconv.Atoi(widthstr); err == nil {
@@ -126,7 +129,9 @@ func process_options(options *string) {
 	}
 }
 
-func Install(options *string) {
+func Install(options *string, restart_args []string, prog *ssa2.Program) {
+	program = prog
+	RESTART_ARGS = restart_args
 	fmt.Printf("Gub version %s\n", version)
 	fmt.Println("Type 'h' for help")
 	interp.SetTraceHook(GubTraceHook)

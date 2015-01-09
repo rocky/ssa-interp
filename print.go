@@ -10,12 +10,12 @@ package ssa2
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"io"
 	"reflect"
 	"sort"
 
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 // relName returns the name of v relative to i.
@@ -33,7 +33,7 @@ func relName(v Value, i Instruction) string {
 	case Member: // *Function or *Global
 		return v.RelString(from)
 	case *Const:
-		return v.valstring() + ":" + relType(v.Type(), from)
+		return v.RelString(from)
 	}
 	return v.Name()
 }
@@ -57,20 +57,17 @@ func relString(m Member, from *types.Package) string {
 // It never appears in disassembly, which uses Value.Name().
 
 func (v *Parameter) String() string {
-	return fmt.Sprintf("parameter %s : %s", v.Name(), v.Type())
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("parameter %s : %s", v.Name(), relType(v.Type(), from))
 }
 
-func (v *Capture) String() string {
-	return fmt.Sprintf("capture %s : %s", v.Name(), v.Type())
+func (v *FreeVar) String() string {
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("freevar %s : %s", v.Name(), relType(v.Type(), from))
 }
 
 func (v *Builtin) String() string {
 	return fmt.Sprintf("builtin %s", v.Name())
-}
-
-// FullName returns g's package-qualified name.
-func (g *Global) FullName() string {
-	return fmt.Sprintf("%s.%s", g.Pkg.Object.Path(), g.name)
 }
 
 // Instruction.String()
@@ -80,7 +77,8 @@ func (v *Alloc) String() string {
 	if v.Heap {
 		op = "new"
 	}
-	return fmt.Sprintf("%s %s (%s)", op, relType(deref(v.Type()), v.Parent().pkgobj()), v.Comment)
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("%s %s (%s)", op, relType(deref(v.Type()), from), v.Comment)
 }
 
 func (v *Phi) String() string {
@@ -91,18 +89,17 @@ func (v *Phi) String() string {
 			b.WriteString(", ")
 		}
 		// Be robust against malformed CFG.
-		blockname := "?"
+		block := -1
 		if v.block != nil {
 			if v.block.Scope != nil {
 				str := fmt.Sprintf("# scope: %d\n", v.block.Scope.ScopeId)
 				b.WriteString(str)
 			}
-			if i < len(v.block.Preds) {
-				blockname = v.block.Preds[i].String()
-			}
 		}
-		b.WriteString(blockname)
-		b.WriteString(": ")
+		if i < len(v.block.Preds) {
+			block = v.block.Preds[i].Index
+		}
+		fmt.Fprintf(&b, "%d: ", block)
 		edgeVal := "<nil>" // be robust
 		if edge != nil {
 			edgeVal = relName(edge, v)
@@ -132,7 +129,7 @@ func printCall(v *CallCommon, prefix string, instr Instruction) string {
 		}
 		b.WriteString(relName(arg, instr))
 	}
-	if v.HasEllipsis {
+	if v.Signature().Variadic() {
 		b.WriteString("...")
 	}
 	b.WriteString(")")
@@ -147,10 +144,6 @@ func (v *Call) String() string {
 	return printCall(&v.Call, "", v)
 }
 
-func (v *ChangeType) String() string {
-	return fmt.Sprintf("changetype %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), v.X.Type(), relName(v.X, v))
-}
-
 func (v *BinOp) String() string {
 	return fmt.Sprintf("%s %s %s", relName(v.X, v), v.Op.String(), relName(v.Y, v))
 }
@@ -159,17 +152,19 @@ func (v *UnOp) String() string {
 	return fmt.Sprintf("%s%s%s", v.Op, relName(v.X, v), commaOk(v.CommaOk))
 }
 
-func (v *Convert) String() string {
-	return fmt.Sprintf("convert %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), v.X.Type(), relName(v.X, v))
+func printConv(prefix string, v, x Value) string {
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("%s %s <- %s (%s)",
+		prefix,
+		relType(v.Type(), from),
+		relType(x.Type(), from),
+		relName(x, v.(Instruction)))
 }
 
-func (v *ChangeInterface) String() string {
-	return fmt.Sprintf("change interface %s <- %s (%s)", v.Type(), v.X.Type(), relName(v.X, v))
-}
-
-func (v *MakeInterface) String() string {
-	return fmt.Sprintf("make %s <- %s (%s)", relType(v.Type(), v.Parent().pkgobj()), relType(v.X.Type(), v.Parent().pkgobj()), relName(v.X, v))
-}
+func (v *ChangeType) String() string      { return printConv("changetype", v, v.X) }
+func (v *Convert) String() string         { return printConv("convert", v, v.X) }
+func (v *ChangeInterface) String() string { return printConv("change interface", v, v.X) }
+func (v *MakeInterface) String() string   { return printConv("make", v, v.X) }
 
 func (v *MakeClosure) String() string {
 	var b bytes.Buffer
@@ -188,14 +183,11 @@ func (v *MakeClosure) String() string {
 }
 
 func (v *MakeSlice) String() string {
-	var b bytes.Buffer
-	b.WriteString("make ")
-	b.WriteString(v.Type().String())
-	b.WriteString(" ")
-	b.WriteString(relName(v.Len, v))
-	b.WriteString(" ")
-	b.WriteString(relName(v.Cap, v))
-	return b.String()
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("make %s %s %s",
+		relType(v.Type(), from),
+		relName(v.Len, v),
+		relName(v.Cap, v))
 }
 
 func (v *Slice) String() string {
@@ -210,6 +202,10 @@ func (v *Slice) String() string {
 	if v.High != nil {
 		b.WriteString(relName(v.High, v))
 	}
+	if v.Max != nil {
+		b.WriteString(":")
+		b.WriteString(relName(v.Max, v))
+	}
 	b.WriteString("]")
 	return b.String()
 }
@@ -219,11 +215,13 @@ func (v *MakeMap) String() string {
 	if v.Reserve != nil {
 		res = relName(v.Reserve, v)
 	}
-	return fmt.Sprintf("make %s %s", v.Type(), res)
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("make %s %s", relType(v.Type(), from), res)
 }
 
 func (v *MakeChan) String() string {
-	return fmt.Sprintf("make %s %s", v.Type(), relName(v.Size, v))
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("make %s %s", relType(v.Type(), from), relName(v.Size, v))
 }
 
 func (v *FieldAddr) String() string {
@@ -267,7 +265,8 @@ func (v *Next) String() string {
 }
 
 func (v *TypeAssert) String() string {
-	return fmt.Sprintf("typeassert%s %s.(%s)", commaOk(v.CommaOk), relName(v.X, v), relType(v.AssertedType, v.Parent().pkgobj()))
+	from := v.Parent().pkgobj()
+	return fmt.Sprintf("typeassert%s %s.(%s)", commaOk(v.CommaOk), relName(v.X, v), relType(v.AssertedType, from))
 }
 
 func (v *Extract) String() string {
@@ -276,21 +275,21 @@ func (v *Extract) String() string {
 
 func (s *Jump) String() string {
 	// Be robust against malformed CFG.
-	blockname := "?"
+	block := -1
 	if s.block != nil && len(s.block.Succs) == 1 {
-		blockname = s.block.Succs[0].String()
+		block = s.block.Succs[0].Index
 	}
-	return fmt.Sprintf("jump %s", blockname)
+	return fmt.Sprintf("jump %d", block)
 }
 
 func (s *If) String() string {
 	// Be robust against malformed CFG.
-	tblockname, fblockname := "?", "?"
+	tblock, fblock := -1, -1
 	if s.block != nil && len(s.block.Succs) == 2 {
-		tblockname = s.block.Succs[0].String()
-		fblockname = s.block.Succs[1].String()
+		tblock = s.block.Succs[0].Index
+		fblock = s.block.Succs[1].Index
 	}
-	return fmt.Sprintf("if %s goto %s else %s", relName(s.Cond, s), tblockname, fblockname)
+	return fmt.Sprintf("if %s goto %d else %d", relName(s.Cond, s), tblock, fblock)
 }
 
 func (s *Go) String() string {
@@ -333,7 +332,7 @@ func (s *Select) String() string {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		if st.Dir == ast.RECV {
+		if st.Dir == types.RecvOnly {
 			b.WriteString("<-")
 			b.WriteString(relName(st.Chan, s))
 		} else {
@@ -376,8 +375,18 @@ func (p *Package) String() string {
 	return "package " + p.Object.Path()
 }
 
-func (p *Package) DumpTo(w io.Writer) {
-	fmt.Fprintf(w, "%s:\n", p)
+var _ io.WriterTo = (*Package)(nil) // *Package implements io.Writer
+
+func (p *Package) WriteTo(w io.Writer) (int64, error) {
+	var buf bytes.Buffer
+	WritePackage(&buf, p)
+	n, err := w.Write(buf.Bytes())
+	return int64(n), err
+}
+
+// WritePackage writes to buf a human-readable summary of p.
+func WritePackage(buf *bytes.Buffer, p *Package) {
+	fmt.Fprintf(buf, "%s:\n", p)
 
 	var names []string
 	maxname := 0
@@ -388,58 +397,32 @@ func (p *Package) DumpTo(w io.Writer) {
 		names = append(names, name)
 	}
 
+	from := p.Object
 	sort.Strings(names)
 	for _, name := range names {
 		switch mem := p.Members[name].(type) {
 		case *NamedConst:
-			fmt.Fprintf(w, "  const %-*s %s = %s\n", maxname, name, mem.Name(), mem.Value.Name())
+			fmt.Fprintf(buf, "  const %-*s %s = %s\n",
+				maxname, name, mem.Name(), mem.Value.RelString(from))
 
 		case *Function:
-			fmt.Fprintf(w, "  func  %-*s %s\n", maxname, name, mem.Type())
+			fmt.Fprintf(buf, "  func  %-*s %s\n",
+				maxname, name, relType(mem.Type(), from))
 
 		case *Type:
-			fmt.Fprintf(w, "  type  %-*s %s\n", maxname, name, mem.Type().Underlying())
-			for _, meth := range IntuitiveMethodSet(mem.Type()) {
-				fmt.Fprintf(w, "    %s\n", meth)
+			fmt.Fprintf(buf, "  type  %-*s %s\n",
+				maxname, name, relType(mem.Type().Underlying(), from))
+			for _, meth := range typeutil.IntuitiveMethodSet(mem.Type(), &p.Prog.MethodSets) {
+				fmt.Fprintf(buf, "    %s\n", types.SelectionString(from, meth))
 			}
 
 		case *Global:
-			fmt.Fprintf(w, "  var   %-*s %s\n", maxname, name, mem.Type().(*types.Pointer).Elem())
+			fmt.Fprintf(buf, "  var   %-*s %s\n",
+				maxname, name, relType(mem.Type().(*types.Pointer).Elem(), from))
 		}
 	}
 
-	fmt.Fprintf(w, "\n")
-}
-
-// IntuitiveMethodSet returns the intuitive method set of a type, T.
-//
-// The result contains MethodSet(T) and additionally, if T is a
-// concrete type, methods belonging to *T if there is no similarly
-// named method on T itself.  This corresponds to user intuition about
-// method sets; this function is intended only for user interfaces.
-//
-// The order of the result is as for types.MethodSet(T).
-//
-// TODO(gri): move this to go/types?
-//
-func IntuitiveMethodSet(T types.Type) []*types.Selection {
-	var result []*types.Selection
-	mset := T.MethodSet()
-	if _, ok := T.Underlying().(*types.Interface); ok {
-		for i, n := 0, mset.Len(); i < n; i++ {
-			result = append(result, mset.At(i))
-		}
-	} else {
-		pmset := types.NewPointer(T).MethodSet()
-		for i, n := 0, pmset.Len(); i < n; i++ {
-			meth := pmset.At(i)
-			if m := mset.Lookup(meth.Obj().Pkg(), meth.Obj().Name()); m != nil {
-				meth = m
-			}
-			result = append(result, meth)
-		}
-	}
-	return result
+	fmt.Fprintf(buf, "\n")
 }
 
 func commaOk(x bool) string {

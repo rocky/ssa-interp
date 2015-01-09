@@ -1,14 +1,14 @@
 Gub version 0.2
 Type 'h' for help
 Running....
-->  main()
+->  main.main()
 testdata/gcdBrkpt.go:24:6
 # Test of runtime.Breakpoint()
 # Use with gcdBrkpt.go
 Setting highlight off
 # continue
 Continuing...
-:o) gcd()
+:o) main.gcd()
 testdata/gcdBrkpt.go:17:2-22
 # info program
 instruction number: 3

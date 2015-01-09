@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 // Things dealing with locations
 
 package gub
@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
+	"runtime/debug"
 )
 
 var Event2Icon map[ssa2.TraceEvent]string
@@ -35,11 +36,18 @@ func init() {
 		ssa2.SELECT_TYPE     : "sel",
 		ssa2.SWITCH_COND     : "sw?",
 		ssa2.STMT_IN_LIST    : "---",
+		ssa2.PROGRAM_TERMINATION : "FIN",
 	}
 }
 
 func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	event ssa2.TraceEvent) {
+	defer func() {
+		if x := recover(); x != nil {
+			Errmsg("Internal error in getting location info")
+			debug.PrintStack()
+		}
+	}()
 	s    := Event2Icon[event] + " "
 	fn   := fr.Fn()
 	sig  := fn.Signature
@@ -51,7 +59,7 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 		}
 		s += fmt.Sprintf("(%s).%s()", fn.Params[0].Type(), name)
 	} else {
-		s += name
+		s += fmt.Sprintf("%s.%s", fn.Pkg.Object.Path(), name)
 		if len(name) > 0 { s += "()" }
 	}
 

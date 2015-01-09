@@ -2,7 +2,7 @@ package interp
 
 import (
 	"go/token"
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/types"
 	"github.com/rocky/ssa-interp"
 )
 

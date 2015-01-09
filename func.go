@@ -7,6 +7,7 @@ package ssa2
 // This file implements the Function and BasicBlock types.
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -14,7 +15,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/types"
 )
 
 // addEdge adds a control-flow graph edge from from to to.
@@ -30,14 +31,14 @@ func (b *BasicBlock) Parent() *Function { return b.parent }
 // It is not guaranteed unique within the function.
 //
 func (b *BasicBlock) String() string {
-	return fmt.Sprintf("%d.%s", b.Index, b.Comment)
+	return fmt.Sprintf("%d", b.Index)
 }
 
 // emit appends an instruction to the current basic block.
 // If the instruction defines a Value, it is returned.
 //
 func (b *BasicBlock) emit(i Instruction) Value {
-	i.SetBlock(b)
+	i.setBlock(b)
 	b.Instrs = append(b.Instrs, i)
 	v, _ := i.(Value)
 	return v
@@ -236,7 +237,7 @@ func (f *Function) createSyntacticParams(recv *ast.FieldList, functype *ast.Func
 	if recv != nil {
 		for _, field := range recv.List {
 			for _, n := range field.Names {
-				f.addSpilledParam(f.Pkg.objectOf(n))
+				f.addSpilledParam(f.Pkg.info.Defs[n])
 			}
 			// Anonymous receiver?  No need to spill.
 			if field.Names == nil {
@@ -250,7 +251,7 @@ func (f *Function) createSyntacticParams(recv *ast.FieldList, functype *ast.Func
 		n := len(f.Params) // 1 if has recv, 0 otherwise
 		for _, field := range functype.Params.List {
 			for _, n := range field.Names {
-				f.addSpilledParam(f.Pkg.objectOf(n))
+				f.addSpilledParam(f.Pkg.info.Defs[n])
 			}
 			// Anonymous parameter?  No need to spill.
 			if field.Names == nil {
@@ -319,7 +320,7 @@ func (f *Function) finishBody() {
 		f.syntax = extentNode{n.Pos(), n.End()}
 	}
 
-	// Remove any f.Locals that are now heap-allocated.
+	// Remove from f.Locals any Allocs that escape to the heap.
 	j := 0
 	for _, l := range f.Locals {
 		if !l.Heap {
@@ -337,11 +338,12 @@ func (f *Function) finishBody() {
 
 	buildReferrers(f)
 
+	buildDomTree(f)
+
 	if f.Prog.mode&NaiveForm == 0 {
 		// For debugging pre-state of lifting pass:
 		// numberRegisters(f)
-		// f.DumpTo(os.Stderr)
-
+		// f.WriteTo(os.Stderr)
 		lift(f)
 	}
 
@@ -349,8 +351,10 @@ func (f *Function) finishBody() {
 
 	numberRegisters(f)
 
-	if f.Prog.mode&LogFunctions != 0 {
-		f.DumpTo(os.Stderr)
+	if f.Prog.mode&PrintFunctions != 0 {
+		printMu.Lock()
+		f.WriteTo(os.Stdout)
+		printMu.Unlock()
 	}
 
 	if f.Prog.mode&SanityCheckFunctions != 0 {
@@ -389,7 +393,7 @@ func (pkg *Package) SetDebugMode(debug bool) {
 
 // debugInfo reports whether debug info is wanted for this function.
 func (f *Function) debugInfo() bool {
-	return f.Pkg.debug || f.Prog.mode&DebugInfo != 0
+	return f.Pkg != nil && f.Pkg.debug
 }
 
 // addNamedLocal creates a local variable, adds it to function f and
@@ -410,7 +414,7 @@ func (f *Function) addNamedLocal(obj types.Object) *Alloc {
 }
 
 func (f *Function) addLocalForIdent(id *ast.Ident) *Alloc {
-	return f.addNamedLocal(f.Pkg.objectOf(id))
+	return f.addNamedLocal(f.Pkg.info.Defs[id])
 }
 
 // addLocal creates an anonymous local variable of type typ, adds it
@@ -442,11 +446,11 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 
 	// Definition must be in an enclosing function;
 	// plumb it through intervening closures.
-	if f.Enclosing == nil {
+	if f.parent == nil {
 		panic("no Value for type.Object " + obj.Name())
 	}
-	outer := f.Enclosing.lookup(obj, true) // escaping
-	v := &Capture{
+	outer := f.parent.lookup(obj, true) // escaping
+	v := &FreeVar{
 		name:   obj.Name(),
 		typ:    outer.Type(),
 		pos:    outer.Pos(),
@@ -458,10 +462,9 @@ func (f *Function) lookup(obj types.Object, escaping bool) Value {
 	return v
 }
 
-// emit emits the specified instruction to function f, updating the
-// control-flow graph if required.
-//
+// emit emits the specified instruction to function f.
 func (f *Function) emit(instr Instruction) Value {
+	instr.setBlock(f.currentBlock)
 	return f.currentBlock.emit(instr)
 }
 
@@ -471,92 +474,78 @@ func (f *Function) emit(instr Instruction) Value {
 // The specific formatting rules are not guaranteed and may change.
 //
 // Examples:
-//      "math.IsNaN"                // a package-level function
-//      "IsNaN"                     // intra-package reference to same
-//      "(*sync.WaitGroup).Add"     // a declared method
-//      "(*Return).Block"           // a promotion wrapper method (intra-package ref)
-//      "(Instruction).Block"       // an interface method wrapper (intra-package ref)
-//      "func@5.32"                 // an anonymous function
-//      "bound$(*T).f"              // a bound method wrapper
+//      "math.IsNaN"                  // a package-level function
+//      "(*bytes.Buffer).Bytes"       // a declared method or a wrapper
+//      "(*bytes.Buffer).Bytes$thunk" // thunk (func wrapping method; receiver is param 0)
+//      "(*bytes.Buffer).Bytes$bound" // bound (func wrapping method; receiver supplied by closure)
+//      "main.main$1"                 // an anonymous function in main
+//      "main.init#1"                 // a declared init function
+//      "main.init"                   // the synthesized package initializer
 //
-// If from==f.Pkg, suppress package qualification.
+// When these functions are referred to from within the same package
+// (i.e. from == f.Pkg.Object), they are rendered without the package path.
+// For example: "IsNaN", "(*Buffer).Bytes", etc.
+//
+// Invariant: all non-synthetic functions have distinct package-qualified names.
+//
 func (f *Function) RelString(from *types.Package) string {
-	// TODO(adonovan): expose less fragile case discrimination
-	// using f.method.
-
 	// Anonymous?
-	if f.Enclosing != nil {
-		return f.name
+	if f.parent != nil {
+		// An anonymous function's Name() looks like "parentName$1",
+		// but its String() should include the type/package/etc.
+		parent := f.parent.RelString(from)
+		for i, anon := range f.parent.AnonFuncs {
+			if anon == f {
+				return fmt.Sprintf("%s$%d", parent, 1+i)
+			}
+		}
+
+		return f.name // should never happen
 	}
 
-	// Declared method, or promotion/indirection wrapper?
+	// Method (declared or wrapper)?
 	if recv := f.Signature.Recv(); recv != nil {
-		return fmt.Sprintf("(%s).%s", relType(recv.Type(), from), f.name)
+		return f.relMethod(from, recv.Type())
 	}
 
-	// Other synthetic wrapper?
-	if f.Synthetic != "" {
-		// Bound method wrapper?
-		if strings.HasPrefix(f.name, "bound$") {
-			return f.name
-		}
-
-		// Interface method wrapper?
-		if strings.HasPrefix(f.Synthetic, "interface ") {
-			return fmt.Sprintf("(%s).%s", relType(f.Params[0].Type(), from), f.name)
-		}
-
-		// "package initializer" or "loaded from GC object file": fall through.
+	// Thunk?
+	if f.method != nil {
+		return f.relMethod(from, f.method.Recv())
 	}
 
-	// Package-level function.
+	// Bound?
+	if len(f.FreeVars) == 1 && strings.HasSuffix(f.name, "$bound") {
+		return f.relMethod(from, f.FreeVars[0].Type())
+	}
+
+	// Package-level function?
 	// Prefix with package name for cross-package references only.
-	if p := f.pkgobj(); p != from {
+	if p := f.pkgobj(); p != nil && p != from {
 		return fmt.Sprintf("%s.%s", p.Path(), f.name)
 	}
+
+	// Unknown.
 	return f.name
 }
 
-// writeSignature writes to w the signature sig in declaration syntax.
-// Derived from types.Signature.String().
-//
-func writeSignature(w io.Writer, pkg *types.Package, name string, sig *types.Signature, params []*Parameter) {
-	io.WriteString(w, "func ")
+func (f *Function) relMethod(from *types.Package, recv types.Type) string {
+	return fmt.Sprintf("(%s).%s", relType(recv, from), f.name)
+}
+
+// writeSignature writes to buf the signature sig in declaration syntax.
+func writeSignature(buf *bytes.Buffer, from *types.Package, name string, sig *types.Signature, params []*Parameter) {
+	buf.WriteString("func ")
 	if recv := sig.Recv(); recv != nil {
-		io.WriteString(w, "(")
+		buf.WriteString("(")
 		if n := params[0].Name(); n != "" {
-			io.WriteString(w, n)
-			io.WriteString(w, " ")
+			buf.WriteString(n)
+			buf.WriteString(" ")
 		}
-		io.WriteString(w, relType(params[0].Type(), pkg))
-		io.WriteString(w, ") ")
-		params = params[1:]
+		types.WriteType(buf, from, params[0].Type())
+		buf.WriteString(") ")
 	}
-	io.WriteString(w, name)
-	io.WriteString(w, "(")
-	for i, v := range params {
-		if i > 0 {
-			io.WriteString(w, ", ")
-		}
-		io.WriteString(w, v.Name())
-		io.WriteString(w, " ")
-		if sig.IsVariadic() && i == len(params)-1 {
-			io.WriteString(w, "...")
-			io.WriteString(w, relType(v.Type().Underlying().(*types.Slice).Elem(), pkg))
-		} else {
-			io.WriteString(w, relType(v.Type(), pkg))
-		}
-	}
-	io.WriteString(w, ")")
-	if n := sig.Results().Len(); n > 0 {
-		io.WriteString(w, " ")
-		r := sig.Results()
-		if n == 1 && r.At(0).Name() == "" {
-			io.WriteString(w, relType(r.At(0).Type(), pkg))
-		} else {
-			io.WriteString(w, relType(r, pkg))
-		}
-	}
+	buf.WriteString(name)
+	types.WriteSignature(buf, from, sig)
 }
 
 func (f *Function) pkgobj() *types.Package {
@@ -566,95 +555,111 @@ func (f *Function) pkgobj() *types.Package {
 	return nil
 }
 
-// DumpTo prints to w a human readable "disassembly" of the SSA code of
-// all basic blocks of function f.
-//
-func (f *Function) DumpTo(w io.Writer) {
-	fmt.Fprintf(w, "# Name: %s\n", f.String())
+var _ io.WriterTo = (*Function)(nil) // *Function implements io.Writer
+
+func (f *Function) WriteTo(w io.Writer) (int64, error) {
+	var buf bytes.Buffer
+	WriteFunction(&buf, f)
+	n, err := w.Write(buf.Bytes())
+	return int64(n), err
+}
+
+// WriteFunction writes to buf a human-readable "disassembly" of f.
+func WriteFunction(buf *bytes.Buffer, f *Function) {
+	fmt.Fprintf(buf, "# Name: %s\n", f.String())
 	if f.Pkg != nil {
-		fmt.Fprintf(w, "# Package: %s\n", f.Pkg.Object.Path())
+		fmt.Fprintf(buf, "# Package: %s\n", f.Pkg.Object.Path())
 	}
 	if syn := f.Synthetic; syn != "" {
-		fmt.Fprintln(w, "# Synthetic:", syn)
+		fmt.Fprintln(buf, "# Synthetic:", syn)
 	}
 	if pos := f.Pos(); pos.IsValid() {
-		fmt.Fprintf(w, "# Location: %s\n", f.PositionRange())
+		fmt.Fprintf(buf, "# Location: %s\n", f.Prog.Fset.Position(pos))
 	}
 
-	if f.Enclosing != nil {
-		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())
+	if f.parent != nil {
+		fmt.Fprintf(buf, "# Parent: %s\n", f.parent.Name())
 	}
 
 	if f.Recover != nil {
-		fmt.Fprintf(w, "# Recover: %s\n", f.Recover)
+		fmt.Fprintf(buf, "# Recover: %s\n", f.Recover)
 	}
 
-	pkgobj := f.pkgobj()
+	from := f.pkgobj()
 
 	if f.FreeVars != nil {
-		io.WriteString(w, "# Free variables:\n")
+		buf.WriteString("# Free variables:\n")
 		for i, fv := range f.FreeVars {
-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, fv.Name(), relType(fv.Type(), pkgobj))
+			fmt.Fprintf(buf, "# % 3d:\t%s %s\n", i, fv.Name(), relType(fv.Type(), from))
 		}
 	}
 
 	if len(f.Locals) > 0 {
-		io.WriteString(w, "# Locals:\n")
+		buf.WriteString("# Locals:\n")
 		for i, l := range f.Locals {
-			fmt.Fprintf(w, "# % 3d:\t%s %s\n", i, l.Name(), relType(deref(l.Type()), pkgobj))
+			fmt.Fprintf(buf, "# % 3d:\t%s %s\n", i, l.Name(), relType(deref(l.Type()), from))
 		}
 	}
-	writeSignature(w, pkgobj, f.Name(), f.Signature, f.Params)
-	io.WriteString(w, ":\n")
+	writeSignature(buf, from, f.Name(), f.Signature, f.Params)
+	buf.WriteString(":\n")
 
 	if f.Blocks == nil {
-		io.WriteString(w, "\t(external)\n")
+		buf.WriteString("\t(external)\n")
 	}
 
-	// NB. column calculations are confused by non-ASCII characters.
+	// NB. column calculations are confused by non-ASCII
+	// characters and assume 8-space tabs.
 	const punchcard = 80 // for old time's sake.
+	const tabwidth = 8
 	for _, b := range f.Blocks {
 		if b == nil {
 			// Corrupt CFG.
-			fmt.Fprintf(w, ".nil:\n")
+			fmt.Fprintf(buf, ".nil:\n")
 			continue
 		}
 		if b.Scope != nil {
-			fmt.Fprintf(w, "# scope: %d\n", b.Scope.scopeId)
+			fmt.Fprintf(buf, "# scope: %d\n", b.Scope.scopeId)
 		}
-		n, _ := fmt.Fprintf(w, ".%s:", b)
-		fmt.Fprintf(w, "%*sP:%d S:%d\n", punchcard-1-n-len("P:n S:n"), "", len(b.Preds), len(b.Succs))
+		n, _ := fmt.Fprintf(buf, "%d:", b.Index)
+		bmsg := fmt.Sprintf("%s P:%d S:%d", b.Comment, len(b.Preds), len(b.Succs))
+		fmt.Fprintf(buf, "%*s%s\n", punchcard-1-n-len(bmsg), "", bmsg)
 
 		if false { // CFG debugging
-			fmt.Fprintf(w, "\t# CFG: %s --> %s --> %s\n", b.Preds, b, b.Succs)
+			fmt.Fprintf(buf, "\t# CFG: %s --> %s --> %s\n", b.Preds, b, b.Succs)
 		}
-		for _, instr := range b.Instrs {
-			io.WriteString(w, "\t")
+		for i, instr := range b.Instrs {
+			fmt.Fprintf(buf, "%d", i)
+			buf.WriteString("\t")
 			switch v := instr.(type) {
 			case Value:
-				l := punchcard
+				l := punchcard - tabwidth
 				// Left-align the instruction.
 				if name := v.Name(); name != "" {
-					n, _ := fmt.Fprintf(w, "%s = ", name)
+					n, _ := fmt.Fprintf(buf, "%s = ", name)
 					l -= n
 				}
-				// TODO(adonovan): append instructions directly to w.
-				n, _ := io.WriteString(w, instr.String())
+				n, _ := buf.WriteString(instr.String())
 				l -= n
-				// Right-align the type.
+				// Right-align the type if there's space.
 				if t := v.Type(); t != nil {
-					fmt.Fprintf(w, " %*s", l-10, relType(t, pkgobj))
+					buf.WriteByte(' ')
+					ts := relType(t, from)
+					l -= len(ts) + len("  ") // (spaces before and after type)
+					if l > 0 {
+						fmt.Fprintf(buf, "%*s", l, "")
+					}
+					buf.WriteString(ts)
 				}
 			case nil:
 				// Be robust against bad transforms.
-				io.WriteString(w, "<deleted>")
+				buf.WriteString("<deleted>")
 			default:
-				io.WriteString(w, instr.String())
+				buf.WriteString(instr.String())
 			}
-			io.WriteString(w, "\n")
+			buf.WriteString("\n")
 		}
 	}
-	fmt.Fprintf(w, "\n")
+	fmt.Fprintf(buf, "\n")
 }
 
 // newBasicBlock adds to f a new basic block and returns it.  It does
@@ -673,11 +678,11 @@ func (f *Function) newBasicBlock(comment string, scope *Scope) *BasicBlock {
 	return b
 }
 
-// NewFunction returns a new synthetic Function instance with its name
-// and signature fields set as specified.
+// NewFunction returns a new synthetic Function instance belonging to
+// prog, with its name and signature fields set as specified.
 //
 // The caller is responsible for initializing the remaining fields of
-// the function object, e.g. Pkg, Prog, Params, Blocks.
+// the function object, e.g. Pkg, Params, Blocks.
 //
 // It is practically impossible for clients to construct well-formed
 // SSA functions/packages/programs directly, so we assume this is the
@@ -688,7 +693,7 @@ func (f *Function) newBasicBlock(comment string, scope *Scope) *BasicBlock {
 //
 // TODO(adonovan): think harder about the API here.
 //
-func NewFunction(name string, sig *types.Signature, provenance string) *Function {
+func (prog *Program) NewFunction(name string, sig *types.Signature, provenance string) *Function {
 	return &Function{
 		name: name,
 		Signature: sig,

@@ -1,52 +1,57 @@
 Gub version 0.2
 Type 'h' for help
 Running....
-->  main()
+->  main.main()
 testdata/gcd.go:22:6
 # Test of "step", "next" and "finish"
 # Use with gcd.go
 Setting highlight off
 Stepping...
---- main()
+--- main.main()
 testdata/gcd.go:23:2-61
 Stepping...
-->  gcd()
+->  main.gcd()
 parameter a : int 5
 parameter b : int 3
 testdata/gcd.go:8:6
 # Should now be in gcd(5,3) - the first time
-=> #0 gcd(a, b)
-   #1 main()
+=> #0 main.gcd(a, b)
+	testdata/gcd.go:8:6
+   #1 main.main()
+	testdata/gcd.go:23:2-61
 Step over...
-if? gcd()
+if? main.gcd()
 testdata/gcd.go:10:6-11
 Step over...
---- gcd()
+--- main.gcd()
 testdata/gcd.go:11:5-16
 Step over...
-}   gcd()
+}   main.gcd()
 testdata/gcd.go:12:4
 Step over...
-if? gcd()
+if? main.gcd()
 testdata/gcd.go:14:6-12
 Step over...
-if? gcd()
+if? main.gcd()
 testdata/gcd.go:16:6-24
 Step over...
---- gcd()
+--- main.gcd()
 testdata/gcd.go:19:3-21
 Stepping...
-->  gcd()
+->  main.gcd()
 parameter a : int 2
 parameter b : int 3
 testdata/gcd.go:8:6
 # Should now be in gcd(2,3) - recursively
-=> #0 gcd(a, b)
-   #1 gcd(a, b)
-   #2 main()
+=> #0 main.gcd(a, b)
+	testdata/gcd.go:8:6
+   #1 main.gcd(a, b)
+	testdata/gcd.go:19:3-21
+   #2 main.main()
+	testdata/gcd.go:23:2-61
 # Test finish
 Continuing until return...
-<-  gcd()
+<-  main.gcd()
 return type: (int)
 return value: 1
 testdata/gcd.go:19:3-21

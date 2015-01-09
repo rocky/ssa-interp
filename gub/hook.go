@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 // Debugger callback hook. Contains the main command loop.
 
 package gub
@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"runtime/debug"
 
 	"code.google.com/p/go-gnureadline"
 	"github.com/rocky/ssa-interp"
@@ -62,7 +63,23 @@ func computePrompt() string {
 // when an empty line is entered.
 var LastCommand string = ""
 
+var Instr *ssa2.Instruction
+
 // FIXME: remove instr
+
+func runCommand(name string, args []string) {
+	defer func() {
+		if x := recover(); x != nil {
+			Errmsg("Internal error in running command %s", name)
+			debug.PrintStack()
+		}
+		recover()
+	}()
+	cmd := Cmds[name]
+	if ArgCountOK(cmd.Min_args, cmd.Max_args, args) {
+		cmd.Fn(args)
+	}
+}
 
 // GubTraceHook is the callback hook from interpreter. It contains
 // top-level statement breakout.
@@ -71,15 +88,16 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 	gubLock.Lock()
     defer gubLock.Unlock()
 	if skipEvent(fr, event) { return }
+	TraceEvent = event
 	frameInit(fr)
-	// FIXME: use unconditionally
-	if instr == nil {
-		instr = &fr.Block().Instrs[fr.PC()]
+	if instr == nil && event != ssa2.PROGRAM_TERMINATION {
+		instr = &curBlock.Instrs[fr.PC()]
 	}
+	Instr = instr
+
 	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].Kind == "Function" {
 		event = ssa2.CALL_ENTER
 	}
-	TraceEvent = event
 	printLocInfo(topFrame, instr, event)
 
 	line := ""
@@ -120,9 +138,7 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 		LastCommand = ""
 
 		if cmd != nil {
-			if ArgCountOK(cmd.Min_args, cmd.Max_args, args) {
-				Cmds[name].Fn(args)
-			}
+			runCommand(name, args)
 			continue
 		}
 

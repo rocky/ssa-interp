@@ -1,44 +1,44 @@
 Gub version 0.2
 Type 'h' for help
 Running....
-->  main()
+->  main.main()
 testdata/gcd.go:22:6
 # Test of frame motion
 # Use with gcd.go
 Setting highlight off
 # frame 0
-->  main()
+xxx main.main()
 testdata/gcd.go:22:6
 # frame 10
 ** Frame number 10 too large. Max is 0.
 # frame -1
-->  main()
+xxx main.main()
 testdata/gcd.go:22:6
 # up
 ** Adjusting would put us beyond the oldest frame.
 # down
 ** Adjusting would put us beyond the newest frame.
 # break gcd
- Breakpoint 0 set in function gcd at testdata/gcd.go:8:6-20:2
+ Breakpoint 1 set in function gcd at testdata/gcd.go:8:6-20:2
 Continuing...
-->  gcd()
+->  main.gcd()
 parameter a : int 5
 parameter b : int 3
 testdata/gcd.go:8:6
 Stepping...
-if? gcd()
+if? main.gcd()
 testdata/gcd.go:10:6-11
-if? gcd()
+if? main.gcd()
 testdata/gcd.go:10:6-11
-->  main()
+->  main.main()
 testdata/gcd.go:23:2-61
-->  main()
+->  main.main()
 testdata/gcd.go:23:2-61
-if? gcd()
+if? main.gcd()
 testdata/gcd.go:10:6-11
 ** Adjusting would put us beyond the newest frame.
-if? gcd()
+if? main.gcd()
 testdata/gcd.go:10:6-11
-if? gcd()
+if? main.gcd()
 testdata/gcd.go:10:6-11
 gub: That's all folks...

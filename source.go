@@ -14,7 +14,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/types"
 )
 
 // EnclosingFunction returns the function that contains the syntax
@@ -80,13 +80,13 @@ func findEnclosingPackageLevelFunction(pkg *Package, path []ast.Node) *Function 
 		case *ast.GenDecl:
 			if decl.Tok == token.VAR && n >= 3 {
 				// Package-level 'var' initializer.
-				return pkg.Init
+				return pkg.init
 			}
 
 		case *ast.FuncDecl:
 			if decl.Recv == nil && decl.Name.Name == "init" {
 				// Explicit init() function.
-				for _, b := range pkg.Init.Blocks {
+				for _, b := range pkg.init.Blocks {
 					for _, instr := range b.Instrs {
 						if instr, ok := instr.(*Call); ok {
 							if callee, ok := instr.Call.Value.(*Function); ok && callee.Pkg == pkg && callee.Pos() == decl.Name.NamePos {
@@ -97,7 +97,7 @@ func findEnclosingPackageLevelFunction(pkg *Package, path []ast.Node) *Function 
 				}
 				// Hack: return non-nil when SSA is not yet
 				// built so that HasEnclosingFunction works.
-				return pkg.Init
+				return pkg.init
 			}
 			// Declared function/method.
 			return findNamedFunc(pkg, decl.Name.NamePos)
@@ -119,7 +119,7 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 				return mem
 			}
 		case *Type:
-			mset := types.NewPointer(mem.Type()).MethodSet()
+			mset := pkg.Prog.MethodSets.MethodSet(types.NewPointer(mem.Type()))
 			for i, n := 0, mset.Len(); i < n; i++ {
 				// Don't call Program.Method: avoid creating wrappers.
 				obj := mset.At(i).Obj().(*types.Func)
@@ -140,7 +140,7 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 //    - f was not built with debug information; or
 //    - e is a constant expression.  (For efficiency, no debug
 //      information is stored for constants. Use
-//      importer.PackageInfo.ValueOf(e) instead.)
+//      loader.PackageInfo.ValueOf(e) instead.)
 //    - e is a reference to nil or a built-in function.
 //    - the value was optimised away.
 //
@@ -193,21 +193,19 @@ func (prog *Program) packageLevelValue(obj types.Object) Value {
 	return nil
 }
 
-// FuncValue returns the Function denoted by the source-level named
-// function obj.
+// FuncValue returns the concrete Function denoted by the source-level
+// named function obj, or nil if obj denotes an interface method.
+//
+// TODO(adonovan): check the invariant that obj.Type() matches the
+// result's Signature, both in the params/results and in the receiver.
 //
 func (prog *Program) FuncValue(obj *types.Func) *Function {
-	// Package-level function or declared method?
-	if v := prog.packageLevelValue(obj); v != nil {
-		return v.(*Function)
-	}
-	// Interface method wrapper?
-	meth := recvType(obj).MethodSet().Lookup(obj.Pkg(), obj.Name())
-	return prog.Method(meth)
+	fn, _ := prog.packageLevelValue(obj).(*Function)
+	return fn
 }
 
 // ConstValue returns the SSA Value denoted by the source-level named
-// constant obj.  The result may be a *Const, or nil if not found.
+// constant obj.
 //
 func (prog *Program) ConstValue(obj *types.Const) *Const {
 	// TODO(adonovan): opt: share (don't reallocate)
@@ -237,28 +235,26 @@ func (prog *Program) ConstValue(obj *types.Const) *Const {
 // pkg is the package enclosing the reference.  (A reference to a var
 // always occurs within a function, so we need to know where to find it.)
 //
-// The Value of a defining (as opposed to referring) identifier is the
-// value assigned to it in its definition.  Similarly, the Value of an
-// identifier that is the LHS of an assignment is the value assigned
-// to it in that statement.  In all these examples, VarValue(x) returns
-// the value of x and isAddr==false.
+// If the identifier is a field selector and its base expression is
+// non-addressable, then VarValue returns the value of that field.
+// For example:
+//    func f() struct {x int}
+//    f().x  // VarValue(x) returns a *Field instruction of type int
 //
-//    var x X
-//    var x = X{}
-//    x := X{}
-//    x = X{}
+// All other identifiers denote addressable locations (variables).
+// For them, VarValue may return either the variable's address or its
+// value, even when the expression is evaluated only for its value; the
+// situation is reported by isAddr, the second component of the result.
 //
-// When an identifier appears in an lvalue context other than as the
-// LHS of an assignment, the resulting Value is the var's address, not
-// its value.  This situation is reported by isAddr, the second
-// component of the result.  In these examples, VarValue(x) returns
-// the address of x and isAddr==true.
+// If !isAddr, the returned value is the one associated with the
+// specific identifier.  For example,
+//       var x int    // VarValue(x) returns Const 0 here
+//       x = 1        // VarValue(x) returns Const 1 here
 //
-//    x.y = 0
-//    x[0] = 0
-//    _ = x[:]      (where x is an array)
-//    _ = &x
-//    x.method()    (iff method is on &x)
+// It is not specified whether the value or the address is returned in
+// any particular case, as it may depend upon optimizations performed
+// during SSA code generation, such as registerization, constant
+// folding, avoidance of materialization of subexpressions, etc.
 //
 func (prog *Program) VarValue(obj *types.Var, pkg *Package, ref []ast.Node) (value Value, isAddr bool) {
 	// All references to a var are local to some function, possibly init.

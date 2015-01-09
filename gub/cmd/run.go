@@ -7,7 +7,6 @@ package gubcmd
 import (
 	"github.com/rocky/ssa-interp/gub"
 	"os"
-	"strings"
 	"syscall"
 )
 
@@ -30,11 +29,7 @@ termintation code.
 }
 
 func RunCommand(args []string) {
-	if gub.GUB_RESTART_CMD == "" {
-		gub.Errmsg("restart string in environment GUB_RESTART_CMD has nothing")
-		return
-	}
-	gub.Msg("gub: restarting: %s", gub.GUB_RESTART_CMD)
-	restartCmd := strings.Split(gub.GUB_RESTART_CMD, " ")
-	syscall.Exec(restartCmd[0], restartCmd, os.Environ());
+	ShowArgsSubcmd(args)
+	gub.Msg("gub: restarting...")
+	syscall.Exec(gub.RESTART_ARGS[0], gub.RESTART_ARGS[0:], os.Environ());
 }

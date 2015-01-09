@@ -84,10 +84,6 @@ func main() {
 	_ = v8ptr[0]  // v8ptr::Alloc
 	_ = *v8ptr    // v8ptr::Alloc
 
-	v9 := S{} // &v9::Alloc
-
-	v10 := &v9 // v10::Alloc &v9::Alloc
-
 	var v11 *J = nil // v11::Literal
 	v11.method()     // v11::Literal
 
@@ -104,10 +100,6 @@ func main() {
 	case v0: // v0::Phi
 	}
 
-	for k, v := range m { // k::Extract v::Extract m::MakeMap
-		v++ // v::BinOp
-	}
-
 	if y := 0; y > 1 { // y::Literal y::Literal
 	}
 
@@ -118,8 +110,4 @@ func main() {
 		println(i) // i::Extract
 	}
 
-	ch := make(chan int) // ch::MakeChan
-	select {
-	case x := <-ch: // x::UnOp (receive) ch::MakeChan
-	}
 }
