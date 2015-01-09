@@ -13,7 +13,7 @@ import (
 	"io"
 	"os"
 
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 func unreachable() {

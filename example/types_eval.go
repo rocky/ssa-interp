@@ -11,7 +11,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"code.google.com/p/go.tools/go/types"
+	"github.com/rocky/go-types"
 	"strings"
 )
 

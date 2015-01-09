@@ -43,8 +43,8 @@ import (
 	"unsafe"
 
 	"github.com/rocky/ssa-interp"
-	"golang.org/x/tools/go/types"
-	"golang.org/x/tools/go/types/typeutil"
+	"github.com/rocky/go-types"
+	"github.com/rocky/go-types/typeutil"
 )
 
 type Value interface{}

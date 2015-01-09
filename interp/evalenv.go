@@ -16,6 +16,7 @@ type EvalEnv struct{
 	static  *eval.SimpleEnv
 	prog    *ssa2.Program
     globals *map[ssa2.Value]*Value
+	frame   Frame
 	curFn   *ssa2.Function
 	curPkg  *ssa2.Package
 	scope   *ssa2.Scope
@@ -50,6 +51,7 @@ func MakeEnv(static *eval.SimpleEnv, prog *ssa2.Program, fr *Frame) *EvalEnv {
 	return &EvalEnv{
 		static: static,
 		prog: prog,
+		frame: *fr,
 		curFn: fr.Fn(),
 		curPkg: fr.Fn().Pkg,
 		scope:  fr.Scope(),
@@ -58,14 +60,29 @@ func MakeEnv(static *eval.SimpleEnv, prog *ssa2.Program, fr *Frame) *EvalEnv {
 
 func (env EvalEnv) Static() eval.SimpleEnv { return *env.static }
 
-// The stuff below here are methods to satisfy the eval.Env interface
-
-func (env EvalEnv) Var(name string) reflect.Value {
+func (env EvalEnv) local(name string) (reflect.Value, bool) {
 	nameScope := ssa2.NameScope{
 		Name: name,
 		Scope: env.scope,
 	}
-	return interp2reflectVal(env.curFn.LocalsByName[nameScope])
+	if i := env.curFn.LocalsByName[nameScope]; i == 0 {
+		return reflectNil, false
+	} else {
+		fmt.Printf("Got value %v %T local %s\n", env.frame.Local(i-1),
+			env.frame.Local(i-1), name)
+		return interp2reflectVal(env.frame.Local(i-1)), true
+	}
+}
+
+
+// The stuff below here are methods to satisfy the eval.Env interface
+
+func (env EvalEnv) Var(name string) reflect.Value {
+	if val, ok := env.local(name); ok {
+		return val
+	} else {
+		return reflectNil
+	}
 }
 
 func (env EvalEnv) Func(name string) reflect.Value {
@@ -84,11 +101,12 @@ func (env EvalEnv) Const(name string) reflect.Value {
 }
 
 func (env EvalEnv) Type(name string) reflect.Type {
-	// FIXME: need to get the value of "name" as a
-	// reflect value and from that return reflect.TypeOf()
-	// For now we'll punt on this and go with that staticly
-	// created eval environment.
-	return env.static.Type(name)
+	fmt.Println("Looking up type for var %s", name)
+	if val, ok := env.local(name); ok {
+		return reflect.TypeOf(val)
+	} else {
+		return env.static.Type(name)
+	}
 }
 
 func (env EvalEnv) Pkg(name string) eval.Env {

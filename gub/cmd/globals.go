@@ -7,7 +7,7 @@ import (
 
 	"go/token"
 	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/gub"

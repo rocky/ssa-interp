@@ -17,9 +17,9 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/ssa/ssautil"
+	"github.com/rocky/go-loader"
+	"github.com/rocky/ssa-interp"
+	"github.com/rocky/ssa-interp/ssautil"
 )
 
 func bytesAllocated() uint64 {
@@ -55,11 +55,11 @@ func TestStdlib(t *testing.T) {
 	alloc1 := bytesAllocated()
 
 	// Create SSA packages.
-	var mode ssa.BuilderMode
+	var mode ssa2.BuilderMode
 	// Comment out these lines during benchmarking.  Approx SSA build costs are noted.
-	mode |= ssa.SanityCheckFunctions // + 2% space, + 4% time
-	mode |= ssa.GlobalDebug          // +30% space, +18% time
-	prog := ssa.Create(iprog, mode)
+	mode |= ssa2.SanityCheckFunctions // + 2% space, + 4% time
+	mode |= ssa2.GlobalDebug          // +30% space, +18% time
+	prog := ssa2.Create(iprog, mode)
 
 	t2 := time.Now()
 
@@ -82,7 +82,7 @@ func TestStdlib(t *testing.T) {
 	allFuncs := ssautil.AllFunctions(prog)
 
 	// Check that all non-synthetic functions have distinct names.
-	byName := make(map[string]*ssa.Function)
+	byName := make(map[string]*ssa2.Function)
 	for fn := range allFuncs {
 		if fn.Synthetic == "" {
 			str := fn.String()

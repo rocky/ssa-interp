@@ -29,7 +29,7 @@ var program  *ssa2.Program
 func Program() *ssa2.Program { return program }
 
 const (
-	version string = "0.2"
+	version string = "0.3"
 )
 
 // Term is the current environment TERM value, e.g. "gnome", "xterm", or "vt100"

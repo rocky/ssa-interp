@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 	"github.com/rocky/ssa-interp"
 )
 

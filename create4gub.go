@@ -2,7 +2,7 @@
 package ssa2
 
 import (
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 func assignScopeId(typesScope *types.Scope, scopeId ScopeId) *Scope{

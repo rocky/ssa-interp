@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 	"reflect"
 	"github.com/rocky/ssa-interp/interp"
 	// "github.com/rocky/go-fish"

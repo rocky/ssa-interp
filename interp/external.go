@@ -15,7 +15,7 @@ import (
 	"unsafe"
 
 	"github.com/rocky/ssa-interp"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 type externalFn func(fr *Frame, args []Value) Value

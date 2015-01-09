@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/tools/go/loader"
+	"github.com/rocky/go-loader"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 // Each line contains a space-separated list of $GOROOT/test/

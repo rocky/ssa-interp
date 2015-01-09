@@ -53,7 +53,7 @@ import (
 	"runtime/debug"
 
 	"github.com/rocky/ssa-interp"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 type continuation int
