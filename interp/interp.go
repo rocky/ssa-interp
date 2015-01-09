@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package ssa/interp defines an interpreter for the SSA
+// Package ssa-interp/interp defines an interpreter for the SSA
 // representation of Go programs.
 //
 // This interpreter is provided as an adjunct for testing the SSA
@@ -127,7 +127,7 @@ func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa2.Functi
 	return i.prog.LookupMethod(typ, meth.Pkg(), meth.Name())
 }
 
-// visitInstr interprets a single ssa.Instruction within the activation
+// visitInstr interprets a single ssa2.Instruction within the activation
 // record frame.  It returns a continuation value indicating where to
 // read the next instruction from.
 func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
