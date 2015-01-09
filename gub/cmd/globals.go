@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"go/token"
-	"golang.org/x/tools/go/exact"
+	"github.com/rocky/go-exact"
 	"github.com/rocky/go-types"
 
 	"github.com/rocky/ssa-interp"
