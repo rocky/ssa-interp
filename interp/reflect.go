@@ -17,7 +17,7 @@ import (
 	"unsafe"
 
 	"github.com/rocky/ssa-interp"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 type opaqueType struct {

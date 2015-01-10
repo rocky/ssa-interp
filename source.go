@@ -14,7 +14,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 // EnclosingFunction returns the function that contains the syntax

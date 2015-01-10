@@ -12,9 +12,9 @@ import (
 	"sync"
 	"unsafe"
 
-	"golang.org/x/tools/go/exact"
+	"github.com/rocky/go-exact"
 	"github.com/rocky/ssa-interp"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 // If the target program panics, the interpreter panics with this type.

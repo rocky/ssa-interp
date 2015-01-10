@@ -13,7 +13,7 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 type sanity struct {

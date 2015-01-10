@@ -6,7 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"code.google.com/p/go.tools/go/exact"
+	"gitub.com/rocky/go-exact"
 )
 
 // ----------------------------------------------------------------------------

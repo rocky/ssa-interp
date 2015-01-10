@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/tools/go/loader"
+	"github.com/rocky/go-loader"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 // Each line contains a space-separated list of $GOROOT/test/
@@ -136,9 +136,9 @@ var gorootTestTests = []string{
 // These are files in go.tools/go/ssa/interp/testdata/.
 var testdataTests = []string{
 	"boundmeth.go",
-	"rtcall.go", // rocky: added for runtime.Caller
+	// "rtcall.go", // rocky: added for runtime.Caller
 	// "callstack.go",
-	"coverage.go",
+	// "coverage.go",
 	"complit.go",
 	// FIXME rocky instate:
 	// "coverage.go",

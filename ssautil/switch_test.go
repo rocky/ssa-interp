@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/loader"
+	"github.com/rocky/goloader"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/ssautil"
 )

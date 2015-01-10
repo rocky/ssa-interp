@@ -94,14 +94,10 @@ func doMain() error {
 	flag.Parse()
 	args := flag.Args()
 
-<<<<<<< HEAD:cmd/tortoise.go
-	conf := importer.Config{Build: &build.Default}
-=======
 	conf := loader.Config{
 		Build:         &build.Default,
 		SourceImports: true,
 	}
->>>>>>> go1.2:cmd/tortoise.go
 	// TODO(adonovan): make go/types choose its default Sizes from
 	// build.Default or a specified *build.Context.
 	var wordSize int64 = 8
@@ -129,11 +125,7 @@ func doMain() error {
 		case 'C':
 			mode |= ssa2.SanityCheckFunctions
 		case 'G':
-<<<<<<< HEAD:cmd/tortoise.go
-			conf.Build = nil
-=======
 			conf.SourceImports = false
->>>>>>> go1.2:cmd/tortoise.go
 		case 'L':
 			mode |= ssa2.BuildSerially
 		case 'I':
@@ -177,12 +169,7 @@ func doMain() error {
 		defer pprof.StopCPUProfile()
 	}
 
-<<<<<<< HEAD:cmd/tortoise.go
-	// Load, parse and type-check the program.
-	imp := importer.New(&conf)
-=======
 	// Use the initial packages from the command line.
->>>>>>> go1.2:cmd/tortoise.go
 	prog_args := args[1:]
 	args, err := conf.FromArgs(args[0:1], *testFlag)
 	if err != nil {
@@ -201,10 +188,7 @@ func doMain() error {
 	}
 
 	// Create and build SSA-form program representation.
-<<<<<<< HEAD:cmd/tortoise.go
-=======
 	prog := ssa2.Create(iprog, mode)
->>>>>>> go1.2:cmd/tortoise.go
 	prog.BuildAll()
 
 	// Run the interpreter.
@@ -234,8 +218,6 @@ func doMain() error {
 				return fmt.Errorf("no main package")
 			}
 		}
-<<<<<<< HEAD:cmd/tortoise.go
-=======
 
 		if interpTraceMode & interp.EnableStmtTracing != 0 {
 			gubcmd.Init(gubFlag, restart_args, main.Prog)
@@ -259,30 +241,15 @@ func doMain() error {
 			fmt.Println("I see you've got trepan imported...")
 			gubcmd.Init(gubFlag, restart_args, main.Prog)
 		}
->>>>>>> go1.2:cmd/tortoise.go
 
-		if interpTraceMode & interp.EnableStmtTracing != 0 {
-			gubcmd.Init(gubFlag, restart_args, main.Prog)
-		} else if prog.PackagesByPath["github.com/rocky/ssa-interp/trepan"] != nil {
-			fmt.Println("I see you've got trepan imported...")
-			gubcmd.Init(gubFlag, restart_args, main.Prog)
- 		}
 		fmt.Println("Running....")
-<<<<<<< HEAD:cmd/tortoise.go
-		if runtime.GOARCH != conf.Build.GOARCH {
-=======
 		if runtime.GOARCH != build.Default.GOARCH {
->>>>>>> go1.2:cmd/tortoise.go
 			return fmt.Errorf("cross-interpretation is not yet supported (target has GOARCH %s, interpreter has %s)",
 				build.Default.GOARCH, runtime.GOARCH)
 		}
 
 		interp.Interpret(main, interpMode, interpTraceMode, conf.TypeChecker.Sizes, main.Object.Path(), prog_args)
-<<<<<<< HEAD:cmd/tortoise.go
-	} else {
-=======
 	}  else {
->>>>>>> go1.2:cmd/tortoise.go
 		fmt.Println(`Built ok, but not running because "-run" option not given`)
 	}
 	return nil

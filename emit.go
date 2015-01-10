@@ -7,10 +7,11 @@ package ssa2
 // Helpers for emitting SSA instructions.
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 const (

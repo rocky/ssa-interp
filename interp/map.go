@@ -12,7 +12,7 @@ package interp
 // concurrent map access.
 
 import (
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 type hashable interface {

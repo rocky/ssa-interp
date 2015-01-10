@@ -15,7 +15,7 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 )
 
 // addEdge adds a control-flow graph edge from from to to.
@@ -555,11 +555,18 @@ func (f *Function) pkgobj() *types.Package {
 	return nil
 }
 
-// WriteTo prints to w a human readable "disassembly" of the SSA code of
-// all basic blocks of function f.
-//
-func (f *Function) WriteTo(w io.Writer) {
-	fmt.Fprintf(w, "# Name: %s\n", f.String())
+var _ io.WriterTo = (*Function)(nil) // *Function implements io.Writer
+
+func (f *Function) WriteTo(w io.Writer) (int64, error) {
+	var buf bytes.Buffer
+	WriteFunction(&buf, f)
+	n, err := w.Write(buf.Bytes())
+	return int64(n), err
+}
+
+// WriteFunction writes to buf a human-readable "disassembly" of f.
+func WriteFunction(buf *bytes.Buffer, f *Function) {
+	fmt.Fprintf(buf, "# Name: %s\n", f.String())
 	if f.Pkg != nil {
 		fmt.Fprintf(buf, "# Package: %s\n", f.Pkg.Object.Path())
 	}

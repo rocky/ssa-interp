@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 
-	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/ssa"
+	"github.com/rocky/go-loader"
+	"github.com/rocky/ssa-interp"
 )
 
 // This program demonstrates how to run the SSA builder on a "Hello,
@@ -59,7 +59,7 @@ func main() {
 	}
 
 	// Create SSA-form program representation.
-	prog := ssa.Create(iprog, ssa.SanityCheckFunctions)
+	prog := ssa2.Create(iprog, ssa2.SanityCheckFunctions)
 	mainPkg := prog.Package(iprog.Created[0].Pkg)
 
 	// Print out the package.
@@ -84,26 +84,32 @@ func main() {
 	// # Package: main
 	// # Synthetic: package initializer
 	// func init():
+	// # scope: 0
 	// 0:                                                                entry P:0 S:2
-	// 	t0 = *init$guard                                                   bool
-	// 	if t0 goto 2 else 1
+	// 0	t0 = *init$guard                                                   bool
+	// 1	if t0 goto 2 else 1
+	// # scope: 0
 	// 1:                                                           init.start P:1 S:1
-	// 	*init$guard = true:bool
-	// 	t1 = fmt.init()                                                      ()
-	// 	jump 2
+	// 0	*init$guard = true:bool
+	// 1	t1 = fmt.init()                                                      ()
+	// 2	jump 2
+	// # scope: 0
 	// 2:                                                            init.done P:2 S:0
-	// 	return
+	// 0	return
 	//
 	// # Name: main.main
 	// # Package: main
 	// # Location: hello.go:8:6
 	// func main():
+	// # scope: 3
 	// 0:                                                                entry P:0 S:0
-	// 	t0 = new [1]interface{} (varargs)                       *[1]interface{}
-	// 	t1 = &t0[0:int]                                            *interface{}
-	// 	t2 = make interface{} <- string ("Hello, World!":string)    interface{}
-	// 	*t1 = t2
-	// 	t3 = slice t0[:]                                          []interface{}
-	// 	t4 = fmt.Println(t3...)                              (n int, err error)
-	// 	return
+	// 0	trace <STATEMENT in list> at hello.go:9:2-22
+	// 1	t0 = new [1]interface{} (varargs)                       *[1]interface{}
+	// 2	t1 = &t0[0:int]                                            *interface{}
+	// 3	t2 = make interface{} <- string ("Hello, World!":string)    interface{}
+	// 4	*t1 = t2
+	// 5	t3 = slice t0[:]                                          []interface{}
+	// 6	t4 = fmt.Println(t3...)                              (n int, err error)
+	// 7	trace <Block End> at hello.go:10:2
+	// 8	return
 }

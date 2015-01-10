@@ -6,7 +6,7 @@ package main
 
 import (
 	"go/token"
-	"code.google.com/p/go.tools/go/exact"
+	"github.com/rocky/go-exact"
 	"strings"
 	"fmt"
 )
