@@ -8,6 +8,9 @@ package gubcmd
 
 import (
 	"reflect"
+	"sort"
+	"strings"
+	"code.google.com/p/go-columnize"
 	"github.com/rocky/ssa-interp/gub"
 )
 
@@ -54,6 +57,19 @@ func InfoPackageSubcmd(args []string) {
 		for _, pkg_name := range args[2:len(args)] {
 			if pkg := gub.Program().PackagesByName[pkg_name]; pkg != nil {
 				gub.Msg("Package %s: \"%s\"", pkg_name, pkg.Object.Path())
+				gub.Section("Package members:")
+				var names []string
+				for k, _ := range pkg.Members {
+					names = append(names, k)
+				}
+				sort.Strings(names)
+				opts := columnize.DefaultOptions()
+				opts.DisplayWidth = gub.Maxwidth
+				opts.LinePrefix  = "  "
+				mems := strings.TrimRight(columnize.Columnize(names, opts),
+					"\n")
+				gub.Msg(mems)
+
 			} else {
 				gub.Errmsg("Package %s not imported", pkg_name)
 			}
