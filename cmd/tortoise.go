@@ -14,10 +14,10 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"golang.org/x/tools/go/loader"
+	"github.com/rocky/go-loader"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 	"github.com/rocky/ssa-interp/gub"
 	"github.com/rocky/ssa-interp/gub/cmd"
 )

@@ -10,7 +10,7 @@ import (
 	"sort"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"golang.org/x/tools/go/types"
+	"github.com/rocky/go-types"
 	"code.google.com/p/go-columnize"
 )
 
