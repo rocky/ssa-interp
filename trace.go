@@ -1,3 +1,4 @@
+// Copyright 2014-2015 Rocky Bernstein
 package ssa2
 
 import (

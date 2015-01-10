@@ -4,47 +4,44 @@
 
 package interp
 
-import (
-	"github.com/rocky/ssa-interp"
-)
+import "syscall"
 
-func ext۰syscall۰Close(fr *Frame, args []Value) Value {
-	fr.sourcePanic("syscall.Close not yet implemented")
+func ext۰syscall۰Close(fr *Frame, args []value) value {
+	panic("syscall.Close not yet implemented")
 }
-func ext۰syscall۰Fstat(fr *Frame, args []Value) Value {
-	fr.sourcePanic("syscall.Fstat not yet implemented")
+func ext۰syscall۰Fstat(fr *Frame, args []value) value {
+	panic("syscall.Fstat not yet implemented")
 }
-func ext۰syscall۰Kill(fr *Frame, args []Value) Value {
-	fr.sourcePanic(fr.block.Instrs[fr.pc], "syscall.Kill not yet implemented")
+func ext۰syscall۰Kill(fr *Frame, args []value) value {
+	panic("syscall.Kill not yet implemented")
 }
-func ext۰syscall۰Lstat(fr *Frame, args []Value) Value {
-	fr.sourcePanic("syscall.Lstat not yet implemented")
+func ext۰syscall۰Lstat(fr *Frame, args []value) value {
+	panic("syscall.Lstat not yet implemented")
 }
-func ext۰syscall۰Open(fr *Frame, args []Value) Value {
-	fr.sourcePanic("syscall.Open not yet implemented")
+func ext۰syscall۰Open(fr *Frame, args []value) value {
+	panic("syscall.Open not yet implemented")
 }
-func ext۰syscall۰ParseDirent(fr *Frame, args []Value) Value {
-	fr.sourcePanic("syscall.ParseDirent not yet implemented")
+func ext۰syscall۰ParseDirent(fr *Frame, args []value) value {
+	panic("syscall.ParseDirent not yet implemented")
 }
-func ext۰syscall۰Read(fr *Frame, args []Value) Value {
-	fr.sourcePanic("syscall.Read not yet implemented")
+func ext۰syscall۰Read(fr *Frame, args []value) value {
+	panic("syscall.Read not yet implemented")
 }
-func ext۰syscall۰ReadDirent(fr *Frame, args []Value) Value {
-	fr.sourcePanic("syscall.ReadDirent not yet implemented")
+func ext۰syscall۰ReadDirent(fr *Frame, args []value) value {
+	panic("syscall.ReadDirent not yet implemented")
 }
-func ext۰syscall۰Stat(fr *Frame, args []Value) Value {
-	fr.sourcePanic(fr.block.Instrs[fr.pc], "syscall.Stat not yet implemented")
+func ext۰syscall۰Stat(fr *Frame, args []value) value {
+	panic("syscall.Stat not yet implemented")
 }
-
-func ext۰syscall۰Write(fr *Frame, args []Value) Value {
-	p := args[1].([]Value)
-	b := make([]byte, 0, len(p))
-	for i := range p {
-		b = append(b, p[i].(byte))
-	}
-	n, err := syscall.Write(args[0].(int), b)
+func ext۰syscall۰Write(fr *Frame, args []value) value {
+	// func Write(fd int, p []byte) (n int, err error)
+	n, err := write(args[0].(int), valueToBytes(args[1]))
 	return tuple{n, wrapError(err)}
 }
-func ext۰syscall۰RawSyscall(fn *Frame, args []value) value {
+func ext۰syscall۰RawSyscall(fr *Frame, args []value) value {
 	return tuple{^uintptr(0), uintptr(0), uintptr(0)}
+}
+
+func syswrite(fd int, b []byte) (int, error) {
+	return syscall.Write(fd, b)
 }

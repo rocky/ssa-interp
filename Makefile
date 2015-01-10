@@ -14,6 +14,10 @@ tortoise: interp builder gub trepan
 builder:
 	go install
 
+#: Build the runtime
+trepan:
+	(cd trepan && go install)
+
 #: Build the interpeter
 interp: builder big
 	(cd interp && go install)

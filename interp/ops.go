@@ -10,13 +10,11 @@ import (
 	"go/token"
 	"strings"
 	"sync"
-	"syscall"
 	"unsafe"
 
-	"code.google.com/p/go.tools/go/exact"
-	"github.com/rocky/go-types"
-
+	"golang.org/x/tools/go/exact"
 	"github.com/rocky/ssa-interp"
+	"golang.org/x/tools/go/types"
 )
 
 // If the target program panics, the interpreter panics with this type.
@@ -38,9 +36,7 @@ func constValue(c *ssa2.Const) Value {
 		return zero(c.Type()) // typed nil
 	}
 
-	// By destination type:
-	switch t := c.Type().Underlying().(type) {
-	case *types.Basic:
+	if t, ok := c.Type().Underlying().(*types.Basic); ok {
 		// TODO(adonovan): eliminate untyped constants from SSA form.
 		switch t.Kind() {
 		case types.Bool, types.UntypedBool:
@@ -83,29 +79,6 @@ func constValue(c *ssa2.Const) Value {
 				return exact.StringVal(c.Value)
 			}
 			return string(rune(c.Int64()))
-		case types.UnsafePointer:
-			panic("unsafe.Pointer constant") // not possible
-		case types.UntypedNil:
-			// nil was handled above.
-		}
-
-	case *types.Slice:
-		switch et := t.Elem().Underlying().(type) {
-		case *types.Basic:
-			switch et.Kind() {
-			case types.Byte: // string -> []byte
-				var v []Value
-				for _, b := range []byte(exact.StringVal(c.Value)) {
-					v = append(v, b)
-				}
-				return v
-			case types.Rune: // string -> []rune
-				var v []Value
-				for _, r := range []rune(exact.StringVal(c.Value)) {
-					v = append(v, r)
-				}
-				return v
-			}
 		}
 	}
 
@@ -263,29 +236,44 @@ func zero(t types.Type) Value {
 	panic(fmt.Sprint("zero: unexpected ", t))
 }
 
-// slice returns x[lo:hi].  Either or both of lo and hi may be nil.
-func slice(x, lo, hi Value) Value {
+// slice returns x[lo:hi:max].  Any of lo, hi and max may be nil.
+func slice(x, lo, hi, max Value) Value {
+	var Len, Cap int
+	switch x := x.(type) {
+	case string:
+		Len = len(x)
+	case []Value:
+		Len = len(x)
+		Cap = cap(x)
+	case *Value: // *array
+		a := (*x).(array)
+		Len = len(a)
+		Cap = cap(a)
+	}
+
 	l := 0
 	if lo != nil {
 		l = asInt(lo)
 	}
+
+	h := Len
+	if hi != nil {
+		h = asInt(hi)
+	}
+
+	m := Cap
+	if max != nil {
+		m = asInt(max)
+	}
+
 	switch x := x.(type) {
 	case string:
-		if hi != nil {
-			return x[l:asInt(hi)]
-		}
-		return x[l:]
+		return x[l:h]
 	case []Value:
-		if hi != nil {
-			return x[l:asInt(hi)]
-		}
-		return x[l:]
+		return x[l:h:m]
 	case *Value: // *array
 		a := (*x).(array)
-		if hi != nil {
-			return []Value(a)[l:asInt(hi)]
-		}
-		return []Value(a)[l:]
+		return []Value(a)[l:h:m]
 	}
 	panic(fmt.Sprintf("slice: unexpected X type: %T", x))
 }
@@ -907,8 +895,8 @@ func typeAssert(i *interpreter, instr *ssa2.TypeAssert, itf iface) Value {
 		v = itf
 		err = checkInterface(i, idst, itf)
 
-	} else if types.IsIdentical(itf.t, instr.AssertedType) {
-		v = copyVal(itf.v) // extract value
+	} else if types.Identical(itf.t, instr.AssertedType) {
+		v = copyVal(itf.v) // extract Value
 
 	} else {
 		err = fmt.Sprintf("interface conversion: interface is %s, not %s", itf.t, instr.AssertedType)
@@ -941,18 +929,20 @@ var capturedOutputMu sync.Mutex
 // The print/println built-ins and the write() system call funnel
 // through here so they can be captured by the test driver.
 func write(fd int, b []byte) (int, error) {
+	// TODO(adonovan): fix: on Windows, std{out,err} are not 1, 2.
 	if CapturedOutput != nil && (fd == 1 || fd == 2) {
 		capturedOutputMu.Lock()
 		CapturedOutput.Write(b) // ignore errors
 		capturedOutputMu.Unlock()
 	}
-	return syscall.Write(fd, b)
+	return syswrite(fd, b)
 }
 
 // callBuiltin interprets a call to builtin fn with arguments args,
 // returning its result.
 func callBuiltin(caller *Frame, fn *ssa2.Builtin, args []Value) Value {
 	switch fn.Name() {
+
 	case "append":
 		if len(args) == 1 {
 			return args[0]
@@ -968,11 +958,13 @@ func callBuiltin(caller *Frame, fn *ssa2.Builtin, args []Value) Value {
 		// append([]T, ...[]T) []T
 		return append(args[0].([]Value), args[1].([]Value)...)
 
-	case "copy": // copy([]T, []T) int
-		if _, ok := args[1].(string); ok {
-			panic("copy([]byte, string) not yet implemented")
+	case "copy": // copy([]T, []T) int or copy([]byte, string) int
+		src := args[1]
+		if _, ok := src.(string); ok {
+			params := fn.Type().(*types.Signature).Params()
+			src = conv(params.At(0).Type(), params.At(1).Type(), src)
 		}
-		return copy(args[0].([]Value), args[1].([]Value))
+		return copy(args[0].([]Value), src.([]Value))
 
 	case "close": // close(chan T)
 		close(args[0].(chan Value))
@@ -1076,10 +1068,19 @@ func callBuiltin(caller *Frame, fn *ssa2.Builtin, args []Value) Value {
 	case "recover":
 		return doRecover(caller)
 
+	case "ssa:wrapnilchk":
+		recv := args[0]
+		if recv.(*Value) == nil {
+			recvType := args[1]
+			methodName := args[2]
+			panic(fmt.Sprintf("Value method (%s).%s called using nil *%s pointer",
+				recvType, methodName, recvType))
+		}
+		return recv
+
 	case "trace":
 		TraceHook(caller, &caller.block.Instrs[0], ssa2.TRACE_CALL)
 		return nil
-
 	}
 
 	panic("unknown built-in: " + fn.Name())
@@ -1109,7 +1110,7 @@ func rangeIter(x Value, t types.Type) iter {
 		go func() {
 			for _, e := range x.table {
 				for e != nil {
-					it <- [2]Value{e.key, e.Value}
+					it <- [2]Value{e.key, (*e).Value}
 					e = e.next
 				}
 			}
@@ -1265,7 +1266,7 @@ func conv(t_dst, t_src types.Type, x Value) Value {
 			// TODO(adonovan): this is wrong and cannot
 			// really be fixed with the current design.
 			//
-			// return (*value)(x.(unsafe.Pointer))
+			// return (*Value)(x.(unsafe.Pointer))
 			// creates a new pointer of a different
 			// type but the underlying interface value
 			// knows its "true" type and so cannot be

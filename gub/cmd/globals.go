@@ -6,10 +6,8 @@ import (
 	"fmt"
 
 	"go/token"
-	"code.google.com/p/go.tools/go/exact"
-	//"code.google.com/p/go.tools/go/types"
-	"github.com/rocky/go-types"
-
+	"golang.org/x/tools/go/exact"
+	"golang.org/x/tools/go/types"
 
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/gub"

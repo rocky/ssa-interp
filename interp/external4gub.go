@@ -146,7 +146,6 @@ func ext۰trepan۰Debug(fr *Frame, args []Value) Value {
 	return nil
 }
 
-
 // Not sure how to replace value *runtime.Func with our
 // own opaque type.
 func ext۰runtime۰FuncForPC(fr *Frame, args []Value) Value {

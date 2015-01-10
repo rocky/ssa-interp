@@ -17,9 +17,11 @@ var tests = []string{
 	// unary operations
 	`+ 0 = 0`,
 	`- 1 = -1`,
+	`^ 0 = -1`,
 
 	`! true = false`,
 	`! false = true`,
+
 	// etc.
 
 	// binary operations
@@ -33,28 +35,64 @@ var tests = []string{
 	`0 + 0.1i = 0.1i`,
 	`0.1 + 0.9 = 1`,
 	`1e100 + 1e100 = 2e100`,
+	`? + 0 = ?`,
+	`0 + ? = ?`,
 
 	`0 - 0 = 0`,
 	`0 - 0.1 = -0.1`,
 	`0 - 0.1i = -0.1i`,
 	`1e100 - 1e100 = 0`,
+	`? - 0 = ?`,
+	`0 - ? = ?`,
 
 	`0 * 0 = 0`,
 	`1 * 0.1 = 0.1`,
 	`1 * 0.1i = 0.1i`,
 	`1i * 1i = -1`,
+	`? * 0 = ?`,
+	`0 * ? = ?`,
 
 	`0 / 0 = "division_by_zero"`,
 	`10 / 2 = 5`,
 	`5 / 3 = 5/3`,
+	`5i / 3i = 5/3`,
+	`? / 0 = ?`,
+	`0 / ? = ?`,
 
 	`0 % 0 = "runtime_error:_integer_divide_by_zero"`, // TODO(gri) should be the same as for /
 	`10 % 3 = 1`,
+	`? % 0 = ?`,
+	`0 % ? = ?`,
+
+	`0 & 0 = 0`,
+	`12345 & 0 = 0`,
+	`0xff & 0xf = 0xf`,
+	`? & 0 = ?`,
+	`0 & ? = ?`,
+
+	`0 | 0 = 0`,
+	`12345 | 0 = 12345`,
+	`0xb | 0xa0 = 0xab`,
+	`? | 0 = ?`,
+	`0 | ? = ?`,
+
+	`0 ^ 0 = 0`,
+	`1 ^ -1 = -2`,
+	`? ^ 0 = ?`,
+	`0 ^ ? = ?`,
+
+	`0 &^ 0 = 0`,
+	`0xf &^ 1 = 0xe`,
+	`1 &^ 0xf = 0`,
 	// etc.
 
 	// shifts
 	`0 << 0 = 0`,
 	`1 << 10 = 1024`,
+	`0 >> 0 = 0`,
+	`1024 >> 10 == 1`,
+	`? << 0 == ?`,
+	`? >> 10 == ?`,
 	// etc.
 
 	// comparisons
@@ -75,7 +113,33 @@ var tests = []string{
 	`"foo" > "bar" = true`,
 	`"foo" >= "bar" = true`,
 
+	`0 == 0 = true`,
 	`0 != 0 = false`,
+	`0 < 10 = true`,
+	`10 <= 10 = true`,
+	`0 > 10 = false`,
+	`10 >= 10 = true`,
+
+	`1/123456789 == 1/123456789 == true`,
+	`1/123456789 != 1/123456789 == false`,
+	`1/123456789 < 1/123456788 == true`,
+	`1/123456788 <= 1/123456789 == false`,
+	`0.11 > 0.11 = false`,
+	`0.11 >= 0.11 = true`,
+
+	`? == 0 = false`,
+	`? != 0 = false`,
+	`? < 10 = false`,
+	`? <= 10 = false`,
+	`? > 10 = false`,
+	`? >= 10 = false`,
+
+	`0 == ? = false`,
+	`0 != ? = false`,
+	`0 < ? = false`,
+	`10 <= ? = false`,
+	`0 > ? = false`,
+	`10 >= ? = false`,
 
 	// etc.
 }
@@ -87,10 +151,10 @@ func main() {
 
 		switch a = strings.Split(test, " "); len(a) {
 		case 4:
-			got = doOp(nil, op[a[0]], val(a[1]))
+			got = doOp(nil, optab[a[0]], val(a[1]))
 			want = val(a[3])
 		case 5:
-			got = doOp(val(a[0]), op[a[1]], val(a[2]))
+			got = doOp(val(a[0]), optab[a[1]], val(a[2]))
 			want = val(a[4])
 		default:
 			fmt.Printf("invalid test case: %s\n", test)
@@ -117,15 +181,13 @@ func val(lit string) exact.Value {
 	switch lit {
 	case "?":
 		return exact.MakeUnknown()
-	case "nil":
-		return exact.MakeNil()
 	case "true":
 		return exact.MakeBool(true)
 	case "false":
 		return exact.MakeBool(false)
 	}
 
-	tok := token.FLOAT
+	tok := token.INT
 	switch first, last := lit[0], lit[len(lit)-1]; {
 	case first == '"' || first == '`':
 		tok = token.STRING
@@ -134,12 +196,16 @@ func val(lit string) exact.Value {
 		tok = token.CHAR
 	case last == 'i':
 		tok = token.IMAG
+	default:
+		if !strings.HasPrefix(lit, "0x") && strings.ContainsAny(lit, "./Ee") {
+			tok = token.FLOAT
+		}
 	}
 
 	return exact.MakeFromLiteral(lit, tok)
 }
 
-var op = map[string]token.Token{
+var optab = map[string]token.Token{
 	"!": token.NOT,
 
 	"+": token.ADD,
@@ -150,6 +216,11 @@ var op = map[string]token.Token{
 
 	"<<": token.SHL,
 	">>": token.SHR,
+
+	"&":  token.AND,
+	"|":  token.OR,
+	"^":  token.XOR,
+	"&^": token.AND_NOT,
 
 	"==": token.EQL,
 	"!=": token.NEQ,

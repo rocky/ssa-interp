@@ -13,26 +13,28 @@ import (
 	"go/token"
 	"sync"
 
-	"code.google.com/p/go.tools/go/exact"
-	"github.com/rocky/go-types"
-	"github.com/rocky/go-types/typemap"
-	"github.com/rocky/go-importer"
+	"golang.org/x/tools/go/exact"
+	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/types/typeutil"
 )
 
 // A Program is a partial or complete Go program converted to SSA form.
 //
 type Program struct {
-	Fset           *token.FileSet              // position information for the files of this Program
-	PackagesByPath map[string]*Package         // all importable Packages, keyed by import path
-	PackagesByName map[string]*Package         // all importable Packages, package name
-	packages       map[*types.Package]*Package // all loaded Packages, keyed by object
-	builtins       map[*types.Builtin]*Builtin // all built-in functions, keyed by typechecker objects.
-	mode           BuilderMode                 // set of mode bits for SSA construction
+	Fset       *token.FileSet              // position information for the files of this Program
+	PackagesByPath map[string]*Package     // all importable Packages, keyed by import path
+	PackagesByName map[string]*Package     // all importable Packages, package name
+	imported   map[string]*Package         // all importable Packages, keyed by import path
+	packages   map[*types.Package]*Package // all loaded Packages, keyed by object
+	mode       BuilderMode                 // set of mode bits for SSA construction
+	MethodSets types.MethodSetCache        // cache of type-checker's method-sets
 
-	methodsMu           sync.Mutex                // guards the following maps:
-	methodSets          typemap.M                 // maps type to its concrete MethodSet
-	boundMethodWrappers map[*types.Func]*Function // wrappers for curried x.Method closures
-	ifaceMethodWrappers map[*types.Func]*Function // wrappers for curried I.Method functions
+	methodsMu  sync.Mutex                 // guards the following maps:
+	methodSets typeutil.Map               // maps type to its concrete methodSet
+	canon      typeutil.Map               // type canonicalization map
+	bounds     map[*types.Func]*Function  // bounds for curried x.Method closures
+	thunks     map[selectionKey]*Function // thunks for T.Method expressions
 }
 
 // A Package is a single analyzed Go package containing Members for
@@ -41,21 +43,21 @@ type Program struct {
 // type-specific accessor methods Func, Type, Var and Const.
 //
 type Package struct {
-	Prog    *Program                  // the owning program
-	Object  *types.Package            // the type checker's package object for this package
-	Members map[string]Member         // all package members keyed by name
+	Prog       *Program               // the owning program
+	Object     *types.Package         // the type checker's package object for this package
+	Members    map[string]Member      // all package members keyed by name
+	methodsMu  sync.Mutex             // guards needRTTI and methodSets
 	methodSets []types.Type           // types whose method sets are included in this package
-	values  map[types.Object]Value    // package-level vars & funcs (incl. methods), keyed by object
-	Init    *Function                 // Func("init"); the package's (concatenated) init function
-	debug   bool                      // include full debug info in this package.
+	values     map[types.Object]Value // package members (incl. types and methods), keyed by object
+	init       *Function              // Func("init"); the package's init function
+	debug      bool                   // include full debug info in this package.
 
 	// The following fields are set transiently, then cleared
 	// after building.
-	started  int32                 // atomically tested and set at start of build phase
-	ninit    int32                 // number of init functions
-	info     *importer.PackageInfo // package ASTs and type information
-	needRTTI typemap.M             // types for which runtime type info is needed
-
+	started  int32               // atomically tested and set at start of build phase
+	ninit    int32               // number of init functions
+	info     *loader.PackageInfo // package ASTs and type information
+	needRTTI typeutil.Map        // types for which runtime type info is needed
 	locs   []LocInst            // slice of start source-code positions
 	TypeScope2Scope map[*types.Scope]*Scope // Maps a type.scope to our Scope
 }
@@ -87,6 +89,9 @@ type Type struct {
 // A NamedConst is a Member of Package representing a package-level
 // named constant value.
 //
+// Pos() returns the position of the declaring ast.ValueSpec.Names[*]
+// identifier.
+//
 // NB: a NamedConst is not a Value; it contains a constant Value, which
 // it augments with the name and position of its 'const' declaration.
 //
@@ -98,14 +103,14 @@ type NamedConst struct {
 	pkg    *Package
 }
 
-// An SSA value that can be referenced by an instruction.
+// A Value is an SSA value that can be referenced by an instruction.
 type Value interface {
 	// Name returns the name of this value, and determines how
 	// this Value appears when used as an operand of an
 	// Instruction.
 	//
 	// This is the same as the source name for Parameters,
-	// Builtins, Functions, Captures, Globals.
+	// Builtins, Functions, FreeVars, Globals.
 	// For constants, it is a representation of the constant's value
 	// and type.  For all other Values this is the name of the
 	// virtual register defined by the instruction.
@@ -125,6 +130,10 @@ type Value interface {
 	// types of their operands.
 	Type() types.Type
 
+	// Parent returns the function to which this Value belongs.
+	// It returns nil for named Functions, Builtin, Const and Global.
+	Parent() *Function
+
 	// Referrers returns the list of instructions that have this
 	// value as one of their operands; it may contain duplicates
 	// if an instruction has a repeated operand.
@@ -132,9 +141,9 @@ type Value interface {
 	// Referrers actually returns a pointer through which the
 	// caller may perform mutations to the object's state.
 	//
-	// Referrers is currently only defined for the function-local
-	// values Capture, Parameter, Functions (iff anonymous) and
-	// all value-defining instructions.
+	// Referrers is currently only defined if Parent()!=nil,
+	// i.e. for the function-local values FreeVar, Parameter,
+	// Functions (iff anonymous) and all value-defining instructions.
 	// It returns nil for named Functions, Builtin, Const and Global.
 	//
 	// Instruction.Operands contains the inverse of this relation.
@@ -156,7 +165,6 @@ type Value interface {
 	// debug information.)
 	//
 	Pos() token.Pos
-	EndP() token.Pos
 }
 
 // An Instruction is an SSA instruction that computes a new Value or
@@ -192,9 +200,8 @@ type Instruction interface {
 	// belongs.
 	Block() *BasicBlock
 
-	// SetBlock sets the basic block to which this instruction
-	// belongs.
-	SetBlock(*BasicBlock)
+	// setBlock sets the basic block to which this instruction belongs.
+	setBlock(*BasicBlock)
 
 	// Operands returns the operands of this instruction: the
 	// set of Values it references.
@@ -203,9 +210,10 @@ type Instruction interface {
 	// user-provided slice, and returns the resulting slice,
 	// permitting avoidance of memory allocation.
 	//
-	// The operands are appended in undefined order; the addresses
-	// are always non-nil but may point to a nil Value.  Clients
-	// may store through the pointers, e.g. to effect a value
+	// The operands are appended in undefined order, but the order
+	// is consistent for a given Instruction; the addresses are
+	// always non-nil but may point to a nil Value.  Clients may
+	// store through the pointers, e.g. to effect a value
 	// renaming.
 	//
 	// Value.Referrers is a subset of the inverse of this
@@ -233,56 +241,84 @@ type Instruction interface {
 	Pos() token.Pos
 }
 
+// A Node is a node in the SSA value graph.  Every concrete type that
+// implements Node is also either a Value, an Instruction, or both.
+//
+// Node contains the methods common to Value and Instruction, plus the
+// Operands and Referrers methods generalized to return nil for
+// non-Instructions and non-Values, respectively.
+//
+// Node is provided to simplify SSA graph algorithms.  Clients should
+// use the more specific and informative Value or Instruction
+// interfaces where appropriate.
+//
+type Node interface {
+	// Common methods:
+	String() string
+	Pos() token.Pos
+	Parent() *Function
+
+	// Partial methods:
+	Operands(rands []*Value) []*Value // nil for non-Instructions
+	Referrers() *[]Instruction        // nil for non-Values
+}
+
 // Function represents the parameters, results and code of a function
 // or method.
 //
 // If Blocks is nil, this indicates an external function for which no
-// Go source code is available.  In this case, Captures and Locals
+// Go source code is available.  In this case, FreeVars and Locals
 // will be nil too.  Clients performing whole-program analysis must
 // handle external functions specially.
 //
-// Functions are immutable values; they do not have addresses.
-//
+// Blocks contains the function's control-flow graph (CFG).
 // Blocks[0] is the function entry point; block order is not otherwise
 // semantically significant, though it may affect the readability of
 // the disassembly.
+// To iterate over the blocks in dominance order, use DomPreorder().
 //
 // Recover is an optional second entry point to which control resumes
-// after a recovered panic.  The Recover block may contain only a load
-// of the function's named return parameters followed by a return of
-// the loaded values.
+// after a recovered panic.  The Recover block may contain only a return
+// statement, preceded by a load of the function's named return
+// parameters, if any.
 //
-// A nested function that refers to one or more lexically enclosing
-// local variables ("free variables") has Capture parameters.  Such
-// functions cannot be called directly but require a value created by
-// MakeClosure which, via its Bindings, supplies values for these
-// parameters.
+// A nested function (Parent()!=nil) that refers to one or more
+// lexically enclosing local variables ("free variables") has FreeVar
+// parameters.  Such functions cannot be called directly but require a
+// value created by MakeClosure which, via its Bindings, supplies
+// values for these parameters.
 //
 // If the function is a method (Signature.Recv() != nil) then the first
 // element of Params is the receiver parameter.
+//
+// Pos() returns the declaring ast.FuncLit.Type.Func or the position
+// of the ast.FuncDecl.Name, if the function was explicit in the
+// source.  Synthetic wrappers, for which Synthetic != "", may share
+// the same position as the function they wrap.
+// Ast.Pos() always returns the position of the declaring "func" token.
 //
 // Type() returns the function's Signature.
 //
 type Function struct {
 	name      string
-	object    types.Object     // a declared *types.Func; nil for init, wrappers, etc.
-	method    *types.Selection // info about provenance of synthetic methods [currently unused]
+	object    types.Object     // a declared *types.Func or one of its wrappers
+	method    *types.Selection // info about provenance of synthetic methods
 	Signature *types.Signature
 	pos       token.Pos
 	endP      token.Pos
 
-	Synthetic string       // provenance of synthetic function; "" for true source functions
-	syntax    ast.Node     // *ast.Func{Decl,Lit}; replaced with simple ast.Node after build, unless debug mode
-	Enclosing *Function    // enclosing function if anon; nil if global
-	Pkg       *Package     // enclosing package; nil for shared funcs (wrappers and error.Error)
-	Prog      *Program     // enclosing program
-	Params    []*Parameter // function parameters; for methods, includes receiver
-	FreeVars  []*Capture   // free variables whose values must be supplied by closure
-	Locals    []*Alloc
+	Synthetic string        // provenance of synthetic function; "" for true source functions
+	syntax    ast.Node      // *ast.Func{Decl,Lit}; replaced with simple ast.Node after build, unless debug mode
+	parent    *Function     // enclosing function if anon; nil if global
+	Pkg       *Package      // enclosing package; nil for shared funcs (wrappers and error.Error)
+	Prog      *Program      // enclosing program
+	Params    []*Parameter  // function parameters; for methods, includes receiver
+	FreeVars  []*FreeVar    // free variables whose values must be supplied by closure
+	Locals    []*Alloc      // local variables of this function
 	Blocks    []*BasicBlock // basic blocks of the function; nil => external
 	Recover   *BasicBlock   // optional; control transfers here after recovered panic
 	AnonFuncs []*Function   // anonymous functions directly beneath this one
-	referrers []Instruction // referring instructions (iff Enclosing != nil)
+	referrers []Instruction // referring instructions (iff Parent() != nil)
 
 	// The following fields are set transiently during building,
 	// then cleared.
@@ -300,8 +336,6 @@ type Function struct {
 
 	Breakpoint bool    // Set on runtime if we should stop here
 	Scope      *Scope  // Scope number of its first basic block.
-
-
 }
 
 // An SSA basic block.
@@ -313,20 +347,25 @@ type Function struct {
 // i.e. Preds is nil.  Empty blocks are typically pruned.
 //
 // BasicBlocks and their Preds/Succs relation form a (possibly cyclic)
-// graph independent of the SSA Value graph.  It is illegal for
-// multiple edges to exist between the same pair of blocks.
+// graph independent of the SSA Value graph: the control-flow graph or
+// CFG.  It is illegal for multiple edges to exist between the same
+// pair of blocks.
 //
-// The order of Preds and Succs are significant (to Phi and If
+// Each BasicBlock is also a node in the dominator tree of the CFG.
+// The tree may be navigated using Idom()/Dominees() and queried using
+// Dominates().
+//
+// The order of Preds and Succs is significant (to Phi and If
 // instructions, respectively).
 //
 type BasicBlock struct {
-	Index        int            // index of this block within Func.Blocks
+	Index        int            // index of this block within Parent().Blocks
 	Comment      string         // optional label; no semantic significance
 	parent       *Function      // parent function
 	Instrs       []Instruction  // instructions in order
 	Preds, Succs []*BasicBlock  // predecessors and successors
 	succs2       [2]*BasicBlock // initial space for Succs.
-	dom          *domNode       // node in dominator tree; optional.
+	dom          domInfo        // dominator tree info
 	gaps         int            // number of nil Instrs (transient).
 	rundefers    int            // number of rundefers (transient)
 	Scope        *Scope         // Scope this block is in nil for no scope.
@@ -334,27 +373,26 @@ type BasicBlock struct {
 
 // Pure values ----------------------------------------
 
-// A Capture represents a free variable of the function to which it
+// A FreeVar represents a free variable of the function to which it
 // belongs.
 //
-// Captures are used to implement anonymous functions, whose free
+// FreeVars are used to implement anonymous functions, whose free
 // variables are lexically captured in a closure formed by
-// MakeClosure.  The referent of such a capture is an Alloc or another
-// Capture and is considered a potentially escaping heap address, with
+// MakeClosure.  The value of such a free var is an Alloc or another
+// FreeVar and is considered a potentially escaping heap address, with
 // pointer type.
 //
-// Captures are also used to implement bound method closures.  Such a
-// capture represents the receiver value and may be of any type that
+// FreeVars are also used to implement bound method closures.  Such a
+// free var represents the receiver value and may be of any type that
 // has concrete methods.
 //
 // Pos() returns the position of the value that was captured, which
 // belongs to an enclosing function.
 //
-type Capture struct {
+type FreeVar struct {
 	name      string
 	typ       types.Type
 	pos       token.Pos
-	endP      token.Pos
 	parent    *Function
 	referrers []Instruction
 
@@ -376,15 +414,10 @@ type Parameter struct {
 
 // A Const represents the value of a constant expression.
 //
-// It may have a nil, boolean, string or numeric (integer, fraction or
-// complex) value, or a []byte or []rune conversion of a string
-// constant.
-//
-// Consts may be of named types.  A constant's underlying type can be
-// a basic type, possibly one of the "untyped" types, or a slice type
-// whose elements' underlying type is byte or rune.  A nil constant can
-// have any reference type: interface, map, channel, pointer, slice,
-// or function---but not "untyped nil".
+// The underlying type of a constant may be any boolean, numeric, or
+// string type.  In addition, a Const may represent the nil value of
+// any reference type: interface, map, channel, pointer, slice, or
+// function---but not "untyped nil".
 //
 // All source-level constant expressions are represented by a Const
 // of equal type and value.
@@ -424,19 +457,28 @@ type Global struct {
 	spec *ast.ValueSpec // ast of global variable
 }
 
-// A Builtin represents a built-in function, e.g. len.
+// A Builtin represents a specific use of a built-in function, e.g. len.
 //
 // Builtins are immutable values.  Builtins do not have addresses.
 // Builtins can only appear in CallCommon.Func.
 //
-// Object() returns a *types.Builtin.
+// Name() indicates the function: one of the built-in functions from the
+// Go spec (excluding "make" and "new") or one of these ssa-defined
+// intrinsics:
 //
-// Type() returns types.Typ[types.Invalid], since built-in functions
-// may have polymorphic or variadic types that are not expressible in
-// Go's type system.
+//   // wrapnilchk returns ptr if non-nil, panics otherwise.
+//   // (For use in indirection wrappers.)
+//   func ssa:wrapnilchk(ptr *T, recvType, methodName string) *T
+//
+// Object() returns a *types.Builtin for built-ins defined by the spec,
+// nil for others.
+//
+// Type() returns a *types.Signature representing the effective
+// signature of the built-in for this call.
 //
 type Builtin struct {
-	object *types.Builtin // canonical types.Universe object for this built-in
+	name string
+	sig  *types.Signature
 	endP token.Pos
 }
 
@@ -464,7 +506,7 @@ type Builtin struct {
 // instantiate these types.
 //
 // Pos() returns the ast.CompositeLit.Lbrace for a composite literal,
-// or the ast.CallExpr.Lparen for a call to new() or for a call that
+// or the ast.CallExpr.Rparen for a call to new() or for a call that
 // allocates a varargs slice.
 //
 // Example printed form:
@@ -505,7 +547,6 @@ type Phi struct {
 // See CallCommon for generic function call documentation.
 //
 // Pos() returns the ast.CallExpr.Lparen, if explicit in the source.
-// EndP() returns the ast.CallExpr.Rparen, if explicit in the source.
 //
 // Example printed form:
 // 	t2 = println(t0, t1)
@@ -539,13 +580,18 @@ type BinOp struct {
 // MUL is pointer indirection (load).
 // XOR is bitwise complement.
 // SUB is negation.
+// NOT is logical negation.
 //
 // If CommaOk and Op=ARROW, the result is a 2-tuple of the value above
 // and a boolean indicating the success of the receive.  The
 // components of the tuple are accessed using Extract.
 //
-// Pos() returns the ast.UnaryExpr.OpPos or ast.RangeStmt.TokPos (for
-// ranging over a channel), if explicit in the source.
+// Pos() returns the ast.UnaryExpr.OpPos, if explicit in the source.
+// For receive operations (ARROW) implicit in ranging over a channel,
+// Pos() returns the ast.RangeStmt.For.
+// For implicit memory loads (STAR), Pos() returns the position of the
+// most closely associated source-level construct; the details are not
+// specified.
 //
 // Example printed form:
 // 	t0 = *x
@@ -565,14 +611,12 @@ type UnOp struct {
 //    - between a named type and its underlying type.
 //    - between two named types of the same underlying type.
 //    - between (possibly named) pointers to identical base types.
-//    - between f(T) functions and (T) func f() methods.
 //    - from a bidirectional channel to a read- or write-channel,
 //      optionally adding/removing a name.
 //
 // This operation cannot fail dynamically.
 //
 // Pos() returns the ast.CallExpr.Lparen, if the instruction arose
-// EndP() returns the ast.CallExpr.Rparen, if the instruction arose
 // from an explicit conversion in the source.
 //
 // Example printed form:
@@ -602,7 +646,6 @@ type ChangeType struct {
 // representation are eliminated during SSA construction.
 //
 // Pos() returns the ast.CallExpr.Lparen, if the instruction arose
-// EndP() returns the ast.CallExpr.Rparen, if the instruction arose
 // from an explicit conversion in the source.
 //
 // Example printed form:
@@ -633,11 +676,11 @@ type ChangeInterface struct {
 // MakeInterface constructs an instance of an interface type from a
 // value of a concrete type.
 //
-// Use X.Type().MethodSet() to find the method-set of X, and
-// Program.Method(m) to find the implementation of a method.
+// Use Program.MethodSets.MethodSet(X.Type()) to find the method-set
+// of X, and Program.Method(m) to find the implementation of a method.
 //
 // To construct the zero value of an interface type T, use:
-// 	NewConst(exact.MakeNil(), T, pos)
+// 	NewConst(exact.MakeNil(), T, pos. token.NoPos, token.NoPos)
 //
 // Pos() returns the ast.CallExpr.Lparen, if the instruction arose
 // from an explicit conversion in the source.
@@ -709,7 +752,7 @@ type MakeChan struct {
 // Both Len and Cap must be non-nil Values of integer type.
 //
 // (Alloc(types.Array) followed by Slice will not suffice because
-// Alloc can only create arrays of statically known length.)
+// Alloc can only create arrays of constant length.)
 //
 // Type() returns a (possibly named) *types.Slice.
 //
@@ -744,8 +787,8 @@ type MakeSlice struct {
 //
 type Slice struct {
 	Register
-	X         Value // slice, string, or *array
-	Low, High Value // either may be nil
+	X              Value // slice, string, or *array
+	Low, High, Max Value // each may be nil
 }
 
 // The FieldAddr instruction yields the address of Field of *struct X.
@@ -850,14 +893,14 @@ type Lookup struct {
 // It represents one goal state and its corresponding communication.
 //
 type SelectState struct {
-	Dir       ast.ChanDir // direction of case
-	Chan      Value       // channel to use (for send or receive)
-	Send      Value       // value to send (for send)
-	Pos       token.Pos   // position of token.ARROW
-	DebugNode ast.Node    // ast.SendStmt or ast.UnaryExpr(<-) [debug mode]
+	Dir       types.ChanDir // direction of case (SendOnly or RecvOnly)
+	Chan      Value         // channel to use (for send or receive)
+	Send      Value         // value to send (for send)
+	Pos       token.Pos     // position of token.ARROW
+	DebugNode ast.Node      // ast.SendStmt or ast.UnaryExpr(<-) [debug mode]
 }
 
-// The Select instruction tests whether (or blocks until) one or more
+// The Select instruction tests whether (or blocks until) one
 // of the specified sent or received states is entered.
 //
 // Let n be the number of States for which Dir==RECV and T_i (0<=i<n)
@@ -879,7 +922,7 @@ type SelectState struct {
 // If the chosen channel was used for a receive, the r_i component is
 // set to the received value, where i is the index of that state among
 // all n receive states; otherwise r_i has the zero value of type T_i.
-// Note that the the receive index i is not the same as the state
+// Note that the receive index i is not the same as the state
 // index index.
 //
 // The second component of the triple, recvOk, is a boolean whose value
@@ -889,7 +932,7 @@ type SelectState struct {
 // Pos() returns the ast.SelectStmt.Select.
 //
 // Example printed form:
-// 	t3 = select nonblocking [<-t0, t1<-t2, ...]
+// 	t3 = select nonblocking [<-t0, t1<-t2]
 // 	t4 = select blocking []
 //
 type Select struct {
@@ -1045,7 +1088,7 @@ type If struct {
 // Return must be the last instruction of its containing BasicBlock.
 // Such a block has no successors.
 //
-// Pos() and EndP() are set the corresponding ast values.
+// Pos() returns the ast.ReturnStmt.Return, if explicit in the source.
 //
 // Example printed form:
 // 	return
@@ -1082,6 +1125,9 @@ type RunDefers struct {
 // NB: 'go panic(x)' and 'defer panic(x)' do not use this instruction;
 // they are treated as calls to a built-in function.
 //
+// Pos() returns the ast.CallExpr.Lparen if this panic was explicit
+// in the source.
+//
 // Example printed form:
 // 	panic t0
 //
@@ -1096,6 +1142,8 @@ type Panic struct {
 // function within it.
 //
 // See CallCommon for generic function call documentation.
+//
+// Pos() returns the ast.GoStmt.Go.
 //
 // Example printed form:
 // 	go println(t0, t1)
@@ -1113,6 +1161,8 @@ type Go struct {
 // functions to be called by a RunDefers instruction or by a panic.
 //
 // See CallCommon for generic function call documentation.
+//
+// Pos() returns the ast.DeferStmt.Defer.
 //
 // Example printed form:
 // 	defer println(t0, t1)
@@ -1137,12 +1187,16 @@ type Send struct {
 	anInstruction
 	Chan, X Value
 	pos     token.Pos
+	endP    token.Pos
 }
 
 // The Store instruction stores Val at address Addr.
 // Stores can be of arbitrary types.
 //
-// Pos() returns the ast.StarExpr.Star, if explicit in the source.
+// Pos() returns the position of the source-level construct most closely
+// associated with the memory store operation.
+// Since implicit memory stores are numerous and varied and depend upon
+// implementation choices, the details are not specified.
 //
 // Example printed form:
 // 	*x = y
@@ -1152,6 +1206,7 @@ type Store struct {
 	Addr Value
 	Val  Value
 	pos  token.Pos
+	endP token.Pos
 	Scope *Scope      // the scope for this instruction
 }
 
@@ -1170,6 +1225,7 @@ type MapUpdate struct {
 	Key   Value
 	Value Value
 	pos   token.Pos
+	endP  token.Pos
 }
 
 // A DebugRef instruction maps a source-level expression Expr to the
@@ -1189,7 +1245,8 @@ type MapUpdate struct {
 // For non-Ident expressions, Object() returns nil.
 //
 // DebugRefs are generated only for functions built with debugging
-// enabled; see Package.SetDebugMode().
+// enabled; see Package.SetDebugMode() and the GlobalDebug builder
+// mode flag.
 //
 // DebugRefs are not emitted for ast.Idents referring to constants or
 // predeclared identifiers, since they are trivial and numerous.
@@ -1207,15 +1264,14 @@ type MapUpdate struct {
 type DebugRef struct {
 	anInstruction
 	Expr   ast.Expr     // the referring expression (never *ast.ParenExpr)
-
-	Object types.Object // the identity of the source var/const/func
+	Object types.Object // the identity of the source var/func
 	IsAddr bool         // Expr is addressable and X is the address it denotes
 	X      Value        // the value or address of Expr
 }
 
 // Embeddable mix-ins and helpers for common parts of other structs. -----------
 
-// register is a mix-in embedded by all SSA values that are also
+// Register is a mix-in embedded by all SSA values that are also
 // instructions, i.e. virtual registers, and provides a uniform
 // implementation of most of the Value interface: Value.Name() is a
 // numbered register (e.g. "t0"); the other methods are field accessors.
@@ -1239,7 +1295,7 @@ type Register struct {
 }
 
 // anInstruction is a mix-in embedded by all Instructions.
-// It provides the implementations of the Block and SetBlock methods.
+// It provides the implementations of the Block and setBlock methods.
 type anInstruction struct {
 	block *BasicBlock // the basic block of this instruction
 }
@@ -1255,13 +1311,18 @@ type anInstruction struct {
 // which may be a *Builtin, a *Function or any other value of kind
 // 'func'.
 //
-// In the common case in which Value is a *Function, this indicates a
-// statically dispatched call to a package-level function, an
-// anonymous function, or a method of a named type.  Also statically
-// dispatched, but less common, Value may be a *MakeClosure, indicating
-// an immediately applied function literal with free variables.  Any
-// other value of Value indicates a dynamically dispatched function
-// call.  The StaticCallee method returns the callee in these cases.
+// Value may be one of:
+//    (a) a *Function, indicating a statically dispatched call
+//        to a package-level function, an anonymous function, or
+//        a method of a named type.
+//    (b) a *MakeClosure, indicating an immediately applied
+//        function literal with free variables.
+//    (c) a *Builtin, indicating a statically dispatched call
+//        to a built-in function.
+//    (d) any other value, indicating a dynamically dispatched
+//        function call.
+// StaticCallee returns the identity of the callee in cases
+// (a) and (b), nil otherwise.
 //
 // Args contains the arguments to the call.  If Value is a method,
 // Args[0] contains the receiver parameter.
@@ -1287,19 +1348,15 @@ type anInstruction struct {
 // 	go invoke t3.Run(t2)
 // 	defer invoke t4.Handle(...t5)
 //
-// In both modes, HasEllipsis is true iff the last element of Args is
-// a slice value containing zero or more arguments to a variadic
-// function.  (This is not semantically significant since the type of
-// the called function is sufficient to determine this, but it aids
-// readability of the printed form.)
+// For all calls to variadic functions (Signature().Variadic()),
+// the last element of Args is a slice.
 //
 type CallCommon struct {
-	Value       Value       // receiver (invoke mode) or func value (call mode)
-	Method      *types.Func // abstract method (invoke mode)
-	Args        []Value     // actual parameters (in static method call, includes receiver)
-	HasEllipsis bool        // true iff last Args is a slice of '...' args (needed?)
-	pos         token.Pos   // position of CallExpr.Lparen, iff explicit in source
-	endP        token.Pos   // position of CallExpr.Raren,  iff explicit in source
+	Value  Value       // receiver (invoke mode) or func value (call mode)
+	Method *types.Func // abstract method (invoke mode)
+	Args   []Value     // actual parameters (in static method call, includes receiver)
+	pos    token.Pos   // position of CallExpr.Lparen, iff explicit in source
+	endP   token.Pos   // position of CallExpr.Raren,  iff explicit in source
 }
 
 // IsInvoke returns true if this call has "invoke" (not "call") mode.
@@ -1317,18 +1374,15 @@ func (c *CallCommon) Pos() token.Pos { return c.pos }
 // In either "call" or "invoke" mode, if the callee is a method, its
 // receiver is represented by sig.Recv, not sig.Params().At(0).
 //
-// Signature returns nil for a call to a built-in function.
-//
 func (c *CallCommon) Signature() *types.Signature {
 	if c.Method != nil {
 		return c.Method.Type().(*types.Signature)
 	}
-	sig, _ := c.Value.Type().Underlying().(*types.Signature) // nil for *Builtin
-	return sig
+	return c.Value.Type().Underlying().(*types.Signature)
 }
 
-// StaticCallee returns the called function if this is a trivially
-// static "call"-mode call.
+// StaticCallee returns the callee if this is a trivially static
+// "call"-mode call to a function.
 func (c *CallCommon) StaticCallee() *Function {
 	switch fn := c.Value.(type) {
 	case *Function:
@@ -1360,7 +1414,7 @@ func (c *CallCommon) Description() string {
 }
 
 // The CallInstruction interface, implemented by *Go, *Defer and *Call,
-// exposes the common parts of function calling instructions,
+// exposes the common parts of function-calling instructions,
 // yet provides a way back to the Value defined by *Call alone.
 //
 type CallInstruction interface {
@@ -1377,20 +1431,22 @@ func (s *Call) Value() *Call  { return s }
 func (s *Defer) Value() *Call { return nil }
 func (s *Go) Value() *Call    { return nil }
 
-func (v *Builtin) Type() types.Type        { return v.object.Type() }
-func (v *Builtin) Name() string            { return v.object.Name() }
+func (v *Builtin) Type() types.Type        { return v.sig }
+func (v *Builtin) Name() string            { return v.name }
 func (*Builtin) Referrers() *[]Instruction { return nil }
 func (v *Builtin) Pos() token.Pos          { return token.NoPos }
-func (v *Builtin) Object() types.Object    { return v.object }
+func (v *Builtin) Object() types.Object    { return types.Universe.Lookup(v.name) }
+func (v *Builtin) Parent() *Function       { return nil }
 
-func (v *Capture) Type() types.Type          { return v.typ }
-func (v *Capture) Name() string              { return v.name }
-func (v *Capture) Referrers() *[]Instruction { return &v.referrers }
-func (v *Capture) Pos() token.Pos            { return v.pos }
-func (v *Capture) Parent() *Function         { return v.parent }
+func (v *FreeVar) Type() types.Type          { return v.typ }
+func (v *FreeVar) Name() string              { return v.name }
+func (v *FreeVar) Referrers() *[]Instruction { return &v.referrers }
+func (v *FreeVar) Pos() token.Pos            { return v.pos }
+func (v *FreeVar) Parent() *Function         { return v.parent }
 
 func (v *Global) Type() types.Type                     { return v.typ }
 func (v *Global) Name() string                         { return v.name }
+func (v *Global) Parent() *Function                    { return nil }
 func (v *Global) Pos() token.Pos                       { return v.pos }
 func (v *Global) Referrers() *[]Instruction            { return nil }
 func (v *Global) Token() token.Token                   { return token.VAR }
@@ -1402,13 +1458,14 @@ func (v *Global) RelString(from *types.Package) string { return relString(v, fro
 func (v *Function) Name() string         { return v.name }
 func (v *Function) Type() types.Type     { return v.Signature }
 func (v *Function) Pos() token.Pos       { return v.pos }
-func (v *Function) Endp() token.Pos           { return v.endP }
+func (v *Function) Endp() token.Pos      { return v.endP }
 func (v *Function) Token() token.Token   { return token.FUNC }
 func (v *Function) Object() types.Object { return v.object }
 func (v *Function) String() string       { return v.RelString(nil) }
 func (v *Function) Package() *Package    { return v.Pkg }
+func (v *Function) Parent() *Function    { return v.parent }
 func (v *Function) Referrers() *[]Instruction {
-	if v.Enclosing != nil {
+	if v.parent != nil {
 		return &v.referrers
 	}
 	return nil
@@ -1431,13 +1488,13 @@ func (v *Register) setType(typ types.Type)    { v.typ = typ }
 func (v *Register) Name() string              { return fmt.Sprintf("t%d", v.num) }
 func (v *Register) setNum(num int)            { v.num = num }
 func (v *Register) Referrers() *[]Instruction { return &v.referrers }
-func (v *Register) asRegister() *Register     { return v }
 func (v *Register) Pos() token.Pos            { return v.pos }
 func (v *Register) setPos(pos token.Pos)      { v.pos = pos }
 
 func (v *anInstruction) Parent() *Function          { return v.block.parent }
 func (v *anInstruction) Block() *BasicBlock         { return v.block }
-func (v *anInstruction) SetBlock(block *BasicBlock) { v.block = block }
+func (v *anInstruction) setBlock(block *BasicBlock) { v.block = block }
+func (v *anInstruction) Referrers() *[]Instruction  { return nil }
 
 func (t *Type) Name() string                         { return t.object.Name() }
 func (t *Type) Pos() token.Pos                       { return t.object.Pos() }
@@ -1650,7 +1707,7 @@ func (s *Send) Operands(rands []*Value) []*Value {
 }
 
 func (v *Slice) Operands(rands []*Value) []*Value {
-	return append(rands, &v.X, &v.Low, &v.High)
+	return append(rands, &v.X, &v.Low, &v.High, &v.Max)
 }
 
 func (s *Store) Operands(rands []*Value) []*Value {
@@ -1664,3 +1721,11 @@ func (v *TypeAssert) Operands(rands []*Value) []*Value {
 func (v *UnOp) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
+
+// Non-Instruction Values:
+func (v *Builtin) Operands(rands []*Value) []*Value   { return rands }
+func (v *FreeVar) Operands(rands []*Value) []*Value   { return rands }
+func (v *Const) Operands(rands []*Value) []*Value     { return rands }
+func (v *Function) Operands(rands []*Value) []*Value  { return rands }
+func (v *Global) Operands(rands []*Value) []*Value    { return rands }
+func (v *Parameter) Operands(rands []*Value) []*Value { return rands }

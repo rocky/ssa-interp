@@ -26,7 +26,9 @@
 // are currently broken.  TODO(adonovan): provide a metacircular
 // implementation of Mutex avoiding the broken atomic primitives.
 //
-// * recover is only partially implemented.
+// * recover is only partially implemented.  Also, the interpreter
+// makes no attempt to distinguish target panics from interpreter
+// crashes.
 //
 // * map iteration is asymptotically inefficient.
 //
@@ -40,19 +42,18 @@
 //
 // * os.Exit is implemented using panic, causing deferred functions to
 // run.
-package interp
+package interp // import "github.com/rocky/ssa-interp/interp"
 
 import (
 	"fmt"
 	"go/token"
-	"go/ast"
 	"os"
 	"reflect"
 	"runtime"
 	"runtime/debug"
 
-	"github.com/rocky/go-types"
 	"github.com/rocky/ssa-interp"
+	"golang.org/x/tools/go/types"
 )
 
 type continuation int
@@ -75,18 +76,43 @@ type methodSet map[string]*ssa2.Function
 
 // State shared between all interpreted goroutines.
 type interpreter struct {
-	prog           *ssa2.Program            // the SSA program
-	globals        map[ssa2.Value]*Value    // addresses of global variables (immutable)
-	Mode           Mode                     // interpreter options
-	reflectPackage *ssa2.Package            // the fake reflect package
-	errorMethods   methodSet                // the method set of reflect.error, which implements the error interface.
-	rtypeMethods   methodSet                // the method set of rtype, which implements the reflect.Type interface.
-	runtimeErrorString types.Type           // the runtime.errorString type
+	osArgs             []Value               // the value of os.Args
+	prog               *ssa2.Program         // the SSA program
+	globals            map[ssa2.Value]*Value // addresses of global variables (immutable)
+	Mode               Mode                  // interpreter options
+	reflectPackage     *ssa2.Package         // the fake reflect package
+	errorMethods       methodSet             // the method set of reflect.error,
+                                             //  which implements the error interface.
+	rtypeMethods       methodSet             // the method set of rtype,
+                                             //  which implements the reflect.Type interface.
+	runtimeErrorString types.Type            // the runtime.errorString type
+	sizes              types.Sizes           // the effective type-sizing function
 
-	TraceMode      TraceMode                // interpreter trace options
+	TraceMode      TraceMode                 // interpreter trace options
 	TraceEventMask ssa2.TraceEventMask
-	nGoroutines    int                      // number of goroutines
+	nGoroutines    int                       // number of goroutines
 	goTops         []*GoreState
+}
+
+// runDefer runs a deferred call d.
+// It always returns normally, but may set or clear fr.panic.
+//
+func (fr *Frame) runDefer(d *deferred) {
+	if (fr.i.TraceMode & EnableTracing) != 0 {
+		fmt.Fprintf(os.Stderr, "%s: invoking deferred function call\n",
+			fr.i.prog.Fset.Position(d.instr.Pos()))
+	}
+	TraceHook(fr, nil, ssa2.DEFER_ENTER)
+	var ok bool
+	defer func() {
+		if !ok {
+			// Deferred call created a new state of panic.
+			fr.panicking = true
+			fr.panic = recover()
+		}
+	}()
+	call(fr.i, fr.goNum, fr, d.fn, d.args)
+	ok = true
 }
 
 // lookupMethod returns the method set for type typ, which may be one
@@ -98,7 +124,7 @@ func lookupMethod(i *interpreter, typ types.Type, meth *types.Func) *ssa2.Functi
 	case errorType:
 		return i.errorMethods[meth.Id()]
 	}
-	return i.prog.Method(typ.MethodSet().Lookup(meth.Pkg(), meth.Name()))
+	return i.prog.LookupMethod(typ, meth.Pkg(), meth.Name())
 }
 
 // visitInstr interprets a single ssa2.Instruction within the activation
@@ -109,7 +135,6 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 	// default:
 	// 	fmt.Printf("instruction: %T\n", instr)
 	// }
-
 	switch instr := genericInstr.(type) {
 	case *ssa2.DebugRef:
 		if instr.Object != nil {
@@ -147,7 +172,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		fr.env[instr] = fr.get(instr.Tuple).(tuple)[instr.Index]
 
 	case *ssa2.Slice:
-		fr.env[instr] = slice(fr.get(instr.X), fr.get(instr.Low), fr.get(instr.High))
+		fr.env[instr] = slice(fr.get(instr.X), fr.get(instr.Low), fr.get(instr.High), fr.get(instr.Max))
 
 	case *ssa2.Return:
 		switch len(instr.Results) {
@@ -261,7 +286,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 			if i < 0 || i > len(ary) {
 				fr.sourcePanic("index out of range")
 			}
-			fr.env[instr] = &ary[asInt(idx)]
+			fr.env[instr] = &(*x).(array)[asInt(idx)]
 		default:
 			panic(fmt.Sprintf("unexpected x type in IndexAddr: %T", x))
 		}
@@ -321,7 +346,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		}
 		for _, state := range instr.States {
 			var dir reflect.SelectDir
-			if state.Dir == ast.RECV {
+			if state.Dir == types.RecvOnly {
 				dir = reflect.SelectRecv
 			} else {
 				dir = reflect.SelectSend
@@ -342,7 +367,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		}
 		r := tuple{chosen, recvOk}
 		for i, st := range instr.States {
-			if st.Dir == ast.RECV {
+			if st.Dir == types.RecvOnly {
 				var v Value
 				if i == chosen && recvOk {
 					// No need to copy since send makes an unaliased copy.
@@ -359,7 +384,7 @@ func visitInstr(fr *Frame, genericInstr ssa2.Instruction) continuation {
 		panic(fmt.Sprintf("unexpected instruction: %T", instr))
 	}
 
-	// if val, ok := instr.(ssa2.Value); ok {
+	// if val, ok := instr.(ssa.Value); ok {
 	// 	fmt.Println(toString(fr.env[val])) // debugging
 	// }
 
@@ -379,7 +404,7 @@ func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
 		// Interface method invocation.
 		recv := v.(iface)
 		if recv.t == nil {
-			fr.sourcePanic("method invoked on nil interface")
+			panic("method invoked on nil interface")
 		}
 		if f := lookupMethod(fr.i, recv.t, call.Method); f == nil {
 			// Unreachable in well-typed programs.
@@ -397,26 +422,33 @@ func prepareCall(fr *Frame, call *ssa2.CallCommon) (fn Value, args []Value) {
 
 // call interprets a call to a function (function, builtin or closure)
 // fn with arguments args, returning its result.
-// caller is the frame of the callsite.
+// callpos is the position of the callsite.
 //
-func call(i *interpreter, goNum int, caller *Frame,	fn Value, args []Value) Value {
+func call(i *interpreter, goNum int, caller *Frame, fn Value, args []Value) Value {
 	switch fn := fn.(type) {
 	case *ssa2.Function:
 		if fn == nil {
-			caller.sourcePanic("call of nil function")
+			panic("call of nil function") // nil of func type
 		}
 		return callSSA(i, goNum, caller, fn, args, nil)
 	case *closure:
-		return callSSA(i, goNum, caller, fn.fn, args, fn.env)
+		return callSSA(i, goNum, caller, fn.Fn, args, fn.Env)
 	case *ssa2.Builtin:
 		return callBuiltin(caller, fn, args)
 	}
 	panic(fmt.Sprintf("cannot call %T", fn))
 }
 
+func loc(fset *token.FileSet, pos token.Pos) string {
+	if pos == token.NoPos {
+		return ""
+	}
+	return " at " + fset.Position(pos).String()
+}
+
 // callSSA interprets a call to function fn with arguments args,
 // and lexical environment env, returning its result.
-// caller is the frame of the callsite.
+// callpos is the position of the callsite.
 //
 func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args []Value, env []Value) Value {
 	if InstTracing() {
@@ -429,7 +461,11 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 			loc = ssa2.FmtRangeWithFset(fset, fn.Pos(), fn.Endp())
 		}
 		// TODO(adonovan): fix: loc() lies for external functions.
-		fmt.Fprintf(os.Stderr, "Entering %s at %s.\n", fn, loc)
+		if loc == "-" {
+			fmt.Fprintf(os.Stderr, "Entering %s...\n", fn)
+		} else {
+			fmt.Fprintf(os.Stderr, "Entering %s at %s...\n", fn, loc)
+		}
 		suffix := ""
 		if caller != nil {
 			suffix = fmt.Sprintf(", resuming %s at %s", caller.fn.String(),
@@ -437,7 +473,8 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 		}
 		defer fmt.Fprintf(os.Stderr, "Leaving %s%s.\n", fn, suffix)
 	}
-	if fn.Enclosing == nil {
+
+	if fn.Parent() == nil {
 		name := fn.String()
 		if ext := externals[name]; ext != nil {
 			if InstTracing() {
@@ -450,9 +487,9 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 		}
 	}
 	fr := &Frame{
-		i:       i,
-		caller  : caller,
-		fn      : fn,
+		i:      i,
+		caller: caller, // for panic/recover
+		fn:     fn,
 		env     : make(map[ssa2.Value]Value),
 		block   : fn.Blocks[0],
 		locals  : make([]Value, len(fn.Locals)),
@@ -463,6 +500,9 @@ func callSSA(i *interpreter, goNum int, caller *Frame, fn *ssa2.Function, args [
 	}
 	i.goTops[goNum].Fr = fr
 
+	fr.env = make(map[ssa2.Value]Value)
+	fr.block = fn.Blocks[0]
+	fr.locals = make([]Value, len(fn.Locals))
 	for i, l := range fn.Locals {
 		fr.locals[i] = zero(deref(l.Type()))
 		fr.env[l] = &fr.locals[i]
@@ -632,9 +672,29 @@ func setGlobal(i *interpreter, pkg *ssa2.Package, name string, v Value) {
 	panic("no global variable: " + pkg.Object.Path() + "." + name)
 }
 
-// _sizes is the effective type-sizing function.
-// TODO(adonovan): avoid global state.
-var _sizes types.Sizes
+var environ []Value
+
+func init() {
+	for _, s := range os.Environ() {
+		environ = append(environ, s)
+	}
+	environ = append(environ, "GOSSAINTERP=1")
+	environ = append(environ, "GOARCH="+runtime.GOARCH)
+}
+
+// deleteBodies delete the bodies of all standalone functions except the
+// specified ones.  A missing intrinsic leads to a clear runtime error.
+func deleteBodies(pkg *ssa2.Package, except ...string) {
+	keep := make(map[string]bool)
+	for _, e := range except {
+		keep[e] = true
+	}
+	for _, mem := range pkg.Members {
+		if fn, ok := mem.(*ssa2.Function); ok && !keep[fn.Name()] {
+			fn.Blocks = nil
+		}
+	}
+}
 
 // Interpret interprets the Go program whose main package is mainpkg.
 // mode specifies various interpreter options.  filename and args are
@@ -644,23 +704,23 @@ var _sizes types.Sizes
 // Interpret returns the exit code of the program: 2 for panic (like
 // gc does), or the argument to os.Exit for normal termination.
 //
-func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
-	sizes types.Sizes, filename string, args []string) (exitCode int) {
+// The SSA program must include the "runtime" package.
+//
+func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode, sizes types.Sizes, filename string, args []string) (exitCode int) {
 	i = &interpreter{
 		prog:    mainpkg.Prog,
 		globals: make(map[ssa2.Value]*Value),
 		Mode:    mode,
 		TraceMode: traceMode,
 		TraceEventMask: make(ssa2.TraceEventMask, ssa2.TRACE_EVENT_LAST),
+		sizes:   sizes,
 	}
-
 	runtimePkg := i.prog.ImportedPackage("runtime")
 	if runtimePkg == nil {
-		panic("Internal error: Interperter should have imported the runtime package")
+		panic("ssa2.Program doesn't include runtime package")
 	}
 	i.runtimeErrorString = runtimePkg.Type("errorString").Object().Type()
 
-	// Is there a way to combine the below loop into the above?
 	for event := ssa2.TRACE_EVENT_FIRST; event <= ssa2.TRACE_EVENT_LAST; event++ {
 		i.TraceEventMask[event] = true
 	}
@@ -674,6 +734,11 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	i.goTops = append(i.goTops, &GoreState{Fr: nil, state: 0})
 
 	initReflect(i)
+
+	i.osArgs = append(i.osArgs, filename)
+	for _, arg := range args {
+		i.osArgs = append(i.osArgs, arg)
+	}
 
 	for _, pkg := range i.prog.AllPackages() {
 		// Initialize global storage.
@@ -694,18 +759,15 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 			}
 			envs = append(envs, "GOSSAINTERP=1")
 			envs = append(envs, "GOARCH="+runtime.GOARCH)
-			setGlobal(i, pkg, "envs", envs)
+			setGlobal(i, pkg, "envs", environ)
+
+		case "reflect":
+			deleteBodies(pkg, "DeepEqual", "deepValueEqual")
 
 		case "runtime":
 			sz := sizes.Sizeof(pkg.Object.Scope().Lookup("MemStats").Type())
 			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(sz))
-
-		case "os":
-			Args := []Value{filename}
-			for _, s := range args {
-				Args = append(Args, s)
-			}
-			setGlobal(i, pkg, "Args", Args)
+			deleteBodies(pkg, "GOROOT", "gogetenv")
 		}
 	}
 
@@ -727,7 +789,7 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 		case string:
 			fmt.Fprintln(os.Stderr, "panic:", p)
 		default:
-			fmt.Fprintf(os.Stderr, "panic: unexpected type: %T\n", p)
+			fmt.Fprintf(os.Stderr, "panic: unexpected type: %T: %v\n", p, p)
 		}
 		TraceHook(i.goTops[0].Fr, nil, ssa2.PROGRAM_TERMINATION)
 
@@ -741,19 +803,6 @@ func Interpret(mainpkg *ssa2.Package, mode Mode, traceMode TraceMode,
 	// Run!
 	call(i, 0, nil, mainpkg.Func("init"), nil)
 	if mainFn := mainpkg.Func("main"); mainFn != nil {
-		// fr := &Frame{
-		// 	i      : i,
-		// 	caller : nil,
-		// 	env    : make(map[ssa2.Value]Value),
-		// 	block  : mainFn.Blocks[0],
-		// 	locals : make([]Value, len(mainFn.Locals)),
-		//  start  : mainFn.Pos(),
-		//  end    : mainFn.Pos(),
-		//  goNum  : 0 ,
-		//  Var2Reg: make(map[string]string),
-		// }
-		// TraceHook(fr, nil&mainFn.Blocks[0].Instrs[0], ssa2.MAIN)
-
 		// If we didn't set tracing before because EnableInitTracing
 		// was off, we'll set it now.
 		i.TraceMode = traceMode

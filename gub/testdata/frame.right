@@ -7,7 +7,7 @@ testdata/gcd.go:22:6
 # Use with gcd.go
 Setting highlight off
 # frame 0
-->  main.main()
+xxx main.main()
 testdata/gcd.go:22:6
 # frame 10
 ** Frame number 10 too large. Max is 0.
@@ -19,7 +19,7 @@ testdata/gcd.go:22:6
 # down
 ** Adjusting would put us beyond the newest frame.
 # break gcd
- Breakpoint 0 set in function gcd at testdata/gcd.go:8:6-20:2
+ Breakpoint 1 set in function gcd at testdata/gcd.go:8:6-20:2
 Continuing...
 ->  main.gcd()
 parameter a : int 5

@@ -10,7 +10,7 @@ import (
 	"sort"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/types"
 	"code.google.com/p/go-columnize"
 )
 
@@ -26,7 +26,7 @@ func deref(typ types.Type) types.Type {
 
 
 func PkgLookup(pkgName string) (*ssa2.Package) {
-	return curFrame.I().Program().PackagesByName[pkgName]
+	return program.PackagesByName[pkgName]
 }
 
 func FuncLookup(fnName string) (*ssa2.Function, error) {
@@ -36,7 +36,7 @@ func FuncLookup(fnName string) (*ssa2.Function, error) {
 	switch len(ids) {
 	case 2:
 		pkgName := ids[0]
-		try_pkg := curFrame.I().Program().PackagesByName[pkgName]
+		try_pkg := program.PackagesByName[pkgName]
 		if try_pkg != nil {
 			pkg = try_pkg
 		}
@@ -97,7 +97,7 @@ func PrintIfLocal(fr *interp.Frame, varname string) bool {
 
 func printConstantInfo(c *ssa2.NamedConst, name string, pkg *ssa2.Package) {
 	mem := pkg.Members[name]
-	position := pkg.Prog.Fset.Position(mem.Pos())
+	position := program.Fset.Position(mem.Pos())
 	Msg("Constant %s is a constant at:", mem.Name())
 	Msg("\t" + ssa2.PositionRange(position, position))
 	Msg("\t%s", DerefValue(c.Value))
@@ -119,8 +119,8 @@ func printFuncInfo(fn *ssa2.Function) {
 		Msg("\t%s", r)
 	}
 
-	if fn.Enclosing != nil {
-		Section("Parent: %s\n", fn.Enclosing.Name())
+	if fn.Parent() != nil {
+		Section("Parent: %s\n", fn.Parent().Name())
 	}
 
 	if fn.FreeVars != nil {
@@ -221,7 +221,7 @@ func WhatisName(name string) bool {
 			Errmsg("Sorry, dotted variable lookup for local %s not supported yet", varname)
 			return false
 		} else {
-			try_pkg := curFrame.I().Program().PackagesByName[varname]
+			try_pkg := PkgLookup(varname)
 			if try_pkg != nil {
 				pkg = try_pkg
 			}
@@ -256,7 +256,7 @@ func WhatisName(name string) bool {
 		printConstantInfo(c, name, pkg)
 	// } else if t := pkg.Type(name); t != nil {
 	// 	printTypeInfo(name, pkg)
-	} else if pkg := curFrame.I().Program().PackagesByName[name]; pkg != nil {
+	} else if pkg := program.PackagesByName[name]; pkg != nil {
 		printPackageInfo(name, pkg)
 	} else {
 		Errmsg("Can't find name: %s", name)

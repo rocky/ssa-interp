@@ -6,18 +6,7 @@
 
 package interp
 
-import (
-	"syscall"
-)
-
-func ValueToBytes(v Value) []byte {
-	in := v.([]Value)
-	b := make([]byte, len(in))
-	for i := range in {
-		b[i] = in[i].(byte)
-	}
-	return b
-}
+import "syscall"
 
 func fillStat(st *syscall.Stat_t, stat Structure) {
 	stat.fields[0] = st.Dev
@@ -130,10 +119,14 @@ func ext۰syscall۰Stat(fr *Frame, args []Value) Value {
 
 func ext۰syscall۰Write(fr *Frame, args []Value) Value {
 	// func Write(fd int, p []byte) (n int, err error)
-	n, err := syscall.Write(args[0].(int), ValueToBytes(args[1]))
+	n, err := write(args[0].(int), ValueToBytes(args[1]))
 	return tuple{n, wrapError(err)}
 }
 
-func ext۰syscall۰RawSyscall(fn *Frame, args []Value) Value {
+func ext۰syscall۰RawSyscall(fr *Frame, args []Value) Value {
 	return tuple{uintptr(0), uintptr(0), uintptr(syscall.ENOSYS)}
+}
+
+func syswrite(fd int, b []byte) (int, error) {
+	return syscall.Write(fd, b)
 }

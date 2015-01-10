@@ -11,8 +11,8 @@ import (
 	"go/token"
 	"strconv"
 
-	"code.google.com/p/go.tools/go/exact"
-	"github.com/rocky/go-types"
+	"golang.org/x/tools/go/exact"
+	"golang.org/x/tools/go/types"
 )
 
 // NewConst returns a new constant of the specified value and type.
@@ -33,6 +33,11 @@ func intConst(i int64) *Const {
 //
 func nilConst(typ types.Type) *Const {
 	return NewConst(nil, typ, token.NoPos, token.NoPos)
+}
+
+// stringConst returns a 'string' constant that evaluates to s.
+func stringConst(s string) *Const {
+	return NewConst(exact.MakeString(s), tString, token.NoPos, token.NoPos)
 }
 
 // zeroConst returns a new "zero" constant of the specified type,
@@ -82,21 +87,6 @@ func (c *Const) RelString(from *types.Package) string {
 		s = c.Value.String()
 	}
 	return s + ":" + relType(c.Type(), from)
-}
-
-func (c *Const) valstring() string {
-	if c.Value == nil {
-		return "nil"
-	} else if c.Value.Kind() == exact.String {
-		s := exact.StringVal(c.Value)
-		const max = 20
-		if len(s) > max {
-			s = s[:max-3] + "..." // abbreviate
-		}
-		return strconv.Quote(s)
-	} else {
-		return c.Value.String()
-	}
 }
 
 func (c *Const) Name() string {
