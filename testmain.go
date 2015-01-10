@@ -104,6 +104,11 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 	}
 
 	// Build package's init function.
+	scope := &Scope {
+		Scope: nil,
+		scopeId: 0,
+	}
+
 	init := &Function{
 		name:      "init",
 		Signature: new(types.Signature),
@@ -111,7 +116,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Pkg:       testmain,
 		Prog:      prog,
 		Breakpoint: true,
-		Scope     : nil,
+		Scope     : scope,
 		LocalsByName: make(map[NameScope]uint),
 	}
 	init.startBody(nil)
