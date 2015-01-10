@@ -10,6 +10,7 @@ package ssa2
 
 import (
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"os"
 	"strings"
@@ -103,7 +104,32 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Object:  types.NewPackage("testmain", "testmain"),
 	}
 
-	// Build package's init function.
+	var syntax *ast.FuncDecl = nil
+    src := `
+package testmain
+// Run test initialization
+var init_guard bool = false
+func init() {
+	if !init_guard {
+		init_guard = true
+		// Call init fns
+	}
+}
+`
+    // Create the AST by parsing src.
+    f, err := parser.ParseFile(prog.Fset, "fake-testmain.go", src, parser.ParseComments)
+    if err == nil {
+		if decl, ok := f.Decls[1].(*ast.FuncDecl); ok {
+			syntax = decl
+		}
+		// ast.Print(prog.Fset, f)
+		// ast.Print(prog.Fset, syntax)
+	}
+	scope := &Scope {
+		Scope: nil,
+		scopeId: 0,
+	}
+
 	init := &Function{
 		name:      "init",
 		Signature: new(types.Signature),
@@ -111,7 +137,8 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Pkg:       testmain,
 		Prog:      prog,
 		Breakpoint: true,
-		Scope     : nil,
+		Scope     : scope,
+		syntax    : syntax,
 		LocalsByName: make(map[NameScope]uint),
 	}
 	init.startBody(nil)
