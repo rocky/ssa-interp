@@ -29,7 +29,7 @@ var CmdArgstr string
 
 // NoBp contains the breakpoint number if we are stopped at and by a breakpoint.
 const NoBp = 0xfffff
-var curBpnum BpId
+var curBpnum int
 
 func skipEvent(fr *interp.Frame, event ssa2.TraceEvent) bool {
 	curBpnum = NoBp

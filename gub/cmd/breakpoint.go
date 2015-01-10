@@ -44,7 +44,7 @@ See also "info break", "enable", and "disable".
 // See also "info break", "enable", and "disable" and "delete".
 func BreakpointCommand(args []string) {
 	if len(args) == 1 {
-		InfoBreakpointSubcmd()
+		InfoBreakpointSubcmd(args)
 		return
 	}
 	name := args[1]

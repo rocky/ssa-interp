@@ -30,9 +30,8 @@ Enable a breakpoint by the number assigned to it.`,
 func EnableCommand(args []string) {
 	for i:=1; i<len(args); i++ {
 		msg := fmt.Sprintf("breakpoint number for argument %d", i)
-		val, err := gub.GetUInt(args[i], msg, 0, uint64(len(gub.Breakpoints)-1))
+		bpnum, err := gub.GetInt(args[i], msg, 0, len(gub.Breakpoints)-1)
 		if err != nil { continue }
-		bpnum := gub.BpId(val)
 		if gub.BreakpointExists(bpnum) {
 			if gub.BreakpointIsEnabled(bpnum) {
 				gub.Msg("Breakpoint %d is already enabled", bpnum)

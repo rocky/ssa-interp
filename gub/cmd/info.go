@@ -24,7 +24,7 @@ Type "info" for a list of "info" subcommands and what they do.
 Type "help info *" for just a list of "info" subcommands.
 `,
 		Min_args: 0,
-		Max_args: 2,
+		Max_args: -1,
 	}
 	gub.AddToCategory("status", name)
 }
