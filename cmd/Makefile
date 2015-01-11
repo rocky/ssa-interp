@@ -7,6 +7,7 @@ all:
 	$(MAKE) -C .. tortoise
 
 tortoise: tortoise.go
+	go get
 	go build tortoise.go
 
 #: install this
