@@ -13,7 +13,8 @@ Setup
 
 
 ```
-    bash < <(curl -s https://raw.github.com/rocky/ss-ainterp/master/gub-installer)
+    bash < <(curl -s https://raw.github.com/rocky/ssa-interp/master/gub-installer)
+
 ```
 
 If this doesn't work here is what the above does:
