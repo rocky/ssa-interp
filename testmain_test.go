@@ -107,7 +107,6 @@ func ExampleA() {}
 		t.Errorf("FindTests.tests = %s, want none", tests)
 	}
 	// FIXME rocky: reinstate
-	return
 	if len(benchmarks) > 0 {
 		t.Errorf("FindTests.benchmarks = %s, want none", benchmarks)
 	}

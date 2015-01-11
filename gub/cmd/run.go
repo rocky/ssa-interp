@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013, 2015 Rocky Bernstein.
 
 // Restarts program..
 
@@ -24,8 +24,8 @@ termintation code.
 		Max_args: 0,
 	}
 	gub.AddToCategory("running", name)
-	gub.Aliases["R"] = name
-	gub.Aliases["restart"] = name
+	gub.AddAlias("R", name)
+	gub.AddAlias("restart", name)
 }
 
 func RunCommand(args []string) {
