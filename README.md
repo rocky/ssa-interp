@@ -43,7 +43,7 @@ Or just the interpreter, *tortoise*:
 and now with a test suite, *columnize*:
 
 ```
-  tortoise -run -interp=S -trest columnize
+  tortoise -run -interp=S -test columnize
 ```
 
 See Also
