@@ -12,7 +12,7 @@ tortoise: tortoise.go
 
 #: install this
 install: tortoise gub.sh
-	cp tortoise gub.sh $${GOBIN}
+	[ -n "$${GOBIN}" ] && cp tortoise gub.sh $${GOBIN}
 
 %:
 	$(MAKE) -C .. $@
