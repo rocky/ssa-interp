@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013, 2015 Rocky Bernstein.
 
 package gubcmd
 
@@ -21,8 +21,8 @@ If *name* is supplied, only show that name.
 	}
 	gub.AddToCategory("inspecting", name)
 	// Down the line we'll have abbrevs
-	gub.Aliases["env"] = name
-	gub.Aliases["environ"] = name
+	gub.AddAlias("env", name)
+	gub.AddAlias("environ", name)
 }
 
 func EnvironmentCommand(args []string) {

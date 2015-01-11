@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013, 2015 Rocky Bernstein.
 // quit command
 
 package gubcmd
@@ -24,9 +24,9 @@ termintation code.
 		Max_args: 1,
 	}
 	gub.AddToCategory("support", name)
-	gub.Aliases["exit"] = name
+	gub.AddAlias("exit", name)
 	// Down the line we'll have abbrevs
-	gub.Aliases["q"] = name
+	gub.AddAlias("q", name)
 }
 
 // QuitCommand implements the debugger command: quit

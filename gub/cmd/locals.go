@@ -1,4 +1,4 @@
-// Copyright 2013-2014 Rocky Bernstein.
+// Copyright 2013-2015 Rocky Bernstein.
 
 package gubcmd
 
@@ -23,8 +23,8 @@ See also "globals", "whatis", and "eval".
 	}
 	gub.AddToCategory("inspecting", name)
 	// Down the line we'll have abbrevs
-	gub.Aliases["local"] = name
-	gub.Aliases["loc"] = name
+	gub.AddAlias("local", name)
+	gub.AddAlias("loc", name)
 }
 
 // LocalsCommand implements the debugger command:

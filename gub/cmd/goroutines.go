@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013, 2015 Rocky Bernstein.
 
 package gubcmd
 
@@ -20,10 +20,10 @@ is given only that goroutine stack trace is shown. The main (first) goroutine is
 		Max_args: 1,
 	}
 	gub.AddToCategory("stack", name)
-	gub.Aliases["gore"] = name
+	gub.AddAlias("gore", name)
 	// Down the line we'll have abbrevs
-	gub.Aliases["gor"] = name
-	gub.Aliases["goroutine"] = name
+	gub.AddAlias("gor", name)
+	gub.AddAlias("goroutine", name)
 }
 
 // shows stack of all goroutines

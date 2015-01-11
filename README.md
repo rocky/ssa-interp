@@ -11,23 +11,39 @@ Setup
 * Make sure our Go environment is setup, e.g. *$GOBIN*, *$GOPATH*, ...
 * Make sure you have a 1.4 Go version installed. For Go 1.2.2 use the go1.2.2 branch, for Go 1.1.1, use the go1.1 branch.
 
+
+```
+    bash < <(curl -s https://raw.githubusercontent.com/rocky/ssa-interp/master/gub-installer)
+```
+
+If this doesn't work here is what the above does:
+
 ```
    go get github.com/rocky/ssa-interp
    cd $GOBIN/src/github.com/rocky/ssa-interp
-   make
-   cp cmd/tortoise cmd/gub.sh  $GOBIN/
+   make install
 ```
+
+Running
+-------
 
 Running the debugger:
 
 ```
   gub.sh -- *go-program* [-- *program-opts*...]
+  tortoise -run -interp=S *go-program* [-- *program-opts*..]  # Same as above
 ```
 
-Or the interpreter, *tortoise*:
+Or just the interpreter, *tortoise*:
 
 ```
   tortoise -run *go-program* [-- *program-opts*..]
+```
+
+and now with a test suite, *columnize*:
+
+```
+  tortoise -run -interp=S -test columnize
 ```
 
 See Also

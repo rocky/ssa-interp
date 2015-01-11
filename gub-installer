@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+import_name="github.com/rocky/ssa-interp"
+go get $import_name
+(cd  ${GOPATH}/src/$import_name && make install)
+exit $?
