@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013, 2015 Rocky Bernstein.
 
 package gubcmd
 
@@ -18,10 +18,10 @@ With a positive number, print at most many entries.`,
 		Max_args: 1,
 	}
 	gub.AddToCategory("stack", name)
-	gub.Aliases["where"] = name
-	gub.Aliases["T"] = name  // for perl5db hackers
+	gub.AddAlias("where", name)
+	gub.AddAlias("T", name)  // for perl5db hackers
 	// Down the line we'll have abbrevs
-	gub.Aliases["bt"] = name
+	gub.AddAlias("bt", name)
 }
 
 func BacktraceCommand(args []string) {

@@ -31,6 +31,8 @@ See also the "ast" command.
 		Max_args: 1,
 	}
 	gub.AddToCategory("files", name)
+	gub.AddAlias("list", name)
+	gub.AddAlias("l", name)
 }
 
 // FormatCommand implements the debugger command: format

@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013, 2015 Rocky Bernstein.
 
 package gubcmd
 
@@ -20,9 +20,9 @@ Print information about instruction
 	}
 	gub.AddToCategory("inspecting", name)
 	// Down the line we'll have abbrevs
-	gub.Aliases["inst"] = name
-	gub.Aliases["instr"] = name
-	gub.Aliases["instruct"] = name
+	gub.AddAlias("inst", name)
+	gub.AddAlias("instr", name)
+	gub.AddAlias("instruct", name)
 }
 
 func InstructionCommand(args []string) {

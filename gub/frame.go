@@ -39,7 +39,7 @@ func frameInit(fr *interp.Frame) {
 	curFrame = fr
 	frameIndex = 0
 	curBlock = fr.Block()
-	EvalEnv = interp.MakeEnv(EvalEnvironment(), program, fr)
+	// EvalEnv = interp.MakeEnv(EvalEnvironment(), program, fr)
 	for stackSize=0; fr !=nil; fr = fr.Caller(0) {
 		stackSize++
 	}
