@@ -1,7 +1,7 @@
 # Comments starting with #: below are remake GNU Makefile comments. See
 # https://github.com/rocky/remake/wiki/Rake-tasks-for-gnu-make
 
-.PHONY: all builder interp check test check-quick check-interp check-interp-quick test-quick clean
+.PHONY: all builder interp check test check-quick check-interp check-interp-quick test-quick clean install
 
 #: Same as tortoise
 all: tortoise
@@ -13,6 +13,10 @@ tortoise: interp builder gub trepan
 #: Build the SSA Builder
 builder:
 	go install
+
+#: Install this!
+install:
+	$(MAKE) -C cmd install
 
 #: Build the runtime
 trepan:
