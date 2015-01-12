@@ -37,14 +37,14 @@ func LocalsCommand(args []string) {
 	fr := gub.CurFrame()
 	if argc == 0 {
 		for i, _ := range fr.Locals() {
-			gub.PrintLocal(fr, uint(i))
+			gub.PrintLocal(fr, uint(i), false)
 		}
 		for reg, v := range fr.Reg2Var {
 			gub.Msg("reg %s, var %s", reg, v)
 		}
 	} else {
 		varname := args[1]
-		if gub.PrintIfLocal(fr, varname) {
+		if gub.PrintIfLocal(fr, varname, false) {
 			return
 		}
 		// FIXME: This really shouldn't be needed.

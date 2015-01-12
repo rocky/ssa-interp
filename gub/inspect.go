@@ -1,4 +1,4 @@
-// Copyright 2013 Rocky Bernstein.
+// Copyright 2013, 2015 Rocky Bernstein.
 // Inspection routines
 
 package gub
@@ -64,7 +64,7 @@ func LocalsLookup(fr *interp.Frame, name string, scope *ssa2.Scope) uint {
 }
 
 
-func PrintLocal(fr *interp.Frame, i uint) {
+func PrintLocal(fr *interp.Frame, i uint, isPtr bool) {
 	fn   := fr.Fn()
 	v    := fr.Local(i)
 	l    := fn.Locals[i]
@@ -87,9 +87,9 @@ func PrintLocal(fr *interp.Frame, i uint) {
 	}
 }
 
-func PrintIfLocal(fr *interp.Frame, varname string) bool {
+func PrintIfLocal(fr *interp.Frame, varname string, isPtr bool) bool {
 	if i := LocalsLookup(curFrame, varname, curScope); i != 0 {
-		PrintLocal(curFrame, i-1)
+		PrintLocal(curFrame, i-1, isPtr)
 		return true
 	}
 	return false
@@ -211,6 +211,12 @@ func printPackageInfo(name string, pkg *ssa2.Package) {
 // }
 
 func WhatisName(name string) bool {
+	if len(name) == 0 { return false }
+	isPtr := false
+	if name[0] == '*' {
+		isPtr = true
+		name = name[1:]
+	}
 	ids := strings.Split(name, ".")
 	myfn  := curFrame.Fn()
 	pkg := myfn.Pkg
@@ -235,10 +241,23 @@ func WhatisName(name string) bool {
 	} else {
 		nameVal, interpVal, scopeVal := EnvLookup(curFrame, name, curScope)
 		if nameVal != nil {
+			if isPtr {
+				switch v := interpVal.(type) {
+				case *interp.Value:
+					if v == nil {
+						interpVal = nil
+					} else {
+						interpVal = *v
+					}
+				default:
+					Errmsg("%s doesn't seem to be a pointer", name)
+					return false
+				}
+			}
 			PrintInEnvironment(curFrame, name, nameVal, interpVal, scopeVal)
 			return true
 		}
-		if PrintIfLocal(curFrame, name) {
+		if PrintIfLocal(curFrame, name, isPtr) {
 			return true
 		}
 	}
