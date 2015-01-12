@@ -10,9 +10,9 @@ func DisasmPrefix(block *ssa2.BasicBlock) bool {
 		Msg(":.nil:")
 		return false
 	} else if block.Scope != nil {
-		Msg("# scope %d", block.Scope.ScopeId())
+		Section("# scope %d", block.Scope.ScopeId())
 	}
-	Msg(".%s:", block)
+	Section("Block .%s:", block)
 	return true
 }
 
@@ -32,7 +32,7 @@ func DisasmInst(f *ssa2.Function, bnum int, inst uint64) {
 	}
 }
 
-func DisasmBlock(f *ssa2.Function, i int) {
+func DisasmBlock(f *ssa2.Function, i int, pc int) {
 	if i < 0 || i >= len(f.Blocks) {
 		Errmsg("Block number %d is out of range. Should be between 0..%d",
 			i, len(f.Blocks)-1)
@@ -40,7 +40,9 @@ func DisasmBlock(f *ssa2.Function, i int) {
 	}
 	if b := f.Blocks[i]; DisasmPrefix(b) {
 		for i, instr := range b.Instrs {
-			Msg("%3d: %s",  i, ssa2.DisasmInst(instr, Maxwidth))
+			prefix := "  "
+			if i == pc { prefix = "=>" }
+			Msg("%s%3d: %s",  prefix, i, ssa2.DisasmInst(instr, Maxwidth))
 		}
 	}
 }

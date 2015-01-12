@@ -17,7 +17,8 @@ func init() {
 disassemble SSA instructions. Without any parameters we disassemble the
 current instruction. If a function name is given, that is disassembled.
 If a number is given that is the block number of the current frame.
-If "." is given we disassemble the current block only. If "+"
+If "." is given we disassemble the current block only. If "+" we disassemble
+the current function.
 `,
 		Min_args: 0,
 		Max_args: 1,
@@ -34,7 +35,7 @@ func DisassembleCommand(args []string) {
 		what := args[1]
 		if what == "." {
 			if block := gub.CurBlock(); block != nil {
-				gub.DisasmBlock(myfn, block.Index)
+				gub.DisasmBlock(myfn, block.Index, fr.PC())
 			} else {
 				gub.Errmsg("Can't get block info here")
 			}
@@ -56,7 +57,7 @@ func DisassembleCommand(args []string) {
 								gub.DisasmInst(myfn, bnum, ic)
 							}
 						} else {
-						gub.DisasmBlock(myfn, bnum)
+							gub.DisasmBlock(myfn, bnum, -1)
 						}
 					} else {
 						gub.Errmsg("Block number should be between 0 and %d; got %d",
