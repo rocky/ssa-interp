@@ -1,7 +1,7 @@
 gub and tortoise - A Go SSA Debugger and Interpreter
 ============================================================================
 
-[![Build Status](https://travis-ci.org/rocky/ssa-interp.png)](https://travis-ci.org/rocky/ssa-interp)
+[![GoDoc](https://godoc.org/github.com/rocky/ssa-interp?status.png)](https://godoc.org/github.com/rocky/ssa-interp) [![Build Status](https://travis-ci.org/rocky/ssa-interp.png)](https://travis-ci.org/rocky/ssa-interp)
 
 This project modifies the [Go SSA interpreter](https://godoc.org/golang.org/x/tools/go/ssa/interp) to support a debugger. We provide the debugger here as well.
 

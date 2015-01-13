@@ -82,14 +82,24 @@ func toInspect(w io.Writer, v Value, name *ssa2.Value) {
 			typ = deref((*name).Type()).Underlying()
 			t, ok = typ.(*types.Struct)
 		}
+		// The vNum, tNum values below are to
+		// guard and mask against what is probably a bug
+		// (or bugs) elsewhere.
+		vNum := len(v.fieldnames)
+		var tNum int = -1
+		if t != nil {
+			tNum = t.NumFields()
+		}
 		for i, e := range v.fields {
 			if i > 0 {
 				io.WriteString(w, " ")
 			}
-			if ok {
+			if ok && i < tNum {
 				fmt.Fprintf(w, "%s: ", t.Field(i).Name())
-			} else if v.fieldnames[i] != "" {
+			} else if i < vNum && v.fieldnames[i] != "" {
 				fmt.Fprintf(w, "%s: ", v.fieldnames[i])
+			} else {
+				fmt.Fprintf(w, "?? ")
 			}
 			toInspect(w, e, name)
 			io.WriteString(w, ",")
