@@ -6,6 +6,7 @@ go:
 
 before_install:
   - go get
+  - go get github.com/rocky/go-builder
   - (cd interp && go get)
   - (cd gub && go get)
   - (cd cmd && go get)
