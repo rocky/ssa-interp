@@ -138,10 +138,10 @@ func IntroText() {
 func Install(options *string, restart_args []string, prog *ssa2.Program) {
 	program = prog
 	RESTART_ARGS = restart_args
-	if (*testing) {
+	if *testing || os.Getenv("TESTING") != "" {
 		*Highlight = false
 	} else {
-		gnuReadLineSetup()
+		// gnuReadLineSetup()
 	}
 	defer gnuReadLineTermination()
 	interp.SetTraceHook(GubTraceHook)
