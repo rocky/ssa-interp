@@ -42,6 +42,7 @@ func run(t *testing.T, test testDatum) bool {
 		log.Fatal(err)
 	}
 
+	os.Setenv("TESTING", "true")
 	got, err  := exec.Command("../cmd/tortoise", "-run", "-interp=S",
 		gubOpt, goFile).Output()
 

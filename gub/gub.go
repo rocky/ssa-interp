@@ -52,9 +52,8 @@ var historyFile string
 
 // gnuReadLineSetup is boilerplate initialization for GNU Readline.
 func gnuReadLineSetup() {
-	Term = os.Getenv("TERM")
 	historyFile = HistoryFile(".gub")
-	if historyFile != "" {
+	if historyFile != "" && os.Getenv("TESTING") == "" {
 		gnureadline.ReadHistory(historyFile)
 	}
 	// Set maximum number of history entries
@@ -139,7 +138,11 @@ func IntroText() {
 func Install(options *string, restart_args []string, prog *ssa2.Program) {
 	program = prog
 	RESTART_ARGS = restart_args
-	gnuReadLineSetup()
+	if (*testing) {
+		*Highlight = false
+	} else {
+		gnuReadLineSetup()
+	}
 	defer gnuReadLineTermination()
 	interp.SetTraceHook(GubTraceHook)
 	process_options(options)
