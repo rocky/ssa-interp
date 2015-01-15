@@ -1,22 +1,22 @@
+Running....
 Gub version 0.3
 Type 'h' for help
-Running....
 ->  main.main()
 testdata/gcd.go:22:6
-fmt.[36;01mPrintf[39;49;00m([33m"The GCD of %d and %d is %d\n"[39;49;00m, [34;01m5[39;49;00m, [34;01m3[39;49;00m, gcd([34;01m5[39;49;00m, [34;01m3[39;49;00m))
+fmt.[36;01mPrintf[39;49;00m([33m"The GCD of %d and %d is %d\n"[39;49;00m, [34;01m5[39;49;00m, [34;01m3[39;49;00m, gcd([34;01m5[39;49;00m, [34;01m3[39;49;00m))[39;49;00m
 # Test of "step", "next" and "finish"
 # Use with gcd.go
 Setting highlight off
 Stepping...
 --- main.main()
 testdata/gcd.go:23:2-61
-fmt.Printf("The GCD of %d and %d is %d\n", 5, 3, gcd(5, 3))
+fmt.Printf("The GCD of %d and %d is %d\n", 5, 3, gcd(5, 3))[39;49;00m
 Stepping...
 ->  main.gcd()
 parameter a : int 5
 parameter b : int 3
 testdata/gcd.go:8:6
-func gcd(a int, b int) int {
+func gcd(a int, b int) int {[39;49;00m
 # Should now be in gcd(5,3) - the first time
 => #0 main.gcd(a, b)
 	testdata/gcd.go:8:6
@@ -25,32 +25,32 @@ func gcd(a int, b int) int {
 Step over...
 if? main.gcd()
 testdata/gcd.go:10:6-11
-a > b
+a > b[39;49;00m
 Step over...
 --- main.gcd()
 testdata/gcd.go:11:5-16
-a, b = b, a
+a, b = b, a[39;49;00m
 Step over...
 }   main.gcd()
 testdata/gcd.go:12:4
 Step over...
 if? main.gcd()
 testdata/gcd.go:14:6-12
-a <= 0
+a <= 0[39;49;00m
 Step over...
 if? main.gcd()
 testdata/gcd.go:16:6-24
-a == 1 || b-a == 0
+a == 1 || b-a == 0[39;49;00m
 Step over...
 --- main.gcd()
 testdata/gcd.go:19:3-21
-return gcd(b-a, a)
+return gcd(b-a, a)[39;49;00m
 Stepping...
 ->  main.gcd()
 parameter a : int 2
 parameter b : int 3
 testdata/gcd.go:8:6
-func gcd(a int, b int) int {
+func gcd(a int, b int) int {[39;49;00m
 # Should now be in gcd(2,3) - recursively
 => #0 main.gcd(a, b)
 	testdata/gcd.go:8:6
