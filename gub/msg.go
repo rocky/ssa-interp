@@ -86,6 +86,8 @@ func PrintSyntaxFirstLine(syntax ast.Node, fset *token.FileSet) {
 	if str, err := GetSyntax(syntax, fset); err != nil {
 		Errmsg(err.Error())
 	} else {
-		MsgRaw(strings.SplitN(str, "\n", 2)[0] + ansiterm.ResetColor())
+		msg := strings.SplitN(str, "\n", 2)[0]
+		if *Highlight { msg += ansiterm.ResetColor() }
+		MsgRaw(msg)
 	}
 }

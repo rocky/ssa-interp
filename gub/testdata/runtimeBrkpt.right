@@ -3,15 +3,15 @@ Gub version 0.3
 Type 'h' for help
 ->  main.main()
 testdata/gcdBrkpt.go:24:6
-fmt.[36;01mPrintf[39;49;00m([33m"The GCD of %d and %d is %d\n"[39;49;00m, [34;01m5[39;49;00m, [34;01m3[39;49;00m, gcd([34;01m5[39;49;00m, [34;01m3[39;49;00m))[39;49;00m
+fmt.Printf("The GCD of %d and %d is %d\n", 5, 3, gcd(5, 3))
 # Test of runtime.Breakpoint()
 # Use with gcdBrkpt.go
-Setting highlight off
+** highight is already off
 # continue
 Continuing...
 :o) main.gcd()
 testdata/gcdBrkpt.go:17:2-22
-runtime.Breakpoint()[39;49;00m
+runtime.Breakpoint()
 # info program
 instruction number: 3
 basic block: 4

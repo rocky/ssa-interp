@@ -3,14 +3,14 @@ Gub version 0.3
 Type 'h' for help
 ->  main.main()
 testdata/panic.go:3:6
-panic([33m"Game over!"[39;49;00m)[39;49;00m
+panic("Game over!")
 # Test that debugger handles an interpreter panic()
 # Use with panic.go
-Setting highlight off
+** highight is already off
 Step over...
 --- main.main()
 testdata/panic.go:4:2-21
-panic("Game over!")[39;49;00m
+panic("Game over!")
 Step over...
 main.main()
 	testdata/panic.go:3 0x1

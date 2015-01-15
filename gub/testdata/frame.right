@@ -3,20 +3,20 @@ Gub version 0.3
 Type 'h' for help
 ->  main.main()
 testdata/gcd.go:22:6
-fmt.[36;01mPrintf[39;49;00m([33m"The GCD of %d and %d is %d\n"[39;49;00m, [34;01m5[39;49;00m, [34;01m3[39;49;00m, gcd([34;01m5[39;49;00m, [34;01m3[39;49;00m))[39;49;00m
+fmt.Printf("The GCD of %d and %d is %d\n", 5, 3, gcd(5, 3))
 # Test of frame motion
 # Use with gcd.go
-Setting highlight off
+** highight is already off
 # frame 0
 xxx main.main()
 testdata/gcd.go:22:6
-fmt.Printf("The GCD of %d and %d is %d\n", 5, 3, gcd(5, 3))[39;49;00m
+fmt.Printf("The GCD of %d and %d is %d\n", 5, 3, gcd(5, 3))
 # frame 10
 ** Frame number 10 too large. Max is 0.
 # frame -1
 xxx main.main()
 testdata/gcd.go:22:6
-fmt.Printf("The GCD of %d and %d is %d\n", 5, 3, gcd(5, 3))[39;49;00m
+fmt.Printf("The GCD of %d and %d is %d\n", 5, 3, gcd(5, 3))
 # up
 ** Adjusting would put us beyond the oldest frame.
 # down
@@ -28,28 +28,28 @@ Continuing...
 parameter a : int 5
 parameter b : int 3
 testdata/gcd.go:8:6
-func gcd(a int, b int) int {[39;49;00m
+func gcd(a int, b int) int {
 Stepping...
 if? main.gcd()
 testdata/gcd.go:10:6-11
-a > b[39;49;00m
+a > b
 if? main.gcd()
 testdata/gcd.go:10:6-11
-a > b[39;49;00m
+a > b
 ->  main.main()
 testdata/gcd.go:23:2-61
-a > b[39;49;00m
+a > b
 ->  main.main()
 testdata/gcd.go:23:2-61
-a > b[39;49;00m
+a > b
 if? main.gcd()
 testdata/gcd.go:10:6-11
-a > b[39;49;00m
+a > b
 ** Adjusting would put us beyond the newest frame.
 if? main.gcd()
 testdata/gcd.go:10:6-11
-a > b[39;49;00m
+a > b
 if? main.gcd()
 testdata/gcd.go:10:6-11
-a > b[39;49;00m
+a > b
 gub: That's all folks...
