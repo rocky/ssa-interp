@@ -3,6 +3,7 @@ Type 'h' for help
 Running....
 ->  main.main()
 testdata/gcdBrkpt.go:24:6
+fmt.[36;01mPrintf[39;49;00m([33m"The GCD of %d and %d is %d\n"[39;49;00m, [34;01m5[39;49;00m, [34;01m3[39;49;00m, gcd([34;01m5[39;49;00m, [34;01m3[39;49;00m))
 # Test of runtime.Breakpoint()
 # Use with gcdBrkpt.go
 Setting highlight off
@@ -10,6 +11,7 @@ Setting highlight off
 Continuing...
 :o) main.gcd()
 testdata/gcdBrkpt.go:17:2-22
+runtime.Breakpoint()
 # info program
 instruction number: 3
 basic block: 4

@@ -19,7 +19,8 @@ import (
 )
 
 var terse     = flag.Bool("terse", true, `abbreviated output`)
-var Highlight = flag.Bool("hilight", true, `use syntax highlighting in output`)
+var testing   = flag.Bool("testing", false, `used in testing`)
+var Highlight = flag.Bool("highlight", true, `use syntax highlighting in output`)
 var inputFilename = flag.String("cmdfile", "", `cmdfile *commandfile*.`)
 var inputFile *os.File
 var inputReader *bufio.Reader
@@ -113,6 +114,7 @@ func process_options(options *string) {
 		// fmt.Println("Args are ", args)
 		os.Args = args
 		flag.Parse()
+		if *testing { *Highlight = false }
 		if inputFilename != nil && len(*inputFilename) > 0 {
 			var err error
 			if inputFile, err = os.Open(*inputFilename); err != nil {
