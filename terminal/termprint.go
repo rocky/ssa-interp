@@ -32,7 +32,7 @@ type TermConfig struct {
 	Variable      string
 	Operator      string
 	String        string
-	Number        string
+	Decimal       string
 }
 
 // DefaultTermConfig's class names match those of pygments
@@ -46,7 +46,7 @@ var LightTermConfig = TermConfig{
 	Variable:      "darkred",   // red
 	Operator:      "purple",    // fuchsia
 	String:        "brown",     // brown
-	Number:        "darkblue",  // blue
+	Decimal:       "darkblue",  // blue
 }
 var DarkTermConfig = TermConfig{
 	Comment:       "darkgray",
@@ -57,7 +57,7 @@ var DarkTermConfig = TermConfig{
 	Variable:      "red",
 	Operator:      "fuscia",
 	String:        "brown",
-	Number:        "blue",
+	Decimal:        "blue",
 }
 
 func (c TermConfig) class(kind syntaxhighlight.Kind) string {
@@ -79,8 +79,8 @@ func (c TermConfig) class(kind syntaxhighlight.Kind) string {
 	// 	return c.Operator
 	case syntaxhighlight.String:
 		return c.String
-	case syntaxhighlight.Number:
-		return c.Number
+	case syntaxhighlight.Decimal:
+		return c.Decimal
 	case syntaxhighlight.Punctuation:
 		return ""
 	case syntaxhighlight.Plaintext:
