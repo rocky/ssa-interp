@@ -17,7 +17,7 @@ function b() {
   return 7;
 }`)
 
-	highlighted, err := ansiterm.AsTerm(src)
+	highlighted, err := ansiterm.AsTerm(src, true)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

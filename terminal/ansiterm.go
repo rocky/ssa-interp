@@ -43,7 +43,7 @@ func init() {
 	codes["white"]      = codes["bold"]
 }
 
-func reset_color() string {
+func ResetColor() string {
     return codes["reset"]
 }
 
