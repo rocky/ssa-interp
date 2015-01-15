@@ -81,6 +81,8 @@ func runCommand(name string, args []string) {
 	}
 }
 
+var FirstTime bool = true
+
 // GubTraceHook is the callback hook from interpreter. It contains
 // top-level statement breakout.
 func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEvent) {
@@ -97,6 +99,11 @@ func GubTraceHook(fr *interp.Frame, instr *ssa2.Instruction, event ssa2.TraceEve
 
 	if event == ssa2.BREAKPOINT && Breakpoints[curBpnum].Kind == "Function" {
 		event = ssa2.CALL_ENTER
+	}
+
+	if FirstTime {
+		IntroText()
+		FirstTime = false
 	}
 	printLocInfo(topFrame, instr, event)
 

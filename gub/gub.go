@@ -50,8 +50,19 @@ var RESTART_ARGS []string
 // the empty string, no history is saved and no history read in initially.
 var historyFile string
 
+// gnuReadLineSetup is boilerplate initialization for GNU Readline.
+func gnuReadLineSetup() {
+	Term = os.Getenv("TERM")
+	historyFile = HistoryFile(".gub")
+	if historyFile != "" {
+		gnureadline.ReadHistory(historyFile)
+	}
+	// Set maximum number of history entries
+	gnureadline.StifleHistory(100)
+}
+
 // gnuReadLineTermination has GNU Readline Termination tasks:
-// save history file if ane, and reset the terminal.
+// save history file if there is one, and reset the terminal.
 func gnuReadLineTermination() {
 	if historyFile != "" {
 		gnureadline.WriteHistory(historyFile)
@@ -81,17 +92,6 @@ func HistoryFile(history_basename string) string {
 		}
 	}
 	return history_file
-}
-
-// gnuReadLineSetup is boilerplate initialization for GNU Readline.
-func gnuReadLineSetup() {
-	Term = os.Getenv("TERM")
-	historyFile = HistoryFile(".gub")
-	if historyFile != "" {
-		gnureadline.ReadHistory(historyFile)
-	}
-	// Set maximum number of history entries
-	gnureadline.StifleHistory(30)
 }
 
 func init() {
@@ -131,11 +131,16 @@ func process_options(options *string) {
 	}
 }
 
+func IntroText() {
+	fmt.Printf("Gub version %s\n", version)
+	fmt.Println("Type 'h' for help")
+}
+
 func Install(options *string, restart_args []string, prog *ssa2.Program) {
 	program = prog
 	RESTART_ARGS = restart_args
-	fmt.Printf("Gub version %s\n", version)
-	fmt.Println("Type 'h' for help")
+	gnuReadLineSetup()
+	defer gnuReadLineTermination()
 	interp.SetTraceHook(GubTraceHook)
 	process_options(options)
 }
