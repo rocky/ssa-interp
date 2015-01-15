@@ -4,10 +4,7 @@
 package gubcmd
 
 import (
-	"os"
-	"fmt"
 	"go/ast"
-	"go/format"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/gub"
 )
@@ -66,10 +63,10 @@ func FormatCommand(args []string) {
 			syntax = s.Syntax()
 		}
 	}
+	// FIXME: Put this as a routine in parent gub and
+	// use when showing locations
 	if syntax != nil {
-		// FIXME: use gub.Msg, not stdout
-		format.Node(os.Stdout, fn.Prog.Fset, syntax)
-		fmt.Println("");
+		gub.PrintSyntax(syntax, fn.Prog.Fset)
 	} else {
 		gub.Msg("Sorry, we don't have an AST for this")
 	}

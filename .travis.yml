@@ -7,7 +7,9 @@ go:
 before_install:
   - go get
   - go get github.com/rocky/go-buildutil
+  - go get github.com/rocky/go-astutil
   - (cd interp && go get)
+  - (cd terminal && go get)
   - (cd gub && go get)
   - (cd cmd && go get)
   - (cd gub/cmd && go get)
@@ -17,6 +19,4 @@ script:
   - (cd interp && go test -v)
   - (cd cmd && go build tortoise.go)
   - (cd trepan && go build)
-  - cd gub
-  - go build
-  - go test -v
+  - (cd gub && go test -v)

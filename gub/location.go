@@ -5,6 +5,7 @@ package gub
 
 import (
 	"fmt"
+	"go/ast"
 	"github.com/rocky/ssa-interp"
 	"github.com/rocky/ssa-interp/interp"
 	"runtime/debug"
@@ -68,6 +69,9 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	} else {
 		Msg("%s block %d insn %d", s, fr.Block().Index, fr.PC())
 	}
+
+	var syntax ast.Node = nil
+
 	switch event {
 	case ssa2.CALL_RETURN:
 		if sig.Results() == nil {
@@ -77,6 +81,7 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 			Msg("return value: %s", Deref2Str(fr.Result(), nil))
 		}
 	case ssa2.CALL_ENTER:
+		syntax = fn.Syntax()
 		for _, p := range fn.Params {
 			if val := fr.Env()[p]; val != nil {
 				ssaVal := ssa2.Value(p)
@@ -90,4 +95,11 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	}
 
 	Msg(fr.PositionRange())
+	switch s := (*Instr).(type) {
+	case *ssa2.Trace:
+		syntax = s.Syntax()
+	}
+    if syntax != nil {
+		PrintSyntaxFirstLine(syntax, fn.Prog.Fset)
+	}
 }
