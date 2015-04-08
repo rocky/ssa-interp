@@ -148,6 +148,7 @@ var testdataTests = []string{
 	"recover.go",
 	"reflect.go",
 	"static.go",
+	"syscall.go",
 	"callstack.go",
 }
 

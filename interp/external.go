@@ -124,6 +124,7 @@ func init() {
 		"syscall.Exit":                     ext۰syscall۰Exit,
 		"syscall.Fstat":                    ext۰syscall۰Fstat,
 		"syscall.Getpid":                   ext۰syscall۰Getpid,
+		"syscall.Getuid":                   ext۰syscall۰Getuid,
 		"syscall.Getwd":                    ext۰syscall۰Getwd,
 		"syscall.Kill":                     ext۰syscall۰Kill,
 		"syscall.Lstat":                    ext۰syscall۰Lstat,
@@ -385,6 +386,10 @@ func ext۰syscall۰Exit(fr *Frame, args []Value) Value {
 func ext۰syscall۰Getwd(fr *Frame, args []Value) Value {
 	s, err := syscall.Getwd()
 	return tuple{s, wrapError(err)}
+}
+
+func ext۰syscall۰Getuid(fr *Frame, args []Value) Value {
+	return syscall.Getuid()
 }
 
 func ext۰syscall۰Getpid(fr *Frame, args []Value) Value {

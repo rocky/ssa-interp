@@ -4,7 +4,6 @@ package ansiterm
 import (
 	"bytes"
 	"io"
-	// "github.com/shurcooL/go/highlight_go"
 	"github.com/sourcegraph/syntaxhighlight"
 )
 
@@ -38,26 +37,27 @@ type TermConfig struct {
 // DefaultTermConfig's class names match those of pygments
 // (https://pygments.org/).
 var LightTermConfig = TermConfig{
-	Comment:       "lightgray", //
-	Keyword:       "darkblue",  // blue
-	Type:          "teal",      // turquoise
-	Builtin:       "teal",      // turquoise
-	Function:      "darkgreen", // green
-	Variable:      "darkred",   // red
-	Operator:      "purple",    // fuchsia
-	String:        "brown",     // brown
-	Decimal:       "darkblue",  // blue
+	Comment:       "lightgray",
+	Keyword:       "darkblue",
+	Type:          "teal",
+	Builtin:       "teal",
+	Function:      "darkgreen",
+	Variable:      "darkred",
+	Operator:      "purple",
+	String:        "brown",
+	Decimal:       "darkblue",
 }
 var DarkTermConfig = TermConfig{
 	Comment:       "darkgray",
 	Keyword:       "blue",
 	Type:          "turquoise",
+
 	Builtin:       "turquoise",
 	Function:      "green",
 	Variable:      "red",
 	Operator:      "fuscia",
 	String:        "brown",
-	Decimal:        "blue",
+	Decimal:       "blue",
 }
 
 func (c TermConfig) class(kind syntaxhighlight.Kind) string {
