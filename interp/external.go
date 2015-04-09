@@ -84,6 +84,7 @@ func init() {
 		"math.Log2":                        ext۰math۰Log2,
 		"math.Min":                         ext۰math۰Min,
 		"os.runtime_args":                  ext۰os۰runtime_args,
+		"os.runtime_beforeExit":            ext۰os۰runtime_beforeExit,
 		"reflect.New":                      ext۰reflect۰New,
 		"reflect.SliceOf":                  ext۰reflect۰SliceOf,
 		"reflect.TypeOf":                   ext۰reflect۰TypeOf,
@@ -199,6 +200,10 @@ func ext۰os۰runtime_args(fr *Frame, args []Value) Value {
 	return fr.i.osArgs
 }
 
+func ext۰os۰runtime_beforeExit(fr *Frame, args []Value) Value {
+	return nil
+}
+
 func ext۰runtime۰Breakpoint(fr *Frame, args []Value) Value {
 	// If tracehook is DefaultTraceHook, should we run a PrintStack
 	// and leave?
@@ -247,7 +252,9 @@ func ext۰sync۰runtime_Semrelease(fr *Frame, args []Value) Value {
 }
 
 func ext۰runtime۰GOMAXPROCS(fr *Frame, args []Value) Value {
-	return runtime.GOMAXPROCS(args[0].(int))
+	// Ignore args[0]; don't let the interpreted program
+	// set the interpreter's GOMAXPROCS!
+	return runtime.GOMAXPROCS(0)
 }
 
 func ext۰runtime۰Goexit(fr *Frame, args []Value) Value {
