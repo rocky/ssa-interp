@@ -95,11 +95,13 @@ func printLocInfo(fr *interp.Frame, inst *ssa2.Instruction,
 	}
 
 	Msg(fr.PositionRange())
-	switch s := (*Instr).(type) {
-	case *ssa2.Trace:
-		syntax = s.Syntax()
-	}
-    if syntax != nil {
-		PrintSyntaxFirstLine(syntax, fn.Prog.Fset)
+	if Instr != nil {
+		switch s := (*Instr).(type) {
+		case *ssa2.Trace:
+			syntax = s.Syntax()
+		}
+		if syntax != nil {
+			PrintSyntaxFirstLine(syntax, fn.Prog.Fset)
+		}
 	}
 }

@@ -67,12 +67,13 @@ func makeWrapper(prog *Program, sel *types.Selection) *Function {
 	pkg := prog.packages[obj.Pkg()]
 	fn := &Function{
 		name:      name,
+		Signature: sig,
+		pos:       obj.Pos(),
+		Pkg:       pkg,
 		method:    sel,
 		object:    obj,
-		Signature: sig,
 		Synthetic: description,
 		Prog:      prog,
-		pos:       obj.Pos(),
 		Breakpoint: false,
 		LocalsByName: make(map[NameScope]uint),
 		Scope     : pkg.TypeScope2Scope[obj.Scope()],
