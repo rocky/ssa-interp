@@ -14,9 +14,7 @@ type Word uintptr
 const (
 	// Compute the size _S of a Word in bytes.
 	_m    = ^Word(0)
-
 	_logS = _m>>8&1 + _m>>16&1 + _m>>32&1
-
 	_S    = 1 << _logS
 
 	_W = _S << 3 // word size in bits
